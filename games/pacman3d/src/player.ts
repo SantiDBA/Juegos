@@ -124,29 +124,36 @@ export class Player {
 
     const speed = TUNING.baseSpeed * speedMultiplier
     const cell = TUNING.cellSize
-    const remaining = (1 - this.progress) * cell
     let step = speed * dt
 
-    if (step >= remaining) {
-      // Llega al centro de la casilla destino: consolida el tramo y decide.
+    // Al arrancar no hay tramo en curso: `moving` es false y `toCell` es la
+    // propia celda. Si se esperara a "llegar al centro" para decidir, el
+    // jugador no arrancaría nunca: el primer `step` es menor que la celda
+    // completa, así que el cruce no se dispara y se queda clavado para siempre.
+    if (!this.moving) {
+      this.beginStep()
+      if (!this.moving) {
+        this.mesh.position.copy(this.position)
+        this.animate(dt)
+        return
+      }
+    }
+
+    // Un frame puede cubrir varios tramos si el dt es grande.
+    let guard = 0
+    while (this.moving && step > 0 && guard++ < 4) {
+      const remaining = (1 - this.progress) * cell
+      if (step < remaining) break
+
+      // Llega al centro de la casilla destino.
       this.position.copy(cellToWorld(this.grid, this.toCell.x, this.toCell.y, TUNING.playerHeight))
       this.fromCell = { ...this.toCell }
       this.progress = 0
-
-      const canDesired = this.canStep(this.desired)
-
-      if (canDesired) this.direction = this.desired
-
-      if (this.canStep(this.direction)) {
-        this.toCell = this.stepFrom(this.fromCell, this.direction)
-        this.moving = true
-      } else {
-        // Callejón sin salida: se frena en el centro de la casilla.
-        this.moving = false
-        this.toCell = { ...this.fromCell }
-      }
-
       step -= remaining
+
+      // Elige dirección en el cruce: primero la deseada, si es posible.
+      if (this.canStep(this.desired)) this.direction = this.desired
+      this.beginStep()
     }
 
     if (this.moving && step > 0) {
@@ -159,6 +166,22 @@ export class Player {
 
     this.mesh.position.copy(this.position)
     this.animate(dt)
+  }
+
+  /**
+   * Decide si puede arrancar un tramo en la dirección actual.
+   *
+   * Si no puede, queda frenado en el centro de la celda esperando que el
+   * jugador pida otra dirección: es el comportamiento del original.
+   */
+  private beginStep(): void {
+    if (this.canStep(this.direction)) {
+      this.toCell = this.stepFrom(this.fromCell, this.direction)
+      this.moving = true
+    } else {
+      this.moving = false
+      this.toCell = { ...this.fromCell }
+    }
   }
 
   /** ¿Se puede seguir en esa dirección desde `cell`? */

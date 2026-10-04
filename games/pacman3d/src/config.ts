@@ -56,7 +56,13 @@ export const TUNING = {
   // --- Fantasmas
   ghostCount: 4,
   ghostRadius: 0.36,
-  ghostSpeed: 4.4,
+  /**
+   * Velocidad de los fantasmas, por debajo de la del jugador (5.6). Con la
+   * misma velocidad el contacto es inevitable en un pasillo de una celda y la
+   * partida se pierde sin poder esquivar. ir más lento deja ver al fantasma
+   * llegar y decidir si conviene o no seguir comiendo.
+   */
+  ghostSpeed: 4.2,
   /** Multiplicador de velocidad mientras están asustados (más lento). */
   frightenedSpeed: 0.62,
   /** Retardo entre la salida de cada fantasma, en segundos. */

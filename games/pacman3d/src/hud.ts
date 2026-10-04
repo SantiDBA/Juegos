@@ -1,6 +1,6 @@
 import { TUNING } from './config'
 
-export type GameState = 'menu' | 'playing' | 'paused' | 'gameover'
+export type GameState = 'menu' | 'playing' | 'paused' | 'dying' | 'gameover'
 
 export interface Hud {
   onPlay(handler: () => void): void

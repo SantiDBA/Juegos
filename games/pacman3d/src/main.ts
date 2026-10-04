@@ -167,6 +167,10 @@ function enterReady(): void {
   state = 'playing'
   readyTimer = 1.8
   deathTimer = 0
+  // Grace period de arranque: sin esto, si el spawn cae cerca de la casa de
+  // fantasmas, el primero sale y lo agarra antes de que el jugador llegue a
+  // tocar una tecla. La partida empezaría ya con una vida menos.
+  player.grantInvulnerability(TUNING.respawnInvulnerable)
   hud.showReady(true)
   hud.setHudVisible(true)
   hud.setOverlayTitle('pacman3d', 'Juntá todos los puntos. Cuidado con los fantasmas.', 'Jugar')
@@ -190,7 +194,11 @@ function die(): void {
   hud.setLives(lives)
   hud.showReady(true)
   deathTimer = 1.6
-  state = 'paused'
+  // Estado propio para la animación de muerte. Reusar `paused` deadloqueaba el
+  // juego: el loop sólo descontaba `deathTimer` con state === 'playing', así
+  // que el contador nunca llegaba a cero y la partida quedaba congelada para
+  // siempre, sin que se pueda seguir jugando.
+  state = 'dying'
   particles.burst(player.position, new THREE.Color(0xff4136), 26)
   chase.shake(1)
 
@@ -304,22 +312,28 @@ function frame(now: number): void {
   last = now
   elapsed += dt
 
-  if (state === 'playing') {
-    if (deathTimer > 0) {
-      deathTimer -= dt
-      if (deathTimer <= 0) {
-        if (lives > 0) respawn()
+  // El estado `dying` se maneja fuera del `playing`: la animación de muerte
+  // tiene que seguir corriendo aunque el estado ya no sea `playing`, y antes
+  // esto quedaba en un deadlock que congelaba la partida.
+  if (state === 'dying' || (state === 'playing' && deathTimer > 0)) {
+    deathTimer -= dt
+    if (deathTimer <= 0) {
+      deathTimer = 0
+      if (lives > 0) respawn()
+      else {
+        state = 'gameover'
+        hud.showReady(false)
       }
-    } else {
-      // El "READY!" no congela la partida: se muestra mientras los fantasmas
-      // aún están en la casa y el jugador ya puede moverse. Bloquear el input
-      // durante el arranque se siente como que el juego no responde.
-      if (readyTimer > 0) {
-        readyTimer -= dt
-        if (readyTimer <= 0) hud.showReady(false)
-      }
-      step(dt)
     }
+  } else if (state === 'playing') {
+    // El "READY!" no congela la partida: se muestra mientras los fantasmas
+    // aún están en la casa y el jugador ya puede moverse. Bloquear el input
+    // durante el arranque se siente como que el juego no responde.
+    if (readyTimer > 0) {
+      readyTimer -= dt
+      if (readyTimer <= 0) hud.showReady(false)
+    }
+    step(dt)
   }
 
   particles.update(dt)

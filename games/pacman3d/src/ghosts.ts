@@ -41,6 +41,8 @@ export class Ghost {
   private fromCell: { x: number; y: number }
   private toCell: { x: number; y: number }
   private progress = 0
+  /** true mientras se está moviendo entre dos casillas. */
+  private moving = false
   private dir: Dir = 'left'
   /** Segundos que faltan para salir de la casa. */
   private wait: number
@@ -108,6 +110,7 @@ export class Ghost {
     this.fromCell = { ...this.home }
     this.toCell = { ...this.home }
     this.progress = 0
+    this.moving = false
     this.dir = 'up'
     this.wait = releaseDelay
     this.position.copy(cellToWorld(this.grid, this.home.x, this.home.y, TUNING.playerHeight))
@@ -121,6 +124,7 @@ export class Ghost {
     this.fromCell = { ...this.home }
     this.toCell = { ...this.home }
     this.progress = 0
+    this.moving = false
     this.dir = 'up'
     this.wait = releaseDelay
     this.position.copy(cellToWorld(this.grid, this.home.x, this.home.y, TUNING.playerHeight))
@@ -153,23 +157,43 @@ export class Ghost {
 
     const speed = TUNING.ghostSpeed * (this.mode === 'frightened' ? TUNING.frightenedSpeed : 1)
     const cell = TUNING.cellSize
-    const step = speed * dt
-    // Distancia que faltaba para cerrar el tramo actual: se calcula ANTES de
-    // tocar `progress`, porque al consumirla se reinicia.
-    const remaining = (1 - this.progress) * cell
+    let step = speed * dt
 
-    if (step >= remaining) {
+    // Al salir de la casa no hay tramo en curso. Sin este arranque explícito el
+    // primer cruce nunca se dispara (el `step` es menor que una celda) y el
+    // fantasma queda pegado en la puerta para siempre.
+    if (!this.moving) {
+      this.beginStep()
+    }
+
+    let guard = 0
+    while (this.moving && step > 0 && guard++ < 4) {
+      const remaining = (1 - this.progress) * cell
+      if (step < remaining) break
+      // Consolida el tramo y elige dirección en el cruce.
       this.position.copy(cellToWorld(this.grid, this.toCell.x, this.toCell.y, TUNING.playerHeight))
       this.fromCell = { ...this.toCell }
       this.progress = 0
+      step -= remaining
       this.dir = this.chooseDir(this.fromCell, this.aimFor(playerCell, playerDir))
-      this.toCell = this.neighbor(this.fromCell, this.dir)
-      this.advance(step - remaining, cell)
-    } else {
-      this.advance(step, cell)
+      this.beginStep()
     }
 
+    if (this.moving && step > 0) this.advance(step, cell)
+
     this.mesh.position.copy(this.position)
+  }
+
+  /** Arranca un tramo hacia la celda vecina en la dirección actual. */
+  private beginStep(): void {
+    const next = this.neighbor(this.fromCell, this.dir)
+    if (isGhostWalkable(this.grid, next.x, next.y)) {
+      this.toCell = next
+      this.moving = true
+    } else {
+      this.moving = false
+      this.toCell = { ...this.fromCell }
+    }
   }
 
   private advance(step: number, cell: number): void {
