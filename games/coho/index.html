@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>coho — orbs</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="hud">
+      <div class="hud-item">
+        <span class="label">orbes</span>
+        <span class="value" id="count">0 / 0</span>
+      </div>
+      <div class="hud-item">
+        <span class="label">tiempo</span>
+        <span class="value" id="time">0.00</span>
+      </div>
+      <div class="hud-item">
+        <span class="label">récord</span>
+        <span class="value" id="best">—</span>
+      </div>
+    </div>
+
+    <div id="combo" aria-live="polite">
+      <span class="combo-mult" id="combo-mult">x2</span>
+      <div class="combo-track"><div class="combo-fill" id="combo-fill"></div></div>
+    </div>
+
+    <div id="powerups"></div>
+
+    <div id="markers"></div>
+    <div id="compass"></div>
+
+    <div id="threat" class="hidden">¡te persiguen!</div>
+
+    <div id="crosshair"></div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1 id="overlay-title">coho</h1>
+        <p class="tagline" id="overlay-tagline">Juntá todos los orbes antes de que se te acabe el tiempo.</p>
+        <ul class="keys">
+          <li><b>W A S D</b> moverse</li>
+          <li><b>Espacio</b> saltar</li>
+          <li><b>Shift</b> correr</li>
+          <li><b>Mouse</b> mirar</li>
+          <li><b>M</b> silenciar</li>
+          <li><b>Esc</b> liberar el cursor</li>
+        </ul>
+        <p class="legend">
+          <span class="chip chip-cyan">orbe · +combo</span>
+          <span class="chip chip-gold">+3 s</span>
+          <span class="chip chip-red">−3 s</span>
+          <span class="chip chip-enemy" id="legend-enemy">enemigo</span>
+        </p>
+        <label class="toggle">
+          <input type="checkbox" id="enemies" checked />
+          <span class="toggle-track"><span class="toggle-knob"></span></span>
+          <span class="toggle-label">Enemigos</span>
+          <span class="toggle-note" id="enemies-note">te persiguen si te acercás</span>
+        </label>
+        <button id="play" type="button">Jugar</button>
+        <p class="hint" id="hint">Hacé clic para capturar el mouse.</p>
+      </div>
+    </div>
+
+    <a class="back" href="/">← juegos</a>
+
+    <div id="toast"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

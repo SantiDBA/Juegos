@@ -1,0 +1,193 @@
+:root {
+  --bg: #0b0d12;
+  --fg: #e8ecf4;
+  --muted: #8b93a7;
+  --border: rgba(120, 140, 180, 0.16);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+}
+
+/* Fondo: dos focos suaves, para que la lista no quede sobre un plano muerto. */
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60vw 60vw at 18% -10%, rgba(87, 224, 200, 0.1), transparent 60%),
+    radial-gradient(50vw 50vw at 92% 8%, rgba(154, 123, 255, 0.09), transparent 60%);
+}
+
+/* ---------- Estructura ---------- */
+
+.shell {
+  width: min(1080px, 100%);
+}
+
+.masthead {
+  margin-bottom: 34px;
+}
+
+.masthead h1 {
+  font-size: clamp(38px, 7vw, 64px);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.masthead .sub {
+  margin-top: 4px;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+/* ---------- Tarjeta ---------- */
+
+.card {
+  --accent: #57e0c8;
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(160deg, var(--from), var(--to));
+  overflow: hidden;
+  transition:
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1),
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 18px 40px -20px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.card:focus-within {
+  border-color: var(--accent);
+}
+
+.card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-link[data-wip] {
+  cursor: default;
+}
+
+/* Portada: el glifo grande, con un halo del color del juego. */
+.art {
+  display: grid;
+  place-items: center;
+  height: 168px;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(90% 120% at 50% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
+}
+
+.glyph {
+  font-size: 66px;
+  line-height: 1;
+  color: var(--accent);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--accent) 65%, transparent);
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.card:hover .glyph {
+  transform: scale(1.12) rotate(-4deg);
+}
+
+.body {
+  padding: 18px 20px 20px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.body h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.tagline {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.badge {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge.best {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--accent);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+  list-style: none;
+}
+
+.tags li {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .glyph {
+    transition: none;
+  }
+  .card:hover {
+    transform: none;
+  }
+}

@@ -1,0 +1,582 @@
+:root {
+  --bg: #0b0d12;
+  --fg: #e8ecf4;
+  --muted: #8b93a7;
+  --accent: #57e0c8;
+  --accent-2: #ffb454;
+  --panel: rgba(12, 15, 22, 0.82);
+  --border: rgba(120, 140, 180, 0.18);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#scene {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ---------- HUD ---------- */
+
+#hud {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 28px;
+  padding: 10px 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+#hud.visible {
+  opacity: 1;
+}
+
+.hud-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 68px;
+}
+
+.hud-item .label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud-item .value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+#best.beat {
+  color: var(--accent-2);
+  animation: pop 0.45s ease;
+}
+
+/* Últimos segundos: el reloj late y cambia de color. */
+#time.critical {
+  color: var(--danger, #ff6b6b);
+  animation: clockPulse 1s ease-in-out infinite;
+}
+
+@keyframes clockPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(1.08); }
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+#crosshair {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#crosshair.visible {
+  opacity: 0.9;
+}
+
+/* ---------- Overlay ---------- */
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at center, rgba(11, 13, 18, 0.72), rgba(11, 13, 18, 0.95));
+  backdrop-filter: blur(3px);
+  transition: opacity 0.25s ease;
+}
+
+#overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.panel {
+  width: min(420px, calc(100vw - 40px));
+  padding: 32px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.panel h1 {
+  font-size: 44px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.panel .tagline {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.keys {
+  margin: 24px 0;
+  padding: 16px 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.keys b {
+  display: inline-block;
+  min-width: 72px;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* ---------- Toggle enemigos ---------- */
+
+.toggle {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-areas:
+    'track label label'
+    'track note note';
+  align-items: center;
+  justify-items: start;
+  column-gap: 12px;
+  row-gap: 2px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  text-align: left;
+}
+
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  grid-area: track;
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 120, 120, 0.25);
+  border: 1px solid color-mix(in srgb, var(--danger, #ff6b6b) 55%, transparent);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff8b8b;
+  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), background 0.18s ease;
+}
+
+.toggle input:checked + .toggle-track {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.toggle input:checked + .toggle-track .toggle-knob {
+  transform: translateX(18px);
+  background: var(--accent);
+}
+
+.toggle input:focus-visible + .toggle-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.toggle-label {
+  grid-area: label;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.toggle-note {
+  grid-area: note;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+button {
+  width: 100%;
+  padding: 13px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #05231e;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+.hint {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.hint.hidden {
+  display: none;
+}
+
+/* ---------- Combo ---------- */
+
+#combo {
+  position: fixed;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#combo.visible {
+  opacity: 1;
+}
+
+.combo-mult {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--accent-2);
+  text-shadow: 0 0 18px rgba(255, 180, 84, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+#combo.urgent .combo-mult {
+  animation: pulse 0.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+.combo-track {
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.combo-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-2);
+  border-radius: 2px;
+  transition: width 0.08s linear;
+}
+
+/* ---------- Power-ups ---------- */
+
+#powerups {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.power-chip {
+  --chip: #7cc4ff;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--chip) 55%, transparent);
+  background: color-mix(in srgb, var(--chip) 16%, rgba(12, 15, 22, 0.85));
+  color: var(--chip);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.power-chip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- Brújula y marcadores ---------- */
+
+/* Contenedor a pantalla completa: los hijos se posicionan en px sobre él. */
+#markers {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Flecha al orbe pendiente más cercano. Se posiciona en px desde el origen del
+   viewport, igual que los marcadores: `main` ya entrega coordenadas absolutas,
+   así que anclar en `left:50%` sumaría el centro dos veces y la sacaría de
+   pantalla.
+
+   Ojo: no compartir la regla `inset: 0` con #markers sin revisar; `inset`
+   pisa `left`/`top`. */
+#compass {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#compass.visible {
+  opacity: 1;
+}
+
+#compass::before {
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 14px rgba(87, 224, 200, 0.75);
+}
+
+#compass::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -17px;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-bottom: 6px solid var(--accent);
+}
+
+/* Punto rojo sobre cada perseguidor. */
+.marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ff5f6d;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 12px rgba(255, 60, 80, 0.9);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.marker.visible {
+  opacity: 1;
+}
+
+/* ---------- Amenaza ---------- */
+
+#threat {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -160px);
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(120, 20, 30, 0.75);
+  border: 1px solid rgba(255, 110, 110, 0.5);
+  color: #ffd7d7;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+  animation: threatPulse 0.7s ease-in-out infinite;
+}
+
+#threat.hidden {
+  display: none;
+}
+
+@keyframes threatPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* ---------- Daño ---------- */
+
+body.hit::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(255, 40, 40, 0.5) 100%);
+  animation: hitFlash 0.32s ease-out forwards;
+  z-index: 5;
+}
+
+@keyframes hitFlash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ---------- Leyenda de tipos ---------- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border: 1px solid currentColor;
+}
+
+.chip-cyan { color: #57e0c8; background: rgba(87, 224, 200, 0.1); }
+.chip-gold { color: #ffc94d; background: rgba(255, 201, 77, 0.1); }
+.chip-red { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); }
+.chip-enemy { color: #ff5f6d; background: rgba(255, 95, 109, 0.12); }
+
+.chip.hidden {
+  display: none;
+}
+
+/* ---------- Volver al menú ---------- */
+
+/* Fijo arriba a la izquierda, sobre el canvas. El overlay del menú tiene z-index
+   propio, así que el botón queda accesible desde la pausa y la derrota. */
+.back {
+  position: fixed;
+  top: 16px;
+  left: 18px;
+  z-index: 10;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+
+.back:hover {
+  color: var(--fg);
+  border-color: rgba(120, 140, 180, 0.45);
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Toast ---------- */
+
+#toast {
+  position: fixed;
+  bottom: 12%;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 12px 24px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+#toast .sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
