@@ -25,6 +25,7 @@ export default defineConfig({
         menu: `${root}index.html`,
         // Un juego por entrada. Al sumar uno nuevo, agregarlo acá.
         coho: `${root}games/coho/index.html`,
+        pacman3d: `${root}games/pacman3d/index.html`,
       },
     },
   },

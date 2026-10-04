@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pacman3d — 3d</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="hud">
+      <div class="hud-row">
+        <div class="hud-item">
+          <span class="label">puntos</span>
+          <span class="value" id="score">0</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">récord</span>
+          <span class="value" id="best">—</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">vidas</span>
+          <span class="value lives" id="lives">●●●</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">nivel</span>
+          <span class="value" id="level">1</span>
+        </div>
+      </div>
+      <div class="progress">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="fright" id="fright-bar">fantasmas asustados</div>
+    </div>
+
+    <div id="ready">READY!</div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1 id="overlay-title">pacman3d</h1>
+        <p class="tagline" id="overlay-tagline">Juntá todos los puntos. Cuidado con los fantasmas.</p>
+        <ul class="keys">
+          <li><b>W A S D</b> / <b>flechas</b> moverse</li>
+          <li><b>M</b> silenciar</li>
+          <li><b>P</b> / <b>Esc</b> pausa</li>
+        </ul>
+        <p class="legend">
+          <span class="chip chip-pellet">punto · +10</span>
+          <span class="chip chip-power">poder · +50</span>
+          <span class="chip chip-ghost">fantasma asustado · +200</span>
+        </p>
+        <button id="play" type="button">Jugar</button>
+        <p class="hint">Comé todos los puntos para pasar de nivel.</p>
+      </div>
+    </div>
+
+    <a class="back" href="/">← juegos</a>
+
+    <div id="toast"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

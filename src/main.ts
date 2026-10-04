@@ -60,7 +60,11 @@ function card(game: Game): HTMLElement {
   } else if (best !== null) {
     const badge = document.createElement('span')
     badge.className = 'badge best'
-    badge.textContent = `récord ${best.toFixed(2)}s`
+    // Cada juego formatea su récord como corresponda: un tiempo en segundos
+    // con dos decimales, un puntaje como entero.
+    badge.textContent = game.bestFormat === 'score'
+      ? `récord ${Math.round(best)}`
+      : `récord ${best.toFixed(2)}s`
     top.appendChild(badge)
   }
 

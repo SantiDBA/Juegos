@@ -20,6 +20,11 @@ export interface Game {
   status: 'ready' | 'wip'
   /** Récords que el juego publica en `localStorage` bajo esta clave. */
   bestKey?: string
+  /**
+   * Cómo se formatea el récord en la tarjeta. Por defecto es un tiempo en
+   * segundos; `score` lo muestra como puntaje entero.
+   */
+  bestFormat?: 'time' | 'score'
 }
 
 export const GAMES: Game[] = [
@@ -32,5 +37,16 @@ export const GAMES: Game[] = [
     tags: ['primera persona', 'contrarreloj', 'sigilo'],
     status: 'ready',
     bestKey: 'coho.bestTime.enemies',
+  },
+  {
+    id: 'pacman3d',
+    title: 'pacman3d',
+    tagline: 'Juntá todos los puntos del laberinto sin que te agarren.',
+    colors: { from: '#2b1a5e', to: '#05060d', accent: '#ffd400' },
+    glyph: '●',
+    tags: ['laberinto', 'arcade', 'fantasmas'],
+    status: 'ready',
+    bestKey: 'pacman3d.bestScore',
+    bestFormat: 'score',
   },
 ]

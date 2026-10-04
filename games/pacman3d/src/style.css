@@ -1,0 +1,337 @@
+:root {
+  --bg: #05060d;
+  --fg: #e8ecf4;
+  --muted: #8b93a7;
+  --accent: #ffd400;
+  --accent-2: #57e0c8;
+  --danger: #ff4136;
+  --panel: rgba(8, 10, 20, 0.88);
+  --border: rgba(120, 140, 180, 0.2);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+#scene {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ---------- HUD ---------- */
+
+#hud {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 340px;
+  padding: 10px 20px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+#hud.visible {
+  opacity: 1;
+}
+
+.hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.hud-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.hud-item .label {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud-item .value {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Las vidas son puntitos, como en el original. */
+.hud-item .lives {
+  color: var(--danger);
+  letter-spacing: 2px;
+}
+
+#best.beat {
+  color: var(--accent);
+  animation: pop 0.5s ease;
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+/* Barra de progreso del nivel: se vacía al comer. */
+.progress {
+  margin-top: 9px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.2s ease;
+}
+
+.fright {
+  margin-top: 7px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7ba7ff;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.fright.visible {
+  opacity: 1;
+  animation: frightBlink 0.7s steps(2) infinite;
+}
+
+@keyframes frightBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---------- READY ---------- */
+
+#ready {
+  position: fixed;
+  top: 44%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(28px, 6vw, 56px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-shadow: 0 0 24px rgba(255, 212, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+#ready.visible {
+  opacity: 1;
+  animation: readyPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes readyPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.06); }
+}
+
+/* ---------- Overlay ---------- */
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(3, 4, 10, 0.72);
+  backdrop-filter: blur(3px);
+  z-index: 10;
+}
+
+#overlay.hidden {
+  display: none;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 34px 44px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+  text-align: center;
+  max-width: min(92vw, 460px);
+}
+
+.panel h1 {
+  font-size: clamp(30px, 7vw, 48px);
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-shadow: 0 0 28px rgba(255, 212, 0, 0.45);
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.keys {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  list-style: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.keys b {
+  color: var(--fg);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  border: 1px solid transparent;
+}
+
+.chip-pellet {
+  color: #ffe9a8;
+  border-color: rgba(255, 233, 168, 0.35);
+  background: rgba(255, 233, 168, 0.08);
+}
+
+.chip-power {
+  color: #ffb454;
+  border-color: rgba(255, 180, 84, 0.4);
+  background: rgba(255, 180, 84, 0.1);
+}
+
+.chip-ghost {
+  color: #7ba7ff;
+  border-color: rgba(123, 167, 255, 0.4);
+  background: rgba(123, 167, 255, 0.1);
+}
+
+#play {
+  margin-top: 4px;
+  padding: 11px 34px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #1a1400;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+#play:hover {
+  filter: brightness(1.1);
+}
+
+#play:active {
+  transform: scale(0.97);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---------- Volver / toast ---------- */
+
+.back {
+  position: fixed;
+  top: 16px;
+  left: 18px;
+  z-index: 20;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.back:hover {
+  color: var(--fg);
+}
+
+#toast {
+  position: fixed;
+  bottom: 42px;
+  left: 50%;
+  transform: translate(-50%, 12px);
+  padding: 8px 18px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 20;
+}
+
+#toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Destello rojo al morir. */
+body.hit::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 40%, rgba(255, 65, 54, 0.45));
+  pointer-events: none;
+  z-index: 15;
+  animation: fadeOut 0.35s ease forwards;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
