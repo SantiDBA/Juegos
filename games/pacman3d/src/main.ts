@@ -243,15 +243,71 @@ function addScore(points: number): void {
 
 // ---------------------------------------------------------------- input
 
-const KEY_DIR: Record<string, Dir> = {
-  ArrowUp: 'up',
-  ArrowDown: 'down',
-  ArrowLeft: 'left',
-  ArrowRight: 'right',
-  KeyW: 'up',
-  KeyS: 'down',
-  KeyA: 'left',
-  KeyD: 'right',
+/**
+ * Teclas de dirección, en espacio de pantalla.
+ *
+ * El vector es relativo a la cámara, no al laberinto: `y` positivo es "hacia
+ * donde se mira" y `x` positivo es "a la derecha de quien mira". Mapearlas
+ * directo a las cuatro direcciones del mundo haría que, con el jugador mirando
+ * al este, "arriba" lo llevara al norte —que en pantalla es un costado— y el
+ * control pareciera estar mal calibrado.
+ */
+const KEY_DIR: Record<string, readonly [number, number]> = {
+  ArrowUp: [0, 1],
+  ArrowDown: [0, -1],
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  KeyW: [0, 1],
+  KeyS: [0, -1],
+  KeyA: [-1, 0],
+  KeyD: [1, 0],
+}
+
+/** Las cuatro direcciones de la grilla, en coordenadas de celda. */
+const CARDINALS: ReadonlyArray<{ dir: Dir; vx: number; vz: number }> = [
+  { dir: 'up', vx: 0, vz: -1 },
+  { dir: 'down', vx: 0, vz: 1 },
+  { dir: 'left', vx: -1, vz: 0 },
+  { dir: 'right', vx: 1, vz: 0 },
+]
+
+const camForward = new THREE.Vector3()
+const camRight = new THREE.Vector3()
+const camUp = new THREE.Vector3(0, 1, 0)
+
+/**
+ * Traduce un input de pantalla a una dirección de la grilla.
+ *
+ * Se rota el vector con el yaw de la cámara y se proyecta sobre la dirección
+ * cardinal más cercana. Durante un giro la cámara está a 45° y la elección
+ * puede oscilar entre dos cardinales, que es justo lo que se espera: el
+ * control sigue apuntando "hacia donde se ve" en todo momento.
+ */
+function inputToDir(ix: number, iy: number): Dir | null {
+  if (ix === 0 && iy === 0) return null
+
+  camera.getWorldDirection(camForward)
+  camForward.y = 0
+  if (camForward.lengthSq() < 1e-6) return null
+  camForward.normalize()
+  // derecha = arriba × adelante. Con el orden inverso (adelante × arriba) el
+  // vector queda reflejado y left/right se intercambian: el control parecería
+  // estar calibrado al revés en el eje horizontal.
+  camRight.crossVectors(camUp, camForward)
+
+  const wx = camForward.x * iy + camRight.x * ix
+  const wz = camForward.z * iy + camRight.z * ix
+
+  let best: Dir = 'up'
+  let bestDot = -Infinity
+  for (const c of CARDINALS) {
+    const dot = c.vx * wx + c.vz * wz
+    if (dot > bestDot) {
+      bestDot = dot
+      best = c.dir
+    }
+  }
+  return best
 }
 
 window.addEventListener('keydown', (e) => {
@@ -278,9 +334,10 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault()
     return
   }
-  const dir = KEY_DIR[e.code]
-  if (dir) {
-    player?.setDesired(dir)
+  const input = KEY_DIR[e.code]
+  if (input) {
+    const dir = inputToDir(input[0], input[1])
+    if (dir) player?.setDesired(dir)
     e.preventDefault()
   }
 })
