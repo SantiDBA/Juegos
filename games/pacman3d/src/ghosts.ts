@@ -143,6 +143,7 @@ export class Ghost {
     dt: number,
     playerCell: { x: number; y: number },
     playerDir: readonly [number, number],
+    scattering = false,
   ): void {
     if (this.insideHouse) {
       this.wait -= dt
@@ -175,7 +176,7 @@ export class Ghost {
       this.fromCell = { ...this.toCell }
       this.progress = 0
       step -= remaining
-      this.dir = this.chooseDir(this.fromCell, this.aimFor(playerCell, playerDir))
+      this.dir = this.chooseDir(this.fromCell, this.aimFor(playerCell, playerDir, scattering))
       this.beginStep()
     }
 
@@ -207,8 +208,12 @@ export class Ghost {
   private aimFor(
     playerCell: { x: number; y: number },
     playerDir: readonly [number, number],
+    scattering: boolean,
   ): { x: number; y: number } {
-    if (this.mode === 'frightened') return this.scatter
+    // Asustados o en fase de dispersión van a su esquina a desarmarse. El
+    // resto persigue "ahead": apuntan dos casillas más allá de donde va el
+    // jugador, que es lo que hace que intercepten en vez de seguir la estela.
+    if (this.mode === 'frightened' || scattering) return this.scatter
     return { x: playerCell.x + playerDir[0] * 2, y: playerCell.y + playerDir[1] * 2 }
   }
 
@@ -283,6 +288,10 @@ export class Ghosts {
   readonly list: Ghost[] = []
   /** Segundos restantes de modo asustado. */
   private frightenedTimer = 0
+  /** true cuando los fantasmas van a sus esquinas en vez de perseguir. */
+  private scattering = false
+  /** Reloj de la fase actual; alterna persecución y dispersión. */
+  private chaseTimer: number = TUNING.chaseSeconds
 
   constructor(
     private readonly grid: Grid,
@@ -311,12 +320,47 @@ export class Ghosts {
   }
 
   /**
+   * true cuando los fantasmas están dispersos, yendo a sus esquinas.
+   *
+   * El HUD lo usa para avisar: durante la dispersión el jugador tiene una
+   * ventana para juntar puntos sin que lo persigan.
+   */
+  get isScattering(): boolean {
+    return this.scattering
+  }
+
+  /**
+   * Avanza el ciclo de persecución / dispersión.
+   *
+   * Persiguen, luego se dispersan, y así. Sin este turno el jugador queda
+   * perseguido sin descanso y no tiene forma de ganar espacio: en un pasillo
+   * de una celda, esquivar a un fantasma que va más rápido es imposible.
+   */
+  private tickWaves(dt: number): void {
+    // El reloj se reinicia al comer un punto de poder: cada pellet grande
+    // estira la fase de persecución.
+    this.chaseTimer -= dt
+    if (this.chaseTimer <= 0) {
+      this.scattering = !this.scattering
+      this.chaseTimer = this.scattering ? TUNING.scatterSeconds : TUNING.chaseSeconds
+    }
+  }
+
+  /**
    * Avanza los fantasmas y resuelve las colisiones con el jugador.
    *
    * Devuelve cuántos fantasmas fueron comidos en este frame y cuál era el
    * primero, para que el llamador sume los puntos una sola vez.
    */
-  update(dt: number, playerPos: THREE.Vector3, playerCell: { x: number; y: number }, playerDir: readonly [number, number], onEaten: (g: Ghost, index: number) => void): void {
+  update(
+    dt: number,
+    playerPos: THREE.Vector3,
+    playerCell: { x: number; y: number },
+    playerDir: readonly [number, number],
+    onEaten: (g: Ghost, index: number) => void,
+  ): void {
+    this.tickWaves(dt)
+
     if (this.frightenedTimer > 0) {
       this.frightenedTimer -= dt
       if (this.frightenedTimer <= 0) {
@@ -329,7 +373,7 @@ export class Ghosts {
     const contactRadius = TUNING.playerRadius + TUNING.ghostRadius + 0.12
     for (let i = 0; i < this.list.length; i++) {
       const g = this.list[i]!
-      g.update(dt, playerCell, playerDir)
+      g.update(dt, playerCell, playerDir, this.scattering)
       if (g.mode === 'eaten') continue
       if (g.position.distanceTo(playerPos) > contactRadius) continue
       if (g.mode === 'frightened') {

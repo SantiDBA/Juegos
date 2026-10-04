@@ -56,17 +56,28 @@ export const TUNING = {
   // --- Fantasmas
   ghostCount: 4,
   ghostRadius: 0.36,
-  /**
-   * Velocidad de los fantasmas, por debajo de la del jugador (5.6). Con la
-   * misma velocidad el contacto es inevitable en un pasillo de una celda y la
-   * partida se pierde sin poder esquivar. ir más lento deja ver al fantasma
-   * llegar y decidir si conviene o no seguir comiendo.
+/**
+   * Velocidad de los fantasmas, claramente por debajo de la del jugador (5.6).
+   * Con velocidades cercanas, un pasillo de una celda es una trampa mortal: no
+   * hay forma de esquivar a un fantasma que llega más rápido que vos. Ir más
+   * lento deja verlo llegar y decidir si conviene o no seguir comiendo.
    */
-  ghostSpeed: 4.2,
+  ghostSpeed: 3.6,
   /** Multiplicador de velocidad mientras están asustados (más lento). */
   frightenedSpeed: 0.62,
-  /** Retardo entre la salida de cada fantasma, en segundos. */
-  ghostReleaseDelay: 2.5,
+  /**
+   * Retardo entre la salida de cada fantasma, en segundos. Base de la espera
+   * de cada uno al salir de la casa.
+   */
+  ghostReleaseDelay: 4,
+  /**
+   * Ciclo de dispersión: los fantasmas persiguen `chaseSeconds` y luego van a
+   * sus esquinas `scatterSeconds`. Sin este turno el jugador está perseguido
+   * sin descanso y no tiene forma de ganar espacio: en el original es lo que
+   * hace la partida respirable.
+   */
+  chaseSeconds: 7,
+  scatterSeconds: 5,
   /**
    * Celdas de dispersión: cada fantasma tiene su esquina. Los que no están en
    * modo "dispersar" solo vuelven ahí cuando el contador de puntos los obliga,

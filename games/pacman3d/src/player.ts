@@ -60,6 +60,13 @@ export class Player {
     this.toCell = { ...spawn }
     this.position = cellToWorld(grid, spawn.x, spawn.y, TUNING.playerHeight)
 
+    // Arranca mirando a una salida real. Con una dirección inicial que fuera
+    // muro, el jugador arrancaba frenado y parecía no responder a nada hasta
+    // que se pulsara justo la tecla correcta.
+    const first: Dir[] = ['left', 'up', 'right', 'down']
+    this.direction = first.find((d) => this.canStepAt(spawn, d)) ?? 'left'
+    this.desired = this.direction
+
     // Esfera con un hueco fijo: la boca siempre está abierta. El mordisco se
     // anima escalando sobre el eje de la boca, no reconstruyendo la geometría
     // cada frame (crear y tirar buffers a 60 Hz destroza el GC).
@@ -131,6 +138,12 @@ export class Player {
     // jugador no arrancaría nunca: el primer `step` es menor que la celda
     // completa, así que el cruce no se dispara y se queda clavado para siempre.
     if (!this.moving) {
+      // Frenado: se reintenta con la dirección deseada, no sólo con la actual.
+      // Si `beginStep` sólo mirara `direction`, una tecla nueva nunca se
+      // aplicaría: `desired` sólo se leía al llegar a un cruce, y estando
+      // frenado no se llega nunca a uno. El jugador quedaba clavado contra un
+      // muro sin poder moverse en ninguna dirección.
+      if (this.canStep(this.desired)) this.direction = this.desired
       this.beginStep()
       if (!this.moving) {
         this.mesh.position.copy(this.position)
@@ -186,7 +199,11 @@ export class Player {
 
   /** ¿Se puede seguir en esa dirección desde `cell`? */
   private canStep(dir: Dir): boolean {
-    const { x, y } = this.stepFrom(this.fromCell, dir)
+    return this.canStepAt(this.fromCell, dir)
+  }
+
+  private canStepAt(cell: { x: number; y: number }, dir: Dir): boolean {
+    const { x, y } = this.stepFrom(cell, dir)
     return isWalkable(this.grid, x, y)
   }
 

@@ -184,6 +184,9 @@ function respawn(): void {
   spawnLevel(levelSeed, true)
   player.grantInvulnerability(TUNING.respawnInvulnerable)
   readyTimer = 1.2
+  // Sin esto el estado queda en `dying` y, como el respawn no dispara otro
+  // `die()`, la partida se congela para siempre en un bucle de muerte.
+  state = 'playing'
   hud.showReady(true)
 }
 
