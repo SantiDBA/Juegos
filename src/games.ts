@@ -49,4 +49,15 @@ export const GAMES: Game[] = [
     bestKey: 'pacman3d.bestScore',
     bestFormat: 'score',
   },
+  {
+    id: 'blockblast',
+    title: 'blockblast',
+    tagline: 'Fusioná tres del mismo color. Sin fusión no cuenta.',
+    colors: { from: '#1e4a6b', to: '#0e1018', accent: '#7fd4ff' },
+    glyph: '▦',
+    tags: ['puzzle', 'merge', 'sin fin'],
+    status: 'ready',
+    bestKey: 'blockblast.bestScore',
+    bestFormat: 'score',
+  },
 ]

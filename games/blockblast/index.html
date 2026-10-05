@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>blockblast — puzzle</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="board"></canvas>
+
+    <div id="hud">
+      <div class="hud-row">
+        <div class="hud-item">
+          <span class="label">puntos</span>
+          <span class="value" id="score">0</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">récord</span>
+          <span class="value" id="best">—</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">nivel</span>
+          <span class="value" id="level">1</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">meta</span>
+          <span class="value" id="target">0</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">movs</span>
+          <span class="value" id="moves">0</span>
+        </div>
+      </div>
+      <div class="progress">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="combo" id="combo">
+        <span id="combo-value">x2</span>
+        <span class="combo-label">combo</span>
+      </div>
+    </div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1 id="overlay-title">blockblast</h1>
+        <p class="tagline" id="overlay-tagline">Fusioná tres del mismo color.</p>
+        <ul class="keys">
+          <li><b>Arrastrar</b> soltar en el tablero</li>
+          <li><b>Mouse</b> o <b>dedo</b>, los dos funcionan</li>
+        </ul>
+        <p class="legend">
+          <span class="chip chip-3">3 iguales fusionan</span>
+          <span class="chip chip-note">sin fusión no cuenta</span>
+        </p>
+        <button id="play" type="button">Jugar</button>
+        <p class="hint">Los bloques caen solos. Buscá siempre una fusión.</p>
+      </div>
+    </div>
+
+    <a class="back" href="/">← juegos</a>
+
+    <div id="toast"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
