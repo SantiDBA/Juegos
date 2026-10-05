@@ -9,6 +9,8 @@ export interface Hud {
   setLevel(level: number, target: number): void
   setMoves(moves: number): void
   setCombo(multiplier: number): void
+  /** Largo de la última línea completada, como referencia visual. */
+  setBestLine(length: number): void
   setProgress(ratio: number): void
   showOverlay(show: boolean): void
   setOverlayTitle(title: string, tagline: string, buttonLabel: string): void
@@ -28,6 +30,7 @@ export function createHud(): Hud {
   const levelEl = document.getElementById('level') as HTMLElement
   const movesEl = document.getElementById('moves') as HTMLElement
   const targetEl = document.getElementById('target') as HTMLElement
+  const lineEl = document.getElementById('line') as HTMLElement
   const combo = document.getElementById('combo') as HTMLElement
   const comboEl = document.getElementById('combo-value') as HTMLElement
   const progressFill = document.getElementById('progress-fill') as HTMLElement
@@ -55,6 +58,9 @@ export function createHud(): Hud {
       combo.classList.toggle('visible', on)
       comboEl.textContent = `x${multiplier}`
     },
+    setBestLine(length) {
+      lineEl.textContent = length > 0 ? String(length) : '—'
+    },
     setProgress(ratio) {
       progressFill.style.width = `${Math.round(Math.min(1, Math.max(0, ratio)) * 100)}%`
     },
@@ -75,7 +81,7 @@ export function createHud(): Hud {
       bestEl.classList.add('beat')
       window.setTimeout(() => bestEl.classList.remove('beat'), 600)
     },
-    showToast(text, durationMs = 1600) {
+    showToast(text, durationMs = 1400) {
       toast.textContent = text
       toast.classList.add('visible')
       window.clearTimeout(toastTimer)
@@ -109,5 +115,4 @@ export function saveLevel(level: number): void {
   if (level > readLevel()) localStorage.setItem(TUNING.storageKeyLevel, String(level))
 }
 
-/** Objetivo del nivel, reexportado para que el HUD no dependa de levels. */
 export { targetForLevel }

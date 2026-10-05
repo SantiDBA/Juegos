@@ -2,9 +2,8 @@
  * Lógica pura del tablero. Sin canvas, sin DOM, sin dependencias.
  *
  * Aislarla así permite ejercitar la mecánica con `node` de forma headless, que
- * es la única forma barata de estar seguro de que el merge en cascada y la
- * gravedad no dejan estados imposibles. Lo que se renderiza es consecuencia;
- * el juego se juega acá.
+ * es la única forma barata de estar seguro de que completar líneas y la
+ * gravedad no dejan estados imposibles.
  */
 
 /** 0 = vacía. 1..MAX_TIER = un bloque de ese color. */
@@ -15,23 +14,26 @@ export interface CellPos {
   y: number
 }
 
-/** Un grupo de celdas del mismo color que fusiona en una sola pieza. */
-interface Group {
+/** Una línea completa: 4+ celdas del mismo color en horizontal o vertical. */
+export interface Line {
+  /** `true` si la línea es horizontal. */
+  horizontal: boolean
+  /** Celdas que la forman, en orden. */
   cells: CellPos[]
   tier: number
 }
 
 export interface PlaceResult {
-  /** El movimiento era válido: hubo al menos una fusión. */
+  /** El movimiento era válido: las piezas entraron al tablero. */
   valid: boolean
-  /** Puntos ganados en este movimiento, ya con cascada y combo. */
+  /** Líneas completadas en este turno. */
+  lines: Line[]
+  /** Celdas totales borradas, contando una sola vez las de cruce. */
+  cleared: number
+  /** Puntos del turno. */
   score: number
-  /** Cuántos bloques se fusionaron en total, para el texto de la UI. */
-  merges: number
-  /** Rondas de cascada: 1 si no hubo cascada. */
-  rounds: number
-  /** Mayor tier alcanzado en este movimiento. */
-  bestTier: number
+  /** Mayor largo de línea completada. */
+  bestLength: number
 }
 
 export const EMPTY = 0
@@ -43,9 +45,9 @@ export class Board {
   readonly cells: Uint8Array
 
   /**
-   * `square` construye un tablero de `size`×`size`. Para tableros rectangulares
-   * se pasan `width` y `height` explícitos, que es lo que usan los tests para
-   * dejar los casos legibles.
+   * `new Board(size)` hace un tablero cuadrado; con `width` y `height` se
+   * pueden hacer rectangulares, que es lo que usan los tests para que los
+   * casos queden legibles.
    */
   constructor(size: number)
   constructor(width: number, height: number)
@@ -71,18 +73,13 @@ export class Board {
     this.cells[y * this.width + x] = value
   }
 
-  /** occupied: celdas con algún bloque. */
   get occupied(): number {
     let n = 0
     for (let i = 0; i < this.cells.length; i++) if (this.cells[i] !== EMPTY) n++
     return n
   }
 
-  /**
-   * ¿Caben las celdas de `shape` con su origen en (x, y)?
-   *
-   * Sólo geometría: no mira si fusionan. La validez es otro paso.
-   */
+  /** ¿Caben las celdas de `shape` con su origen en (x, y)? */
   fits(shape: readonly CellPos[], x: number, y: number): boolean {
     for (const c of shape) {
       const px = x + c.x
@@ -93,13 +90,7 @@ export class Board {
     return true
   }
 
-  /**
-   * Todas las posiciones válidas para `shape`.
-   *
-   * `canMergeFrom` es un filtro opcional para cuando sólo interesan las
-   * colocaciones que fusionan (usado por el game over, que necesita saber si
-   * *alguna* de las piezas tiene dónde ir).
-   */
+  /** Todas las posiciones del tablero donde `shape` cabe. */
   placements(shape: readonly CellPos[]): CellPos[] {
     const out: CellPos[] = []
     for (let y = 0; y < this.height; y++) {
@@ -111,83 +102,63 @@ export class Board {
   }
 
   /**
-   * Suelta las piezas y resuelve el turno completo.
+   * Suelta las piezas y resuelve el turno.
    *
-   * Todo en una pasada sobre una copia: si el movimiento no fusiona nada se
-   * descarta el estado y se devuelve `valid: false`. Así el tablero nunca queda
-   * a medio camino ni el llamador tiene que deshacer.
+   * A diferencia del merge, acá **toda colocación válida cuenta**, aunque no
+   * complete ninguna línea: eso es lo que hace que el juego sea de planear y
+   * no de soltar piezas a ver qué pasa. Lo que puntúa es completar líneas.
    */
   place(
     shapes: ReadonlyArray<{ tier: number; cells: readonly CellPos[] }>,
     origin: CellPos,
-    maxTier: number,
+    minLine: number,
   ): PlaceResult {
-    // 1. Comprobar que todas las caben en el origen. Si alguna no, el turno
-    //    entero es inválido: en el original se sueltan como un grupo.
+    // Si alguna pieza no cabe, el turno entero se rechaza: se sueltan como un
+    // grupo, no de a una.
     for (const s of shapes) {
       if (!this.fits(s.cells, origin.x, origin.y)) {
-        return { valid: false, score: 0, merges: 0, rounds: 0, bestTier: 0 }
+        return { valid: false, lines: [], cleared: 0, score: 0, bestLength: 0 }
       }
     }
 
-    // 2. Estado de trabajo: copia para poder tirar todo si no fusiona.
     const work = this.clone()
     for (const s of shapes) {
-      for (const c of s.cells) {
-        work.set(origin.x + c.x, origin.y + c.y, s.tier)
-      }
-    }
-    work.applyGravity()
-
-    // 3. Cascada de fusiones.
-    let total = 0
-    let merges = 0
-    let round = 0
-    let bestTier = 0
-    let guard = 0
-    for (;;) {
-      const groups = work.findGroups()
-      if (!groups.length) break
-      if (++guard > 64) break // cinturón de seguridad: no puede pasar, pero evita un loop infinito
-
-      round++
-      for (const g of groups) {
-        const next = Math.min(g.tier + 1, maxTier)
-        bestTier = Math.max(bestTier, next)
-        total += 10 * (g.cells.length - 2)
-        merges += g.cells.length
-        // El bloque fusionado nace en la esquina superior-izquierda del
-        // grupo (fila menor, luego columna menor). El original no lo
-        // especifica; anclarlo arriba deja la piezaSupported donde el jugador
-        // la leyó, en vez de que la gravedad la corra.
-        const anchor = g.cells.reduce((a, b) => (b.y < a.y || (b.y === a.y && b.x < a.x) ? b : a))
-        for (const c of g.cells) work.set(c.x, c.y, EMPTY)
-        work.set(anchor.x, anchor.y, next)
-      }
-      // Un merge puede habilitar otro en el mismo turno.
-      work.applyGravity()
+      for (const c of s.cells) work.set(origin.x + c.x, origin.y + c.y, s.tier)
     }
 
-    if (total === 0) {
-      // Cayó pero no fusionó: no cuenta. El tablero queda como estaba.
-      return { valid: false, score: 0, merges: 0, rounds: 0, bestTier: 0 }
+    // Líneas que se completan con lo recién soltado. No hay cascadas: las
+    // líneas que se formen al caer se limpian en el turno siguiente, si acaso.
+    const lines = work.findLines(minLine)
+    // Una celda que cruza dos líneas se borra una sola vez, así que el puntaje
+    // no paga dos veces por el mismo bloque.
+    const clearedSet = new Set<string>()
+    for (const line of lines) {
+      for (const c of line.cells) clearedSet.add(`${c.x},${c.y}`)
     }
+    const cleared = clearedSet.size
+    for (const key of clearedSet) {
+      const [xs, ys] = key.split(',')
+      work.set(Number.parseInt(xs ?? '0', 10), Number.parseInt(ys ?? '0', 10), EMPTY)
+    }
+
+    if (cleared > 0) work.applyGravity()
 
     this.cells.set(work.cells)
-    return { valid: true, score: total, merges, rounds: round, bestTier }
+
+    const bestLength = lines.reduce((m, l) => Math.max(m, l.cells.length), 0)
+    return { valid: true, lines, cleared, score: cleared * 10, bestLength }
   }
 
   /**
-   * Deja caer cada bloque hasta apoyarse.
+   * Deja caer cada bloque hasta apoyarse, columna por columna.
    *
-   * Sólo vertical: el column-wise compaction de abajo hacia arriba garantiza que
-   * nunca queda una celda con bloque debajo vacía, que es el invariante que
-   * hace que el puzzle sea razonable de razonar.
+   * Se usa sólo tras completar una línea. Al soltar las fichas NO hay gravity:
+   * en `1010!` las piezas se colocan exactamente donde las ponés, y planear la
+   * línea depende de poder dejar huecos.
    */
   applyGravity(): void {
     const { width, height, cells } = this
     for (let x = 0; x < width; x++) {
-      // write: la siguiente posición libre desde abajo.
       let write = height - 1
       for (let y = height - 1; y >= 0; y--) {
         const v = cells[y * width + x] ?? EMPTY
@@ -202,84 +173,73 @@ export class Board {
   }
 
   /**
-   * Grupos de 3+ celdas adyacentes del mismo color, con flood fill ortogonal.
+   * Todas las líneas de `minLength` o más del mismo color, horizontales y
+   * verticales.
    *
-   * El resultado viene ordenado por (tier, ancla) para que dos corridas con
-   * la misma entrada produzcan siempre el mismo tablero: el merge es
-   * simultáneo, así que el orden no cambia el resultado final, pero sí el
-   * texto que muestra la UI y cualquier depuración.
+   * Se recorre por tramos de color consecutivos: una fila con `AAA.BAAAA` da
+   * dos líneas, de 3 y de 4, y la de 3 se descarta por corta. El resultado
+   * viene ordenado por largo descendente y luego por posición, para que sea
+   * reproducible.
    */
-  findGroups(minSize = 3): Group[] {
-    const { width, height, cells } = this
-    const seen = new Uint8Array(width * height)
-    const groups: Group[] = []
+  findLines(minLength: number): Line[] {
+    const lines: Line[] = []
+    const { width, height } = this
 
+    // Horizontales. Se itera hasta `width` inclusive para cerrar el último
+    // tramo de cada fila.
     for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x
-        const tier = cells[idx] ?? EMPTY
-        if (tier === EMPTY || seen[idx] === 1) continue
-
-        // Flood fill del mismo tier.
-        const groupCells: CellPos[] = []
-        const stack: CellPos[] = [{ x, y }]
-        seen[idx] = 1
-        while (stack.length) {
-          const cur = stack.pop()!
-          groupCells.push(cur)
-          const neighbours: CellPos[] = [
-            { x: cur.x + 1, y: cur.y },
-            { x: cur.x - 1, y: cur.y },
-            { x: cur.x, y: cur.y + 1 },
-            { x: cur.x, y: cur.y - 1 },
-          ]
-          for (const n of neighbours) {
-            if (n.x < 0 || n.y < 0 || n.x >= width || n.y >= height) continue
-            const nIdx = n.y * width + n.x
-            if (seen[nIdx] === 1) continue
-            if ((cells[nIdx] ?? EMPTY) !== tier) continue
-            seen[nIdx] = 1
-            stack.push(n)
-          }
+      let run: CellPos[] = []
+      let tier = EMPTY
+      for (let x = 0; x <= width; x++) {
+        const v = x < width ? this.at(x, y) : EMPTY
+        if (v !== EMPTY && v === tier) {
+          run.push({ x, y })
+          continue
         }
-
-        if (groupCells.length >= minSize) {
-          groups.push({ cells: groupCells, tier })
-        }
+        if (run.length >= minLength) lines.push({ horizontal: true, cells: run, tier })
+        run = v === EMPTY ? [] : [{ x, y }]
+        tier = v
       }
     }
 
-    groups.sort((a, b) => {
-      if (a.tier !== b.tier) return a.tier - b.tier
-      const ax = Math.min(...a.cells.map((c) => c.x))
-      const ay = Math.min(...a.cells.map((c) => c.y))
-      const bx = Math.min(...b.cells.map((c) => c.x))
-      const by = Math.min(...b.cells.map((c) => c.y))
+    // Verticales.
+    for (let x = 0; x < width; x++) {
+      let run: CellPos[] = []
+      let tier = EMPTY
+      for (let y = 0; y <= height; y++) {
+        const v = y < height ? this.at(x, y) : EMPTY
+        if (v !== EMPTY && v === tier) {
+          run.push({ x, y })
+          continue
+        }
+        if (run.length >= minLength) lines.push({ horizontal: false, cells: run, tier })
+        run = v === EMPTY ? [] : [{ x, y }]
+        tier = v
+      }
+    }
+
+    lines.sort((a, b) => {
+      if (b.cells.length !== a.cells.length) return b.cells.length - a.cells.length
+      const ay = a.cells[0]!.y
+      const by = b.cells[0]!.y
       if (ay !== by) return ay - by
-      return ax - bx
+      return a.cells[0]!.x - b.cells[0]!.x
     })
 
-    return groups
+    return lines
   }
 
-  /**
-   * ¿Hay alguna posición donde `shape` fusionaría algo?
-   *
-   * Se necesita para el game over: la condición real no es "no cabe en ningún
-   * lado" sino "no hay ninguna colocación que además fusione", porque una
-   * colocación que no fusiona no cuenta como turno.
-   */
-  hasMergingPlacement(shape: readonly CellPos[], tier: number): boolean {
+  /** ¿Hay alguna posición donde `shape` completaría al menos una línea? */
+  hasLinePlacement(shape: readonly CellPos[], tier: number, minLine: number): boolean {
     for (const origin of this.placements(shape)) {
       const probe = this.clone()
       for (const c of shape) probe.set(origin.x + c.x, origin.y + c.y, tier)
-      probe.applyGravity()
-      if (probe.findGroups().length > 0) return true
+      if (probe.findLines(minLine).length > 0) return true
     }
     return false
   }
 
-  /** Serialización para comparar tableros en tests y para el récord. */
+  /** Serialización para comparar tableros en tests. */
   toKey(): string {
     return Array.from(this.cells).join('')
   }

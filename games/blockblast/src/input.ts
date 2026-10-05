@@ -1,6 +1,6 @@
 import type { CellPos } from './board'
 import type { Piece } from './pieces'
-import { screenToCell, type Layout } from './render'
+import { screenToCell, slotMetrics, type Layout } from './render'
 
 /**
  * Arrastre de piezas con Pointer Events.
@@ -140,28 +140,25 @@ export class DragController {
   /**
    * Qué pieza está bajo el punto.
    *
-   * La bandeja se recorre de izquierda a derecha y se prueba celda por celda:
-   * es lo que hace que al arrastrar una pieza grande por encima de una chica
-   * se seleccione la grande, que es lo que el jugador espera.
+   * Usa la misma geometría que `render` para dibujar la bandeja. Con fórmulas
+   * separadas el click caía fuera del slot dibujado y la pieza no se podía
+   * agarrar: el juego quedaba sin respuesta al arrastre.
    */
   private hitPiece(e: PointerEvent): number | null {
     const rect = this.canvas.getBoundingClientRect()
     const px = e.clientX - rect.left
     const py = e.clientY - rect.top
 
-    const slotW = Math.min(110, this.layout.cell * 1.5)
-    const totalW = this.tray.length * slotW
-    const startX = (this.rect.width - totalW) / 2
+    const { slotW, slotSize, top } = slotMetrics(this.layout, this.tray.length)
+    const startX = (this.rect.width - this.tray.length * slotW) / 2
 
     for (let i = 0; i < this.tray.length; i++) {
       const slotX = startX + i * slotW + slotW / 2
-      const slotSize = slotW * 0.78
-      const slotTop = this.layout.trayY + 6
       if (
         px >= slotX - slotSize / 2 &&
         px <= slotX + slotSize / 2 &&
-        py >= slotTop &&
-        py <= slotTop + slotSize
+        py >= top &&
+        py <= top + slotSize
       ) {
         return i
       }

@@ -209,16 +209,16 @@ body {
   border: 1px solid transparent;
 }
 
-.chip-3 {
+.chip-line {
   color: #5ee6b5;
   border-color: rgba(94, 230, 181, 0.35);
   background: rgba(94, 230, 181, 0.08);
 }
 
-.chip-note {
-  color: #ff9a3d;
-  border-color: rgba(255, 154, 61, 0.4);
-  background: rgba(255, 154, 61, 0.1);
+.chip-fall {
+  color: #7fd4ff;
+  border-color: rgba(127, 212, 255, 0.35);
+  background: rgba(127, 212, 255, 0.08);
 }
 
 #play {

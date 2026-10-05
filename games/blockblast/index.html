@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>blockblast — puzzle</title>
+    <title>blockblast — líneas</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
@@ -25,7 +25,11 @@
         </div>
         <div class="hud-item">
           <span class="label">meta</span>
-          <span class="value" id="target">0</span>
+          <span class="value" id="target">300</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">línea</span>
+          <span class="value" id="line">—</span>
         </div>
         <div class="hud-item">
           <span class="label">movs</span>
@@ -44,17 +48,17 @@
     <div id="overlay">
       <div class="panel">
         <h1 id="overlay-title">blockblast</h1>
-        <p class="tagline" id="overlay-tagline">Fusioná tres del mismo color.</p>
+        <p class="tagline" id="overlay-tagline">Completá 4 del mismo color en fila o columna.</p>
         <ul class="keys">
-          <li><b>Arrastrar</b> soltar en el tablero</li>
-          <li><b>Mouse</b> o <b>dedo</b>, los dos funcionan</li>
+          <li><b>Arrastrar</b> hasta el tablero</li>
+          <li><b>Se resaltan</b> las celdas que van a completarse</li>
         </ul>
         <p class="legend">
-          <span class="chip chip-3">3 iguales fusionan</span>
-          <span class="chip chip-note">sin fusión no cuenta</span>
+          <span class="chip chip-line">4+ iguales en línea</span>
+          <span class="chip chip-fall">los de arriba caen</span>
         </p>
         <button id="play" type="button">Jugar</button>
-        <p class="hint">Los bloques caen solos. Buscá siempre una fusión.</p>
+        <p class="hint">El tablero arranca vacío: la primera decisión es dónde poner.</p>
       </div>
     </div>
 
