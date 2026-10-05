@@ -24,7 +24,7 @@ function eq(name: string, got: unknown, want: unknown): void {
   check(name, ok, ok ? '' : `got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`)
 }
 
-/** Tablero con filas de texto; '.' vacío, dígitos 1-8 son tiers. */
+/** Tablero con filas de texto; '.' vacío, dígitos 1-4 son colores. */
 function boardFrom(rows: string[]): Board {
   const w = rows[0]!.length
   for (const [i, r] of rows.entries()) {
@@ -51,100 +51,98 @@ function rowsOf(b: Board): string[] {
 }
 
 const ONE: CellPos[] = [{ x: 0, y: 0 }]
-const MIN = 4
 
-// ---------------------------------------------------------------- H
+// ---------------------------------------------------------------- completitud
 
-console.log('\n== línea horizontal ==')
+console.log('\n== línea completa ==')
 {
   const b = boardFrom(['....', '....', '....', '....'])
-  b.set(0, 1, 2)
+  b.set(0, 1, 1)
   b.set(1, 1, 2)
-  b.set(2, 1, 2)
-  const res = b.place([{ tier: 2, cells: ONE }], { x: 3, y: 1 }, MIN)
-  check('cuarta pieza completa la fila', res.cleared === 4, `cleared=${res.cleared}`)
+  b.set(2, 1, 3)
+  const res = b.place([{ tier: 4, cells: ONE }], { x: 3, y: 1 })
+  check('la última pieza completa la fila', res.cleared === 4, `cleared=${res.cleared}`)
   check('una línea', res.lines.length === 1)
   eq('la fila quedó vacía', rowsOf(b)[1], '....')
-  eq('puntaje 4 celdas x 10', res.score, 40)
+  eq('puntaje 4 celdas x 10', res.cleared * 10, 40)
 }
 {
-  // 3 no completa.
+  // Con 3 de 4 la fila sigue teniendo un hueco: no completa. Se coloca la
+  // cuarta pieza en otra posición que no llena ese hueco.
   const b = boardFrom(['....', '....', '....', '....'])
-  b.set(0, 1, 2)
-  b.set(1, 1, 2)
-  const res = b.place([{ tier: 2, cells: ONE }], { x: 2, y: 1 }, MIN)
-  eq('con 3 no completa', res.cleared, 0)
+  b.set(0, 1, 1)
+  b.set(1, 1, 1)
+  b.set(2, 1, 1)
+  const res = b.place([{ tier: 2, cells: ONE }], { x: 0, y: 3 })
+  eq('hueco en la fila: no completa', res.cleared, 0)
   check('pero el movimiento es válido', res.valid)
-  eq('los bloques quedan', b.occupied, 3)
+  eq('los bloques quedan', b.occupied, 4)
+}
+{
+  // El color es irrelevante: fila llena con 4 colores distintos.
+  const b = boardFrom(['....', '....', '....', '....'])
+  b.set(0, 2, 1)
+  b.set(1, 2, 2)
+  b.set(2, 2, 3)
+  b.set(3, 2, 4)
+  const g = b.findFullLines()
+  check('4 colores distintos completan la fila', g.length === 1, `lineas=${g.length}`)
+}
+{
+  // Todos iguales también completa.
+  const b = boardFrom(['....', '....', '....', '....'])
+  for (let x = 0; x < 4; x++) b.set(x, 1, 2)
+  check('4 iguales completan la fila', b.findFullLines().length === 1)
 }
 
-// ---------------------------------------------------------------- V
+// ---------------------------------------------------------------- vertical
 
-console.log('\n== línea vertical ==')
+console.log('\n== columna completa ==')
 {
   const b = boardFrom(['....', '....', '....', '....'])
-  b.set(2, 0, 3)
-  b.set(2, 1, 3)
+  b.set(2, 0, 1)
+  b.set(2, 1, 2)
   b.set(2, 2, 3)
-  const res = b.place([{ tier: 3, cells: ONE }], { x: 2, y: 3 }, MIN)
-  check('cuarta pieza completa la columna', res.cleared === 4, `cleared=${res.cleared}`)
+  const res = b.place([{ tier: 4, cells: ONE }], { x: 2, y: 3 })
+  check('la última pieza completa la columna', res.cleared === 4, `cleared=${res.cleared}`)
+  check('una línea', res.lines.length === 1)
   eq('la columna quedó vacía', [b.at(2, 0), b.at(2, 3)], [EMPTY, EMPTY])
-}
-
-// ---------------------------------------------------------------- largos
-
-console.log('\n== líneas largas ==')
-{
-  const b = boardFrom(['.....', '.....', '.....'])
-  for (let x = 0; x < 5; x++) b.set(x, 1, 1)
-  const g = b.findLines(MIN)
-  check('una línea de 5', g.length === 1, `lineas=${g.length}`)
-  check('de largo 5', g[0]?.cells.length === 5)
-}
-{
-  // Una fila con dos tramos: el de 3 se descarta, el de 4 se cuenta.
-  const b = boardFrom(['.........', '.........'])
-  for (const x of [0, 1, 2, 4, 5, 6, 7]) b.set(x, 0, 1)
-  const g = b.findLines(MIN)
-  check('sólo cuenta el tramo de 4+', g.length === 1, `lineas=${g.length}`)
-  check('de largo 4', g[0]?.cells.length === 4)
 }
 
 // ---------------------------------------------------------------- cruce
 
-console.log('\n== líneas que se cruzan ==')
+console.log('\n== fila y columna a la vez ==')
 {
-  // H en y=1 (x 0-3) y V en x=1 (y 0-3). Se cruzan en (1,1).
+  // Se completa la fila 1 y, con la misma pieza, la columna 1.
   const b = boardFrom(['....', '....', '....', '....'])
-  b.set(1, 0, 2)
-  b.set(1, 2, 2)
-  b.set(1, 3, 2)
-  b.set(0, 1, 2)
-  b.set(2, 1, 2)
-  b.set(3, 1, 2)
-  const res = b.place([{ tier: 2, cells: ONE }], { x: 1, y: 1 }, MIN)
+  b.set(0, 1, 1)
+  b.set(2, 1, 1)
+  b.set(3, 1, 1)
+  b.set(1, 0, 1)
+  b.set(1, 2, 1)
+  b.set(1, 3, 1)
+  const res = b.place([{ tier: 1, cells: ONE }], { x: 1, y: 1 })
   check('completó dos líneas', res.lines.length === 2, `lineas=${res.lines.length}`)
-  check('8 celdas por celda, 7 únicas', res.cleared === 7, `cleared=${res.cleared}`)
-  eq('el tablero quedó vacío', b.occupied, 0)
+  // 4 + 4 con el cruce (1,1) contado una vez: 7.
+  eq('7 celdas únicas', res.cleared, 7)
+  eq('tablero vacío', b.occupied, 0)
 }
 
 // ---------------------------------------------------------------- gravity
 
 console.log('\n== gravity tras completar ==')
 {
-  // Cada columna se compacta por separado: la de x=0 tiene un 1 arriba de un
-  // 2 y quedan apilados en el fondo; la de x=2 sólo tiene un 1, que también
-  // baja hasta el fondo. No hay arrastre lateral.
+  // Al vaciarse una fila, sólo caen los bloques de las columnas tocadas.
   const b = boardFrom([
-    '1.1.....',
     '2.......',
+    '3.......',
+    '........',
     '........',
   ])
   b.applyGravity()
-  eq('cada columna cae al fondo', rowsOf(b), ['........', '1.......', '2.1.....'])
+  eq('la columna cae al fondo', rowsOf(b), ['........', '........', '2.......', '3.......'])
 }
 {
-  // Columnas independientes: cada una se compacta por su cuenta.
   const b = boardFrom([
     '1...2...',
     '........',
@@ -152,7 +150,7 @@ console.log('\n== gravity tras completar ==')
     '........',
   ])
   b.applyGravity()
-  eq('dos columnas caen por separado', rowsOf(b), [
+  eq('columnas independientes', rowsOf(b), [
     '........',
     '........',
     '1...2...',
@@ -164,87 +162,38 @@ console.log('\n== gravity tras completar ==')
 
 console.log('\n== sin cascadas ==')
 {
-  // La fila 0 es `111.` en x=0..3: se completa con un 1 en x=3. Al borrarla
-  // corre la gravity, así que los tres 2 de x=0 caen al fondo de su columna.
-  const b = boardFrom([
-    '111.....',
-    '2.......',
-    '2.......',
-    '2.......',
-    '........',
-  ])
-  const res = b.place([{ tier: 1, cells: ONE }], { x: 3, y: 0 }, MIN)
-  check('se limpió la fila de 4', res.cleared === 4, `cleared=${res.cleared}`)
+  // Tablero 4x4. La fila 1 tiene un 2 en x=0, y la columna x=0 tiene 3 en
+  // y=2 y 4 en y=3. Se completa la fila 1 con una pieza 1x3; al borrarla, la
+  // columna x=0 conserva el 2 y los otros dos caen, sin formar línea.
+  const b = boardFrom(['....', '2...', '3...', '4...'])
+  const res = b.place([{ tier: 1, cells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] }], {
+    x: 1,
+    y: 1,
+  })
+  check('se limpió la fila', res.cleared === 4, `cleared=${res.cleared}`)
   check('una sola línea', res.lines.length === 1, `lineas=${res.lines.length}`)
-  eq('los 2 bajaron al fondo', rowsOf(b), [
-    '........',
-    '........',
-    '2.......',
-    '2.......',
-    '2.......',
-  ])
-}
-{
-  // La vertical de x=0 ya está completa (4 unos) ANTES de soltar. Al agregar
-  // el cuarto 1 de la fila 3, se limpian las dos líneas: la horizontal que se
-  // acaba de completar y la vertical que ya existía. Ambas cuentan.
-  const b = boardFrom([
-    '1.......',
-    '1.......',
-    '1.......',
-    '111.....',
-    '........',
-  ])
-  const res = b.place([{ tier: 1, cells: ONE }], { x: 3, y: 3 }, MIN)
-  check('se limpiaron dos líneas', res.lines.length === 2, `lineas=${res.lines.length}`)
-  // 4 de la fila + 3 de la vertical, el cruce (0,3) se cuenta una vez: 7.
-  eq('7 celdas únicas', res.cleared, 7)
-  eq('tablero vacío', b.occupied, 0)
-}
-{
-  // Cascada real: la vertical de x=0 tiene 3 unos (NO es línea todavía) y la
-  // fila 3 tiene 3. Al soltar el cuarto 1 en la fila, se limpia sólo la
-  // horizontal. Al caer, la columna x=0 queda con 3 unos, no 4: no hay
-  // cascada, y el tablero conserva bloques para el turno siguiente.
-  const b = boardFrom([
-    '........',
-    '1.......',
-    '1.......',
-    '111.....',
-    '........',
-  ])
-  const res = b.place([{ tier: 1, cells: ONE }], { x: 3, y: 3 }, MIN)
-  check('se limpió sólo la horizontal', res.lines.length === 1, `lineas=${res.lines.length}`)
-  eq('4 celdas', res.cleared, 4)
-  eq('los 2 unos de x=0 quedan apilados', rowsOf(b), [
-    '........',
-    '........',
-    '........',
-    '1.......',
-    '1.......',
-  ])
+  // Al borrarse la fila 1, la columna x=0 queda con 3 y 4: bajó pero no se
+  // limpió, porque 3 y 4 no llenan ninguna fila ni columna.
+  eq('la columna bajó pero no se limpió', rowsOf(b), ['....', '....', '3...', '4...'])
 }
 
 // ---------------------------------------------------------------- validez
 
 console.log('\n== validez ==')
 {
-  // Colocar sin completar línea ES válido.
   const b = boardFrom(['....', '....', '....', '....'])
-  const res = b.place([{ tier: 1, cells: ONE }], { x: 0, y: 0 }, MIN)
+  const res = b.place([{ tier: 1, cells: ONE }], { x: 0, y: 0 })
   check('colocar sin completar es válido', res.valid)
-  eq('pero no puntúa', res.score, 0)
-  eq('y el bloque queda', b.occupied, 1)
+  eq('pero no limpia nada', res.cleared, 0)
+  eq('el bloque queda', b.occupied, 1)
 }
 {
-  // Fuera de rango.
   const b = boardFrom(['....', '....', '....', '....'])
-  const res = b.place([{ tier: 1, cells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }], { x: 3, y: 0 }, MIN)
+  const res = b.place([{ tier: 1, cells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }], { x: 3, y: 0 })
   check('fuera de rango es inválido', !res.valid)
   eq('tablero intacto', b.occupied, 0)
 }
 {
-  // Grupo de piezas: si una no cabe, se rechaza todo.
   const b = boardFrom(['....', '....', '....', '....'])
   const res = b.place(
     [
@@ -252,10 +201,23 @@ console.log('\n== validez ==')
       { tier: 1, cells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] },
     ],
     { x: 3, y: 0 },
-    MIN,
   )
   check('grupo con pieza que no cabe es inválido', !res.valid)
   eq('no se colocó ninguna', b.occupied, 0)
+}
+{
+  // Varias piezas a la vez pueden completar la fila entre todas.
+  const b = boardFrom(['....', '....', '....', '....'])
+  b.set(0, 1, 1)
+  b.set(1, 1, 1)
+  const res = b.place(
+    [
+      { tier: 2, cells: ONE },
+      { tier: 2, cells: [{ x: 1, y: 0 }] },
+    ],
+    { x: 2, y: 1 },
+  )
+  check('varias piezas completan la fila', res.cleared === 4, `cleared=${res.cleared}`)
 }
 
 // ---------------------------------------------------------------- game over
@@ -263,9 +225,7 @@ console.log('\n== validez ==')
 console.log('\n== game over ==')
 {
   const rows: string[] = []
-  for (let y = 0; y < 8; y++) {
-    rows.push(y === 7 ? '1111111.' : '11111111')
-  }
+  for (let y = 0; y < 8; y++) rows.push(y === 7 ? '1111111.' : '11111111')
   const b = boardFrom(rows)
   eq('2x2 no tiene placements', b.placements([{ x: 0, y: 0 }, { x: 1, y: 0 }]).length, 0)
   eq('1x1 sí tiene uno', b.placements(ONE).length, 1)
@@ -275,17 +235,11 @@ console.log('\n== game over ==')
 
 console.log('\n== determinismo ==')
 {
-  const rows = [
-    '11111...',
-    '2.2.2...',
-    '..33....',
-    '4...4...',
-    '........',
-  ]
+  const rows = ['11111...', '2.2.2...', '..33....', '4...4...', '........']
   const results = new Set<string>()
   for (let i = 0; i < 100; i++) {
     const b = boardFrom(rows)
-    b.place([{ tier: 1, cells: [{ x: 4, y: 0 }] }], { x: 3, y: 0 }, MIN)
+    b.place([{ tier: 1, cells: [{ x: 4, y: 0 }] }], { x: 3, y: 0 })
     results.add(b.toKey())
   }
   check('100 corridas idénticas', results.size === 1, `variantes=${results.size}`)
@@ -312,9 +266,9 @@ console.log('\n== barrido aleatorio (200 tableros x 200 turnos) ==')
   let rejected = 0
   let moves = 0
   let linesFound = 0
-  // Lines that only appeared because of the previous turn's gravity. They are
-  // not cleared in the same turn (no cascades, by design), so they are counted
-  // separately instead of being treated as a broken invariant.
+  // Líneas que aparecieron sólo por la gravity del turno anterior. No se
+  // limpian en el mismo turno (no hay cascadas, por diseño), así que quedan
+  // pendientes para el siguiente: no cuentan como invariante roto.
   let pendingAfterGravity = 0
 
   for (let g = 0; g < 200; g++) {
@@ -324,23 +278,29 @@ console.log('\n== barrido aleatorio (200 tableros x 200 turnos) ==')
       const tier = 1 + Math.floor(rnd() * 4)
       const x = Math.floor(rnd() * 8)
       const y = Math.floor(rnd() * 8)
-      const res = b.place([{ tier, cells }], { x, y }, MIN)
+      const res = b.place([{ tier, cells }], { x, y })
       if (!res.valid) {
-        // A piece that doesn't fit is a normal rejection, not a broken rule:
-        // the board must be untouched.
         rejected++
         continue
       }
       moves++
       linesFound += res.lines.length
 
-      // Gravity sólo corre cuando se borró algo. Después de correr puede
-      // haber líneas nuevas: son las que quedan para el turno siguiente.
-      const left = b.findLines(MIN)
+      // Invariante: si se borró algo, tras la gravity no puede quedar un bloque
+      // con una celda vacía debajo.
+      if (res.cleared > 0) {
+        for (let x2 = 0; x2 < 8; x2++) {
+          for (let y2 = 0; y2 < 8; y2++) {
+            if (b.at(x2, y2) !== EMPTY && b.at(x2, y2 + 1) === EMPTY && y2 + 1 < 8) invalid++
+          }
+        }
+      }
+      // Una línea completa que queda es válida: la gravity pudo armarla y se
+      // limpia el próximo turno. Sólo es un error si aparece sin haber borrado
+      // nada, porque entonces `place` no la evaluó.
+      const left = b.findFullLines()
       if (left.length > 0) {
         if (res.cleared > 0) pendingAfterGravity++
-        // Una línea sin gravity debajo y sin haber borrado este turno es
-        // imposible: `place` siempre evalúa antes de terminar.
         else invalid++
       }
     }
@@ -348,7 +308,7 @@ console.log('\n== barrido aleatorio (200 tableros x 200 turnos) ==')
 
   eq('ningún invariante roto', invalid, 0)
   check('hubo movimientos válidos', moves > 5000, `válidos=${moves}`)
-  check('hubo rechazos normales', rejected > 1000, `rechazos=${rejected}`)
+  check('hubo rechazos', rejected > 1000, `rechazos=${rejected}`)
   check('se completaron líneas', linesFound > 100, `lineas=${linesFound}`)
   check(
     'hubo turnos que dejaron línea para el siguiente',

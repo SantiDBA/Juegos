@@ -1,4 +1,4 @@
-import { Board, EMPTY, type CellPos, type Line } from './board'
+import { Board, EMPTY, type CellPos, type FullLine } from './board'
 import { COLORS, TUNING } from './config'
 import { rollTray, type Piece } from './pieces'
 import { targetForLevel } from './levels'
@@ -115,7 +115,7 @@ function commitMove(cell: CellPos): void {
   }
 
   const shapes = pieces.map((p) => ({ tier: p.tier, cells: p.cells }))
-  const result = board.place(shapes, cell, TUNING.minLine)
+  const result = board.place(shapes, cell)
 
   if (!result.valid) {
     usedPieces = new Set()
@@ -124,14 +124,11 @@ function commitMove(cell: CellPos): void {
     return
   }
 
-  // Puntaje: celdas borradas, bonus por varias líneas y por línea larga.
+  // Puntaje: celdas borradas y bonus por completar varias líneas a la vez.
   let gained = result.cleared * TUNING.pointsPerCell
   if (result.lines.length > 1) {
     gained += TUNING.multiLineBonus * (result.lines.length - 1)
     hud.showToast(`¡${result.lines.length} líneas!`)
-  } else if (result.bestLength >= TUNING.minLine + 2) {
-    gained += TUNING.longLineBonus
-    hud.showToast(`¡línea de ${result.bestLength}!`)
   } else if (result.lines.length === 1) {
     hud.showToast('¡línea!')
   }
@@ -146,15 +143,16 @@ function commitMove(cell: CellPos): void {
   levelScore += gained
   moves++
 
-  // Animaciones: pop en el centro de la primera línea y puntaje flotante.
+  // Animación: pop en el centro de la línea más larga, que es donde el ojo ya
+  // está. El color es el de una pieza cualquiera: no significa nada.
   const anchor = anchorOfLines(result.lines)
   if (anchor) {
-    pops.push({ cell: anchor, tier: result.lines[0]?.tier ?? 1, t: 1 })
+    pops.push({ cell: anchor, tier: pieces[0]?.tier ?? 1, t: 1 })
     floaters.push({
       cell: anchor,
       text: `+${gained}`,
       t: 1,
-      color: COLORS[result.lines[0]?.tier ?? 1]?.fill ?? '#ffffff',
+      color: COLORS[pieces[0]?.tier ?? 1]?.fill ?? '#ffffff',
     })
   }
   hud.setBestLine(result.bestLength)
@@ -179,7 +177,7 @@ function commitMove(cell: CellPos): void {
 }
 
 /** Celda representativa del turno, para ubicar el pop y el puntaje. */
-function anchorOfLines(lines: Line[]): CellPos | null {
+function anchorOfLines(lines: FullLine[]): CellPos | null {
   if (!lines.length) return null
   // Se usa el centro de la línea más larga: es donde el ojo ya está.
   let best = lines[0]!
@@ -275,15 +273,15 @@ function computePreview(cell: CellPos): RenderState['preview'] {
     }
   }
 
-  const lines = probe.findLines(TUNING.minLine)
+  // Una celda que cruza una fila y una columna se marca una sola vez.
   const seen = new Set<string>()
   const out: RenderState['preview'] = []
-  for (const line of lines) {
+  for (const line of probe.findFullLines()) {
     for (const c of line.cells) {
       const key = `${c.x},${c.y}`
       if (seen.has(key)) continue
       seen.add(key)
-      out.push({ cell: c, tier: line.tier })
+      out.push({ cell: c, tier: pieces[0]?.tier ?? 1 })
     }
   }
   return out
@@ -386,7 +384,7 @@ hud.onPlay(() => {
 newLevel(level)
 hud.setOverlayTitle(
   'blockblast',
-  'Completá 4 del mismo color en fila o columna. Los bloques de arriba caen.',
+  'Completá una fila o columna entera. El color no importa.',
   'Jugar',
 )
 hud.showOverlay(true)

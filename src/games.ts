@@ -52,7 +52,7 @@ export const GAMES: Game[] = [
   {
     id: 'blockblast',
     title: 'blockblast',
-    tagline: 'Completá 4 del mismo color en fila o columna.',
+    tagline: 'Completá una fila o columna entera. El color no importa.',
     colors: { from: '#1e4a6b', to: '#0e1018', accent: '#7fd4ff' },
     glyph: '▦',
     tags: ['puzzle', 'líneas', 'planificar'],

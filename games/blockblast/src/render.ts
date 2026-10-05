@@ -221,8 +221,9 @@ function drawBoardBlocks(ctx: CanvasRenderingContext2D, layout: Layout, board: B
 /**
  * Resalta las celdas que se van a borrar al soltar.
  *
- * Van con un anillo del color de la línea y un pulso suave. Es la información
- * más importante de la pantalla: sin ella el jugador suelta a ciegas.
+ * Con un anillo blanco y un relleno del color de la pieza. Como el color no
+ * define la completitud, el anillo es uniforme: lo que se marca es "esta celda
+ * se borra", no "este color suma".
  */
 function drawPreview(ctx: CanvasRenderingContext2D, layout: Layout, state: RenderState): void {
   if (!state.preview.length) return
@@ -232,14 +233,14 @@ function drawPreview(ctx: CanvasRenderingContext2D, layout: Layout, state: Rende
     const c = cellCenter(layout, p.cell)
     const color = COLORS[p.tier] ?? COLORS[1]!
     ctx.save()
-    ctx.globalAlpha = 0.9
-    ctx.strokeStyle = '#ffffff'
-    ctx.lineWidth = Math.max(2, layout.cell * 0.07)
-    roundRect(ctx, c.x - size / 2, c.y - size / 2, size, size, size * 0.18)
-    ctx.stroke()
     ctx.globalAlpha = 0.35
     ctx.fillStyle = color.fill
+    roundRect(ctx, c.x - size / 2, c.y - size / 2, size, size, size * 0.18)
     ctx.fill()
+    ctx.globalAlpha = 0.95
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = Math.max(2, layout.cell * 0.08)
+    ctx.stroke()
     ctx.restore()
   }
 }

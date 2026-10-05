@@ -11,18 +11,13 @@ export const TUNING = {
   traySize: 5,
 
   /**
-   * Largo mínimo para completar una línea.
+   * Colores de las piezas.
    *
-   * 4 y no 3: con 3 el tablero se vacía demasiado rápido y la partida dura
-   * poco. Con 4 hay que acumular y planear, que es la decisión interesante.
+   * El color NO es estratégico: una fila se completa sin importar qué colores
+   * tenga. Sólo sirve para distinguir visualmente las piezas, así que son pocos
+   * y todos visibles sobre el fondo.
    */
-  minLine: 4,
-
-  /**
-   * Colores disponibles. Cinco: con menos hay muy pocas combinaciones y con
-   * más el tablero se llena de todo antes de poder juntar 4 de un color.
-   */
-  colors: 5,
+  colors: 4,
 
   /**
    * Formas que pueden salir. Se incluyen líneas de 4 y 5 porque son las que
@@ -47,9 +42,7 @@ export const TUNING = {
   /** Puntos por celda borrada. */
   pointsPerCell: 10,
   /** Bonus por completar más de una línea en el mismo turno. */
-  multiLineBonus: 100,
-  /** Bonus por línea más larga de lo normal (de 6 para arriba). */
-  longLineBonus: 50,
+  multiLineBonus: 150,
 
   /** Turnos seguidos completando línea antes de que el combo suba. */
   comboStep: 3,
@@ -71,16 +64,12 @@ export interface ColorStyle {
 }
 
 /**
- * Paleta de los 5 colores.
- *
- * Cada color tiene relleno, borde y brillo. El brillo es lo que permite
- * distinguir los valores de un vistazo sin leer números, que es lo que hace
- * que se pueda planear una línea mientras se arrastra.
+ * Paleta. El color no influye en la mecánica, sólo en la lectura: hay que
+ * poder distinguir dos piezas contiguas de un vistazo.
  */
 export const COLORS: Record<number, ColorStyle> = {
   1: { fill: '#ff6b6b', edge: '#d63f4f', glow: 'rgba(255, 107, 107, 0.5)' },
-  2: { fill: '#ffd166', edge: '#e0a92c', glow: 'rgba(255, 209, 102, 0.5)' },
+  2: { fill: '#7fd4ff', edge: '#3aa7dd', glow: 'rgba(127, 212, 255, 0.5)' },
   3: { fill: '#5ee6b5', edge: '#2bb886', glow: 'rgba(94, 230, 181, 0.5)' },
-  4: { fill: '#7fd4ff', edge: '#3aa7dd', glow: 'rgba(127, 212, 255, 0.5)' },
-  5: { fill: '#c98cff', edge: '#8f52d6', glow: 'rgba(201, 140, 255, 0.5)' },
+  4: { fill: '#ffd166', edge: '#e0a92c', glow: 'rgba(255, 209, 102, 0.5)' },
 }
