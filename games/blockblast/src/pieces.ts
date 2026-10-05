@@ -60,12 +60,13 @@ export function trayMaxTier(level: number): number {
 /**
  * Genera la bandeja de un turno: exactamente `TUNING.traySize` piezas.
  *
- * El id es la posición en la bandeja (0, 1, 2), y es lo que usa el resto del
- * juego para identificar una pieza durante el arrastre. Se sortean del mismo
- * conjunto para que el turno no sea trivialmente fácil: si siempre saliera un
- * 1x1 de tier bajo el jugador nunca quedaría sin salida, que es justamente lo
- * que da tensión.
+ * Los ids son únicos y monotónicos, no índices de ranura. `usedPieces` es un
+ * `Set` por id, así que dos piezas con el mismo id se confunden: al arrastrar
+ * una se marcaban las dos y el turno terminaba usando la misma pieza dos veces.
+ * Un contador global garantiza que ninguna se repita mientras viva la partida.
  */
+let nextPieceId = 1
+
 export function rollTray(level: number, rand: () => number): Piece[] {
   const shapes = shapesForLevel(level)
   const maxTier = trayMaxTier(level)
@@ -75,7 +76,7 @@ export function rollTray(level: number, rand: () => number): Piece[] {
     const cells = parseShape(spec)
     const { w, h } = shapeSize(cells)
     const tier = 1 + Math.floor(rand() * maxTier)
-    out.push({ id: i, tier, cells, w, h })
+    out.push({ id: nextPieceId++, tier, cells, w, h })
   }
   return out
 }

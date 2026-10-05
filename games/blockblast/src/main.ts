@@ -166,10 +166,10 @@ function commitMove(cell: CellPos | null): void {
   hud.setCombo(multiplier)
   hud.setProgress(levelScore / targetForLevel(level))
 
-  // ¿Se completó el nivel?
+  // ¿Se completó el nivel? Si no, ¿quedó alguna jugada?
   if (levelScore >= targetForLevel(level)) {
     completeLevel()
-  } else if (isStuck()) {
+  } else if (isStuck() || !hasAnyMergeLeft()) {
     endGame()
   }
 }
@@ -208,6 +208,19 @@ function isStuck(): boolean {
   const usable = tray.filter((p) => !usedPieces.has(p.id))
   if (!usable.length) return true
   return !usable.some((p) => board.placements(p.cells).length > 0)
+}
+
+/**
+ * ¿Qeda alguna jugada que además fusione?
+ *
+ * Es distinto de `isStuck`: acá el tablero puede tener espacio de sobra pero
+ * ningún color llega a 3, así que la partida está muerta aunque se pueda
+ * colocar. Sin esto el juego se congela en silencio: el jugador arrastra, el
+ * ghost nunca se pone verde y no entiende por qué nada pasa.
+ */
+function hasAnyMergeLeft(): boolean {
+  const usable = tray.filter((p) => !usedPieces.has(p.id))
+  return usable.some((p) => board.hasMergingPlacement(p.cells, p.tier))
 }
 
 function completeLevel(): void {
@@ -269,9 +282,13 @@ function cancelDrag(): void {
 /**
  * ¿Las piezas usadas podrían colocarse en `cell`?
  *
- * Sólo geometría y merge: no hay que comprobar nada más, porque `place` vuelve
- * a validar y es la única fuente de verdad. Este chequeo es para el feedback
- * visual mientras se arrastra.
+ * Sólo geometría y merge: `place` vuelve a validar y es la única fuente de
+ * verdad, así que este chequeo existe para el feedback visual mientras se
+ * arrastra.
+ *
+ * El merge es la condición porque una colocación que no fusiona no consume
+ * turno: aceptarla como jugada válida dejaría al jugador llenando el tablero
+ * sin poder fusionar nunca.
  */
 function isPlacementValid(cell: CellPos): boolean {
   const pieces = tray.filter((p) => usedPieces.has(p.id))
@@ -303,15 +320,20 @@ const drag = new DragController(canvas, layout, boardSize, {
       cancelDrag()
       return
     }
-    // Se hace la pieza "soltada" durante el commit; si falla, commitMove la
-    // devuelve a la bandeja.
     if (cell && isPlacementValid(cell)) {
       dragIndex = null
       dragPiece = null
       ghostCell = null
       commitMove(cell)
     } else {
+      // No hubo movimiento válido, pero el turno puede seguir teniendo juego:
+      // se reevalúa igual. Antes esto sólo se chequeaba dentro de `commitMove`,
+      // así que una partida bloqueada con el jugador arrastrando piezas
+      // inválidas se quedaba congelada en silencio, sin mensaje ni fin.
       cancelDrag()
+      if (state === 'playing' && levelScore < targetForLevel(level) && !hasAnyMergeLeft()) {
+        endGame()
+      }
     }
   },
 })
