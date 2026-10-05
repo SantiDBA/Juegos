@@ -5,8 +5,14 @@
  * sin bucear el loop.
  */
 export const TUNING = {
-  /** Lado del tablero en celdas. 9x9 es el estándar del género. */
-  boardSize: 9,
+  /**
+   * Lado del tablero en celdas.
+   *
+   * 8x8: con 9 el tablero se vacía demasiado rápido, porque una línea son 9
+   * celdas y una sola jugada borra una porción grande de todo. Con 8 la línea
+   * es un poco más chica y la partida dura lo justo.
+   */
+  boardSize: 8,
   /** Piezas por turno. */
   traySize: 5,
 
