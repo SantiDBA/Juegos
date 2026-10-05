@@ -29,7 +29,7 @@ export interface RenderState {
    * Celdas que se van a borrar si se suelta ahora, con su color.
    *
    * Es lo que convierte el juego de "colocar piezas" en "planear": sin esto
-   * no hay forma de saber si la posiciónArma una línea antes de soltar.
+   * no hay forma de saber si la posición arma una línea antes de soltar.
    */
   preview: Array<{ cell: CellPos; tier: number }>
   /** Pop de línea completada. */
@@ -40,6 +40,28 @@ export interface RenderState {
   usedPieceIds: Set<number>
 }
 
+/**
+ * Ancho que el HUD ocupa a la izquierda.
+ *
+ * El HUD vive en una columna fija sobre el canvas, así que el tablero no puede
+ * seguir centrado en la ventana: si lo hiciera, las primeras columnas quedarían
+ * debajo del cartel. Se descuenta esta franja del ancho disponible y el tablero
+ * se centra en lo que queda.
+ */
+const HUD_GUTTER = 156
+
+/** Por debajo de este ancho el HUD no entra al costado y pasa arriba. */
+const SIDE_HUD_MIN_WIDTH = 720
+
+/**
+ * Alto que el HUD ocupa arriba cuando la pantalla es angosta.
+ *
+ * En ese modo el HUD vuelve arriba (ver la media query en style.css) y ocupa
+ * una franja horizontal completa, así que el tablero tiene que arrancar más
+ * abajo. Sin esto el cartel tapa las primeras filas.
+ */
+const HUD_TOP_GUTTER = 78
+
 export function computeLayout(
   canvasW: number,
   canvasH: number,
@@ -47,13 +69,20 @@ export function computeLayout(
 ): Layout {
   const margin = 16
   const trayHeight = Math.min(130, Math.max(88, canvasH * 0.16))
-  const availH = canvasH - trayHeight - margin * 3
-  const availW = canvasW - margin * 2
+
+  // En pantallas angostas no hay lugar para el HUD al costado: pasa arriba y el
+  // tablero recupera el ancho, pero tiene que ceder el alto.
+  const sideHud = canvasW >= SIDE_HUD_MIN_WIDTH
+  const gutterX = sideHud ? HUD_GUTTER : 0
+  const gutterY = sideHud ? 0 : HUD_TOP_GUTTER
+
+  const availW = canvasW - gutterX - margin * 2
+  const availH = canvasH - gutterY - trayHeight - margin * 3
   const cell = Math.floor(Math.min(availW, availH) / boardSize)
 
   const boardPx = cell * boardSize
-  const originX = Math.round((canvasW - boardPx) / 2)
-  const originY = Math.round((canvasH - trayHeight - boardPx) / 2)
+  const originX = Math.round(gutterX + (availW - boardPx) / 2)
+  const originY = Math.round(gutterY + (canvasH - gutterY - trayHeight - boardPx) / 2)
 
   return { cell, originX, originY, trayY: originY + boardPx + margin, trayHeight }
 }

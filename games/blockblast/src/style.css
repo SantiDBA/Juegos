@@ -36,13 +36,18 @@ body {
 
 /* ---------- HUD ---------- */
 
+/*
+ * El HUD va a la izquierda, no arriba: el tablero es un cuadrado centrado y
+ * el cartel encima lo tapaba. En columna vertical además entra en pantallas
+ * bajas, que es donde el juego más se angosta.
+ */
 #hud {
   position: fixed;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 340px;
-  padding: 10px 20px 12px;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  width: 132px;
+  padding: 12px 12px 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--panel);
@@ -58,15 +63,15 @@ body {
 
 .hud-row {
   display: flex;
-  justify-content: space-between;
-  gap: 18px;
+  flex-direction: column;
+  gap: 9px;
 }
 
 .hud-item {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .hud-item .label {
@@ -251,10 +256,11 @@ body {
 
 /* ---------- Volver / toast ---------- */
 
+/* El HUD ocupa la franja izquierda, así que el link se va al extremo opuesto. */
 .back {
   position: fixed;
   top: 16px;
-  left: 18px;
+  right: 18px;
   z-index: 20;
   padding: 7px 14px;
   border: 1px solid var(--border);
@@ -290,4 +296,55 @@ body {
 #toast.visible {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+/* ---------- Pantallas angostas ---------- */
+
+/*
+ * Sin ancho para el HUD al costado, así que vuelve arriba y el tablero
+ * recupera el ancho completo. `computeLayout` descuenta esta misma franja
+ * (SIDE_HUD_MIN_WIDTH / HUD_TOP_GUTTER): si el HUD se mueve, el layout tiene
+ * que saberlo o el cartel vuelve a tapar las primeras filas.
+ *
+ * Va al final del archivo a propósito: si se definiera antes, las reglas
+ * base de `#hud` y `.back` lo pisarían por cascada.
+ */
+@media (max-width: 719px) {
+  #hud {
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    max-width: calc(100vw - 32px);
+    padding: 8px 12px 10px;
+  }
+
+  .hud-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 14px;
+  }
+
+  .hud-item {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 5px;
+  }
+
+  .hud-item .label {
+    font-size: 8px;
+  }
+
+  .hud-item .value {
+    font-size: 14px;
+  }
+
+  /* Arriba a la derecha chocaba con el HUD, que ahora ocupa todo el ancho. */
+  .back {
+    top: auto;
+    bottom: 14px;
+    left: 14px;
+    right: auto;
+  }
 }
