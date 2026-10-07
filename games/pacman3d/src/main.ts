@@ -290,10 +290,11 @@ function inputToDir(ix: number, iy: number): Dir | null {
   camForward.y = 0
   if (camForward.lengthSq() < 1e-6) return null
   camForward.normalize()
-  // derecha = arriba × adelante. Con el orden inverso (adelante × arriba) el
-  // vector queda reflejado y left/right se intercambian: el control parecería
-  // estar calibrado al revés en el eje horizontal.
-  camRight.crossVectors(camUp, camForward)
+  // derecha = adelante × arriba (base derecha, izq., arriba, atrás en Three).
+  // Invertir el orden da el vector reflejado y left/right se intercambian: con
+  // la cámara mirando hacia -z, arriba × adelante devuelve (-1,0,0), que es
+  // la izquierda de la pantalla.
+  camRight.crossVectors(camForward, camUp)
 
   const wx = camForward.x * iy + camRight.x * ix
   const wz = camForward.z * iy + camRight.z * ix
