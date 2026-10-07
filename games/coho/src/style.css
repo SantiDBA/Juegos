@@ -79,10 +79,15 @@ body {
   animation: pop 0.45s ease;
 }
 
-/* Últimos segundos: el reloj late y cambia de color. */
+/* Reloj acelerado por el orbe rojo: late y cambia de color. */
 #time.critical {
   color: var(--danger, #ff6b6b);
   animation: clockPulse 1s ease-in-out infinite;
+}
+
+/* Reloj frenado por combo o por orbe dorado: cambia de color, pero no late. */
+#time.braked {
+  color: #ffc94d;
 }
 
 @keyframes clockPulse {

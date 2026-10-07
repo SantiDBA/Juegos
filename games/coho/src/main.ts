@@ -177,15 +177,22 @@ function readInput(): void {
 const hud = createHud()
 let state: GameState = 'menu'
 /**
- * Segundos que quedan. Antes el reloj subía y el combo multiplicaba su
- * velocidad; ahora es una cuenta regresiva y tanto los orbes dorados como el
- * combo suman tiempo, así que el skill se ve en el número.
+ * Segundos jugados. El reloj sube y no hay límite: el récord es el menor
+ * tiempo con el que se juntaron todos los orbes, así que la única forma de
+ * mejorarlo es terminar antes. El combo y los orbes dorados frenan el reloj en
+ * vez de sumar segundos, y los rojos lo aceleran.
  */
-let timeLeft: number = TUNING.startSeconds
+let elapsed = 0
 let collected = 0
 let seed = 0
-/** Reloj monotónico de animación: nunca retrocede aunque el tiempo se recupere. */
+/** Reloj monotónico de animación: nunca retrocede aunque el reloj se frene. */
 let clockTime = 0
+/**
+ * Modificador temporal de la velocidad del reloj. Es un solo estado porque
+ * dorado y rojo se pisan entre sí: el último orbe define la velocidad hasta
+ * que expira, y el rojo pisa el freno del combo.
+ */
+const clockMod = { scale: 1, timer: 0 }
 /** Punto al que vuelve el jugador si cae al vacío. */
 let checkpoint = new THREE.Vector3()
 
@@ -233,6 +240,15 @@ function respawnEnemies(): void {
   hud.setThreatened(false)
 }
 
+/**
+ * Aplica un modificador temporal al reloj. Reemplaza al anterior en vez de
+ * acumularse: dos orbes a la vez no tienen sentido y el último manda.
+ */
+function applyClockMod(scale: number, seconds: number): void {
+  clockMod.scale = scale
+  clockMod.timer = seconds
+}
+
 async function startPlaying(): Promise<void> {
   if (state === 'playing') return
   if (state === 'menu') resetRun(true)
@@ -260,8 +276,9 @@ function resetRun(newSeed = true): void {
     spawnLevel(seed)
   }
 
-  timeLeft = TUNING.startSeconds
-  collected = 0
+  elapsed = 0
+  clockMod.scale = 1
+  clockMod.timer = 0
   clockTime = 0
   combo.reset()
   particles.clear()
@@ -272,7 +289,7 @@ function resetRun(newSeed = true): void {
   checkpoint.copy(level.spawn)
 
   hud.setOrbs(0, level.orbSpots.length)
-  hud.setTime(timeLeft)
+  hud.setTime(elapsed, 1)
   hud.setCombo(1, 0)
   hud.setPowerUps(powerUps.active, powerUps.timers)
   hud.setThreatened(false)
@@ -295,9 +312,8 @@ function win(): void {
   hud.setHudVisible(false)
   hud.setThreatened(false)
   sfx.win()
-  // El récord guarda el tiempo USADO, no el que quedó: empezar con la misma
-  // cifra para todos haría que recuperar tiempo no se viera reflejado.
-  const used = TUNING.startSeconds - timeLeft
+  // El récord es el tiempo empleado: es lo único que compara dos partidas.
+  const used = elapsed
   const isNewBest = saveBest(used, enemiesOn)
   hud.setBest(readBest(enemiesOn))
   if (isNewBest) hud.flashBest()
@@ -310,23 +326,19 @@ function win(): void {
   if (document.pointerLockElement === canvas) document.exitPointerLock()
 }
 
-function die(reason: 'caught' | 'timeout'): void {
+function die(): void {
   state = 'dead'
   hud.setCrosshairVisible(false)
   hud.setHudVisible(false)
   hud.setThreatened(false)
 
-  if (reason === 'caught') {
-    sfx.death()
-    cameraFeel.addShake(0.6, 0.5)
-    hud.flashDamage()
-  } else {
-    sfx.timeout()
-  }
+  sfx.death()
+  cameraFeel.addShake(0.6, 0.5)
+  hud.flashDamage()
 
   hud.setOverlayTitle(
-    reason === 'caught' ? 'te atraparon' : 'se acabó el tiempo',
-    `${collected} / ${level.orbSpots.length} orbes · ${(TUNING.startSeconds - timeLeft).toFixed(2)} s`,
+    'te atraparon',
+    `${collected} / ${level.orbSpots.length} orbes · ${elapsed.toFixed(2)} s`,
     'Reintentar',
   )
   hud.showOverlay(true)
@@ -338,15 +350,12 @@ function die(reason: 'caught' | 'timeout'): void {
 function collectAt(feet: THREE.Vector3): void {
   samplePoint.set(feet.x, feet.y + TUNING.playerHeight * 0.5, feet.z)
 
-  // Orbes normales: suman combo y, con combo alto, tiempo
+  // Orbes normales: suben el combo, y el combo es lo que frena el reloj.
   const normalHits = pickups.collect(samplePoint, TUNING.collectRadius, 'normal')
   if (normalHits.length > 0) {
     collected += normalHits.length
     for (let i = 0; i < normalHits.length; i++) {
       const mult = combo.register()
-      // El combo ya no acelera el reloj (ahora es cuenta regresiva): se
-      // traduce en segundos recuperados, escalados por el multiplicador.
-      timeLeft += TUNING.comboTimeBonus * mult
       sfx.collect(combo.count)
       particles.burst(
         pickups.group.children[normalHits[i]].position,
@@ -359,30 +368,24 @@ function collectAt(feet: THREE.Vector3): void {
     hud.setOrbs(collected, level.orbSpots.length)
   }
 
-  // Dorados: suman tiempo
+  // Dorados: ralentizan el reloj
   const goldHits = pickups.collect(samplePoint, TUNING.collectRadius, 'gold')
   for (const idx of goldHits) {
-    timeLeft += TUNING.goldTimeBonus
+    applyClockMod(TUNING.goldClockScale, TUNING.goldClockSeconds)
     sfx.gold()
     particles.burst(pickups.group.children[idx].position, COLOR_GOLD, 26, 5)
     cameraFeel.addFovKick(6)
-    hud.showToast(
-      `orbe dorado<span class="sub">+${TUNING.goldTimeBonus} s</span>`,
-      1100,
-    )
+    hud.showToast('orbe dorado<span class="sub">el reloj se frena</span>', 1100)
   }
 
-  // Rojos: restan tiempo
+  // Rojos: aceleran el reloj
   const hazardHits = pickups.collect(samplePoint, TUNING.collectRadius, 'hazard')
   for (const idx of hazardHits) {
-    timeLeft -= TUNING.hazardTimePenalty
+    applyClockMod(TUNING.hazardClockScale, TUNING.hazardClockSeconds)
     sfx.hazard()
     particles.burst(pickups.group.children[idx].position, COLOR_RED, 26, 5)
     cameraFeel.addShake(0.25)
-    hud.showToast(
-      `orbe rojo<span class="sub">−${TUNING.hazardTimePenalty} s</span>`,
-      1100,
-    )
+    hud.showToast('orbe rojo<span class="sub">el reloj acelera</span>', 1100)
   }
 
   // Power-ups
@@ -441,8 +444,8 @@ function updatePlaying(realDt: number): void {
     player.reset(checkpoint)
     cameraFeel.addShake(0.4)
     // Caer cuesta tiempo: el checkpoint perdona la caída, no la descuenta.
-    timeLeft -= 3
-    hud.showToast('caíste del mundo · −3 s', 1400)
+    elapsed += TUNING.fallPenaltySeconds
+    hud.showToast(`caíste del mundo · +${TUNING.fallPenaltySeconds} s`, 1400)
     return
   }
 
@@ -483,7 +486,7 @@ function updatePlaying(realDt: number): void {
   hud.setThreatened(threatened)
   if (enemies.consumeAlert()) sfx.alert()
   if (hits.length > 0) {
-    die('caught')
+    die()
     return
   }
 
@@ -491,11 +494,30 @@ function updatePlaying(realDt: number): void {
   if (combo.tick(dt)) sfx.comboLost()
   hud.setCombo(combo.multiplier, combo.ratio)
 
-  // La cuenta regresiva corre en tiempo real: recuperarlo con combo y orbes
-  // dorados es la única forma de ganarle al reloj.
-  timeLeft -= realDt
+  // Vence el modificador: al expirar el reloj vuelve a su velocidad natural.
+  if (clockMod.timer > 0) {
+    clockMod.timer -= realDt
+    if (clockMod.timer <= 0) {
+      clockMod.scale = 1
+      clockMod.timer = 0
+    }
+  }
 
-  hud.setTime(timeLeft)
+  // El cronómetro corre en tiempo real: sólo lo frenan el combo y los orbes
+  // dorados, y el rojo lo acelera por encima de cualquiera de los dos.
+  let clockScale = 1
+  if (clockMod.timer > 0) {
+    clockScale = clockMod.scale
+  } else {
+    const brake = Math.min(
+      TUNING.comboClockBrakeMax,
+      TUNING.comboClockBrake * (combo.multiplier - 1),
+    )
+    clockScale = 1 - brake
+  }
+  elapsed += realDt * clockScale
+
+  hud.setTime(elapsed, clockScale)
   pickups.update(clockTime, realDt, player.position)
   powerUps.updateVisual(clockTime)
   particles.update(realDt)
@@ -505,11 +527,6 @@ function updatePlaying(realDt: number): void {
   if (collected >= level.orbSpots.length) {
     win()
     return
-  }
-  if (timeLeft <= 0) {
-    timeLeft = 0
-    hud.setTime(0)
-    die('timeout')
   }
 }
 
@@ -688,4 +705,3 @@ window.addEventListener('resize', () => {
 })
 
 frame()
-

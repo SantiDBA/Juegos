@@ -27,16 +27,6 @@ export const TUNING = {
   goldCount: 3,
   hazardCount: 3,
   /**
-   * El reloj cuenta hacia atrás: los dorados suman tiempo y los rojos lo
-   * restan. Antes el reloj subía y el combo multiplicaba su velocidad; con
-   * cuenta regresiva la presión tiene que venir de quedarse sin tiempo, y la
-   * habilidad se paga en segundos recuperados.
-   */
-  startSeconds: 60,
-  goldTimeBonus: 3,
-  hazardTimePenalty: 3,
-
-  /**
    * Atracción de orbes: dentro de `magnetRadius` el orbe se mueve hacia el
    * jugador con una curva suave, así una aproximación casi pasa sin exigir
    * puntería al_FRAME.
@@ -60,16 +50,33 @@ export const TUNING = {
   turboMultiplier: 1.45,
   slowmoScale: 0.55,
 
+  // --- Reloj
+  /**
+   * El reloj cuenta hacia arriba y no hay límite de tiempo: el récord es el
+   * menor tiempo con el que se juntaron todos los orbes. El skill no se paga
+   * sumando segundos, sino frenando el reloj.
+   *
+   * El freno del combo es acumulativo pero acotado, para que x5 no vuelva el
+   * reloj casi gratis. Dorado y rojo son modificadores absolutos que se pisan
+   * entre sí; el rojo pisa al combo porque un castigo tiene que sentirse.
+   */
+  comboClockBrake: 0.06,
+  comboClockBrakeMax: 0.24,
+  goldClockScale: 0.5,
+  goldClockSeconds: 5,
+  hazardClockScale: 1.25,
+  hazardClockSeconds: 3,
+  /** Segundos que suma al elapsed caerse al vacío. */
+  fallPenaltySeconds: 3,
+
   // --- Combo
   comboWindow: 4,
   comboMax: 5,
   /**
-   * Segundos que se ganan por orbe normal según el multiplicador activo.
-   * Antes el combo multiplicaba la velocidad del reloj; ahora la cuenta
-   * regresiva es plana y el combo se traduce directamente en tiempo recuperado,
-   * así el skill se ve en el número y no en un efecto invisible.
+   * El combo ya no multiplica el reloj ni otorga segundos: frena su avance
+   * según el multiplicador activo (ver `comboClockBrake`), así que mantener la
+   * racha se ve en el número del HUD.
    */
-  comboTimeBonus: 0.45,
 
   // --- Feel
   collectRadius: 1.6,

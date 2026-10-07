@@ -19,7 +19,11 @@ export interface Hud {
   /** Refleja el modo en el toggle, su nota y la leyenda del panel. */
   setEnemiesMode(on: boolean): void
   setOrbs(current: number, total: number): void
-  setTime(seconds: number): void
+  /**
+   * `seconds` es el tiempo transcurrido; `rate` es la velocidad actual del
+   * reloj, para poder marcar cuándo lo están frenando o acelerando.
+   */
+  setTime(seconds: number, rate: number): void
   setBest(seconds: number | null): void
   setCombo(multiplier: number, ratio: number): void
   setPowerUps(active: Record<PowerUpKind, boolean>, timers: Record<PowerUpKind, number>): void
@@ -139,12 +143,12 @@ export function createHud(): Hud {
     setOrbs(current, total) {
       countEl.textContent = `${current} / ${total}`
     },
-    setTime(seconds) {
-      // La cuenta regresiva nunca baja de cero: el Game Over lo dispara
-      // `main` en el mismo frame, así que un negativo aquí sería solo ruido.
-      timeEl.textContent = formatTime(Math.max(0, seconds))
-      // Últimos 10 segundos: el reloj se tensa y late.
-      timeEl.classList.toggle('critical', seconds <= 10)
+    setTime(seconds, rate) {
+      timeEl.textContent = formatTime(seconds)
+      // El reloj nunca retrocede, así que `rate` es lo único que dice si lo
+      // están frenando (combo, dorado) o acelerando (rojo).
+      timeEl.classList.toggle('braked', rate < 0.999)
+      timeEl.classList.toggle('critical', rate > 1.001)
     },
     setBest(seconds) {
       bestEl.textContent = seconds === null ? '—' : formatTime(seconds)
