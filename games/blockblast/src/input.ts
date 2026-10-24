@@ -1,6 +1,5 @@
-import type { CellPos } from './board'
 import type { Piece } from './pieces'
-import { screenToCell, slotMetrics, type Layout } from './render'
+import { slotMetrics, type Layout } from './render'
 
 /**
  * Arrastre de piezas con Pointer Events.
@@ -23,8 +22,15 @@ export interface DragCallbacks {
   /** Cambió el estado del arrastre (empezó, se movió o terminó). */
   onDragStart(index: number): void
   onDragMove(px: number, py: number): void
-  /** Se soltó la pieza. `cell` es la celda destino o null si fue fuera. */
-  onDragEnd(cell: CellPos | null): void
+  /**
+   * Se soltó la pieza, en `px`/`py` de pantalla.
+   *
+   * Se pasa el puntero y no la celda: resolver a qué celda apunta depende del
+   * tamaño de la pieza, y eso lo sabe el juego, no el control de arrastre.
+   */
+  onDragEnd(px: number, py: number): void
+  /** El gesto se canceló (el navegador se lo quedó): no cuenta como soltar. */
+  onDragCancel(): void
 }
 
 export class DragController {
@@ -34,7 +40,6 @@ export class DragController {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private layout: Layout,
-    private readonly boardSize: number,
     private readonly callbacks: DragCallbacks,
   ) {}
 
@@ -103,16 +108,16 @@ export class DragController {
 
   private onUp(e: PointerEvent): void {
     if (!this.drag || e.pointerId !== this.activePointer) return
-    const cell = screenToCell(this.layout, e.clientX, e.clientY, this.boardSize)
+    const { clientX, clientY } = e
     this.finish()
-    this.callbacks.onDragEnd(cell)
+    this.callbacks.onDragEnd(clientX, clientY)
   }
 
   private onCancel(e: PointerEvent): void {
     if (e.pointerId !== this.activePointer) return
     // Cancelar (ej: el navegador tomó el gesto) no cuenta como soltar.
     this.finish()
-    this.callbacks.onDragEnd(null)
+    this.callbacks.onDragCancel()
   }
 
   private finish(): void {

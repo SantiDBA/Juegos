@@ -3,10 +3,10 @@ import { COLORS, TUNING } from './config'
 import { rollTray, type Piece } from './pieces'
 import { targetForLevel } from './levels'
 import { DragController } from './input'
+import { Sfx } from './sfx'
 import {
   computeLayout,
   render,
-  screenToCell,
   type Layout,
   type RenderState,
 } from './render'
@@ -25,6 +25,7 @@ const canvas = document.getElementById('board') as HTMLCanvasElement
 const ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D
 
 const hud = createHud()
+const sfx = new Sfx()
 
 const boardSize = TUNING.boardSize
 let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, boardSize)
@@ -71,6 +72,8 @@ let dragPiece: Piece | null = null
 let dragPx = 0
 let dragPy = 0
 let ghostCell: CellPos | null = null
+/** ¿La pieza que se arrastra entra en `ghostCell`? */
+let ghostValid = false
 /** Líneas que se completarían al soltar ahora mismo. */
 let preview: RenderState['preview'] = []
 
@@ -92,6 +95,7 @@ function newLevel(next: number): void {
   dragIndex = null
   dragPiece = null
   ghostCell = null
+  ghostValid = false
   hud.setLevel(level, targetForLevel(level))
   hud.setProgress(0)
   hud.setMoves(0)
@@ -119,6 +123,7 @@ function commitMove(cell: CellPos): void {
 
   if (!result.valid) {
     usedPieces = new Set()
+    sfx.invalid()
     hud.showToast('no entra ahí')
     cancelDrag()
     return
@@ -138,6 +143,11 @@ function commitMove(cell: CellPos): void {
   else comboStreak = 0
   const multiplier = comboMultiplier()
   gained = Math.round(gained * multiplier)
+
+  // El sonido sigue el resultado del turno: soltar, limpiar o arrasar.
+  if (result.lines.length > 1) sfx.multiLine(result.lines.length)
+  else if (result.lines.length === 1) sfx.line(multiplier, result.bestLength)
+  else sfx.place()
 
   score += gained
   levelScore += gained
@@ -207,6 +217,7 @@ function hasAnyPlacement(): boolean {
 function completeLevel(): void {
   state = 'levelclear'
   saveLevel(level + 1)
+  sfx.levelClear()
   hud.setOverlayTitle(
     `nivel ${level} listo`,
     `${levelScore} puntos. A por el ${level + 1}.`,
@@ -219,9 +230,11 @@ function endGame(): void {
   state = 'gameover'
   hud.setOverlayTitle('se acabó', `Puntaje ${score}.`, 'Otra vez')
   hud.showOverlay(true)
+  sfx.gameOver()
   if (saveBest(score)) {
     best = readBest()
     hud.flashBest()
+    sfx.best()
   }
 }
 
@@ -242,6 +255,7 @@ function beginDrag(index: number): void {
   dragIndex = index
   dragPiece = piece
   usedPieces.add(piece.id)
+  sfx.grab()
 }
 
 /**
@@ -251,10 +265,67 @@ function beginDrag(index: number): void {
  * se quiere tocar el tablero real hasta que el jugador suelte.
  */
 function updateDrag(px: number, py: number): void {
-  dragPx = px
-  dragPy = py
-  ghostCell = screenToCell(layout, px, py, boardSize)
-  preview = ghostCell ? computePreview(ghostCell) : []
+  ghostCell = dragTargetCell(px, py)
+  ghostValid = ghostCell !== null && draggedPiecesFit(ghostCell)
+  preview = ghostCell && ghostValid ? computePreview(ghostCell) : []
+
+  // La ficha se dibuja encajada al destino, no siguiendo al puntero. Siguiendo
+  // al puntero quedaba hasta dos celdas corrida de su sombra y del lugar donde
+  // termina; encajada, ficha, sombra y destino son el mismo cálculo.
+  const center =
+    ghostCell && dragPiece ? snappedCenter(ghostCell, dragPiece) : { x: px, y: py }
+  dragPx = center.x
+  dragPy = center.y
+}
+
+/**
+ * Celda donde caería la pieza arrastrada, ya encajada a la grilla.
+ *
+ * Es el inverso exacto de `snappedCenter`: se redondea el centro de la pieza a
+ * la celda más cercana y de ahí sale la celda del extremo. Se ancla por el
+ * centro y no por el extremo para que el resultado no dependa de cuál celda de
+ * la pieza agarró el jugador.
+ *
+ * Devuelve null si, encajada así, la pieza no entraría entera en el tablero.
+ */
+function dragTargetCell(px: number, py: number): CellPos | null {
+  const piece = dragPiece
+  if (!piece) return null
+  const x = Math.round((px - layout.originX) / layout.cell - piece.w / 2)
+  const y = Math.round((py - layout.originY) / layout.cell - piece.h / 2)
+  if (x < 0 || y < 0 || x + piece.w > boardSize || y + piece.h > boardSize) return null
+  return { x, y }
+}
+
+/** Centro en px donde se dibuja la pieza apoyada en `cell`. */
+function snappedCenter(cell: CellPos, piece: Piece): { x: number; y: number } {
+  return {
+    x: layout.originX + (cell.x + piece.w / 2) * layout.cell,
+    y: layout.originY + (cell.y + piece.h / 2) * layout.cell,
+  }
+}
+
+/**
+ * ¿El puntero está sobre el área de juego?
+ *
+ * Se usa sólo para decidir si vale avisar del rechazo: soltar en cualquier lado
+ * fuera del tablero no es un error, es dejarlo estar.
+ */
+function overBoard(px: number, py: number): boolean {
+  const size = layout.cell * boardSize
+  return (
+    px >= layout.originX &&
+    px <= layout.originX + size &&
+    py >= layout.originY &&
+    py <= layout.originY + size
+  )
+}
+
+/** ¿Todo lo que se arrastra entra en `cell` sin pisar una celda ocupada? */
+function draggedPiecesFit(cell: CellPos): boolean {
+  return tray
+    .filter((p) => usedPieces.has(p.id))
+    .every((p) => board.fits(p.cells, cell.x, cell.y))
 }
 
 /** Celdas que se borrarían al soltar en `cell`. */
@@ -295,36 +366,41 @@ function cancelDrag(): void {
   dragIndex = null
   dragPiece = null
   ghostCell = null
+  ghostValid = false
   preview = []
 }
 
-const drag = new DragController(canvas, layout, boardSize, {
+/**
+ * Cierra el arrastre sin colocar.
+ *
+ * Reevalúa el bloqueo: una partida trabada con el jugador arrastrando
+ * posiciones inválidas se quedaba congelada en silencio.
+ */
+function abortDrag(): void {
+  cancelDrag()
+  if (state === 'playing' && levelScore < targetForLevel(level) && !hasAnyPlacement()) {
+    endGame()
+  }
+}
+
+const drag = new DragController(canvas, layout, {
   onDragStart: beginDrag,
   onDragMove: updateDrag,
-  onDragEnd: (cell) => {
-    const hadDrag = dragIndex !== null
-    if (cell && hadDrag) {
-      // Todo lo que se arrastra tiene que caber: `place` es la fuente de
-      // verdad, pero acá se evita el flickering de un rechazo.
-      const shapes = tray
-        .filter((p) => usedPieces.has(p.id))
-        .map((p) => ({ tier: p.tier, cells: p.cells }))
-      const fits = shapes.every((s) => board.fits(s.cells, cell.x, cell.y))
-      if (fits) {
-        dragIndex = null
-        dragPiece = null
-        ghostCell = null
-        commitMove(cell)
-        return
-      }
+  onDragEnd: (px, py) => {
+    const target = dragIndex === null ? null : dragTargetCell(px, py)
+    if (target && draggedPiecesFit(target)) {
+      dragIndex = null
+      dragPiece = null
+      ghostCell = null
+      ghostValid = false
+      commitMove(target)
+      return
     }
-    cancelDrag()
-    // Se reevalúa igual: una partida bloqueada con el jugador arrastrando
-    // posiciones inválidas se quedaba congelada en silencio.
-    if (state === 'playing' && levelScore < targetForLevel(level) && !hasAnyPlacement()) {
-      endGame()
-    }
+    // Apuntó al tablero sin que la pieza entre: se avisa y vuelve a la bandeja.
+    if (dragIndex !== null && (target || overBoard(px, py))) sfx.invalid()
+    abortDrag()
   },
+  onDragCancel: abortDrag,
 })
 resize()
 drag.setWidth(window.innerWidth)
@@ -356,6 +432,7 @@ function frame(now: number): void {
     dragging:
       dragPiece && dragIndex !== null ? [{ piece: dragPiece, dx: dragPx, dy: dragPy }] : [],
     ghost: ghostCell,
+    ghostValid,
     preview,
     pops,
     floaters,
@@ -368,7 +445,27 @@ function frame(now: number): void {
 
 window.addEventListener('resize', resize)
 
+/*
+ * El audio sólo puede arrancar dentro de un gesto del usuario. El botón de
+ * jugar lo cubre, pero también se puede empezar arrastrando una pieza: por eso
+ * el primer pointerdown en cualquier lado también desbloquea.
+ */
+window.addEventListener('pointerdown', () => sfx.unlock(), { once: true })
+
+hud.onSoundToggle((muted) => {
+  sfx.setMuted(muted)
+  hud.showToast(muted ? 'sonido apagado' : 'sonido encendido', 1000)
+})
+
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyM') return
+  sfx.setMuted(!sfx.muted)
+  hud.setSoundMuted(sfx.muted)
+  hud.showToast(sfx.muted ? 'sonido apagado' : 'sonido encendido', 1000)
+})
+
 hud.onPlay(() => {
+  sfx.unlock()
   if (state === 'levelclear') {
     newLevel(level + 1)
     state = 'playing'

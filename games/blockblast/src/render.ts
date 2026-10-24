@@ -1,5 +1,5 @@
-import { Board, EMPTY, type CellPos } from './board'
-import { COLORS, TUNING } from './config'
+import { EMPTY, type Board, type CellPos } from './board'
+import { BOARD, COLORS } from './config'
 import type { Piece } from './pieces'
 
 /**
@@ -21,10 +21,22 @@ export interface Layout {
 }
 
 export interface RenderState {
-  /** Piezas que se están arrastrando, con su posición en px. */
+  /**
+   * Piezas que se están arrastrando, con el centro donde se dibujan.
+   *
+   * `dx`/`dy` ya viene encajado a la grilla cuando hay destino: la ficha que se
+   * ve es exactamente la que va a caer, así que no puede discrepar de su sombra
+   * ni del lugar donde termina.
+   */
   dragging: Array<{ piece: Piece; dx: number; dy: number }>
-  /** Casilla destino donde caerían las piezas arrastradas. */
+  /** Casilla destino donde caería la pieza arrastrada. */
   ghost: CellPos | null
+  /**
+   * ¿Entra ahí?
+   *
+   * Se distingue de `preview`: entrar y completar línea son cosas distintas.
+   */
+  ghostValid: boolean
   /**
    * Celdas que se van a borrar si se suelta ahora, con su color.
    *
@@ -87,25 +99,23 @@ export function computeLayout(
   return { cell, originX, originY, trayY: originY + boardPx + margin, trayHeight }
 }
 
-/** Convierte coordenadas de pantalla a celda del tablero. */
-export function screenToCell(
-  layout: Layout,
-  px: number,
-  py: number,
-  boardSize: number,
-): CellPos | null {
-  const x = Math.floor((px - layout.originX) / layout.cell)
-  const y = Math.floor((py - layout.originY) / layout.cell)
-  if (x < 0 || y < 0 || x >= boardSize || y >= boardSize) return null
-  return { x, y }
-}
-
 /** Centro de una celda en px. */
 export function cellCenter(layout: Layout, cell: CellPos): { x: number; y: number } {
   return {
     x: layout.originX + (cell.x + 0.5) * layout.cell,
     y: layout.originY + (cell.y + 0.5) * layout.cell,
   }
+}
+
+/**
+ * Lado del bloque dentro de su celda.
+ *
+ * Lo comparten el tablero y la ficha arrastrada: si cada uno usara el suyo, la
+ * ficha cambiaría de tamaño al soltarla, justo en el momento en que se está
+ * juzgando si cayó donde decía.
+ */
+function blockSize(layout: Layout): number {
+  return layout.cell * 0.9
 }
 
 function roundRect(
@@ -129,8 +139,9 @@ function roundRect(
 /**
  * Dibuja un bloque.
  *
- * El degradado diagonal y el brillo interior le dan volumen sin necesidad de
- * sombras por celda, que serían 81 por frame.
+ * Degradado diagonal para el volumen, costura oscura para que dos bloques
+ * contiguos no se lean como uno solo, y canto superior iluminado para el
+ * relieve. Todo sin sombras por celda, que serían 64 por frame.
  */
 function drawBlock(
   ctx: CanvasRenderingContext2D,
@@ -155,9 +166,20 @@ function drawBlock(
   roundRect(ctx, cx - half, cy - half, half * 2, half * 2, radius)
   ctx.fill()
 
-  ctx.globalAlpha = alpha * 0.3
-  ctx.fillStyle = '#ffffff'
-  roundRect(ctx, cx - half + size * 0.11, cy - half + size * 0.09, half * 1.15, half * 0.46, radius * 0.6)
+  ctx.strokeStyle = BOARD.blockSeam
+  ctx.lineWidth = Math.max(1, size * 0.06)
+  ctx.stroke()
+
+  ctx.globalAlpha = alpha * 0.5
+  ctx.fillStyle = color.hi
+  roundRect(
+    ctx,
+    cx - half + size * 0.13,
+    cy - half + size * 0.11,
+    half * 1.08,
+    half * 0.36,
+    radius * 0.6,
+  )
   ctx.fill()
 
   ctx.restore()
@@ -177,17 +199,174 @@ export function slotMetrics(layout: Layout, trayCount: number) {
   return { slotW, slotSize, totalW, top: layout.trayY + 4 }
 }
 
-/** Centro del slot `i`, en px de layout (sin el offset del canvas). */
-export function slotCenter(
+// ------------------------------------------------------------ capa estática
+
+/**
+ * Fondo, marco, grilla y placa de la bandeja cacheados en un canvas aparte.
+ *
+ * Es la parte que no cambia nunca mientras dure el layout, y el marco usa
+ * `shadowBlur` más 64 casillas: redibujarlo en cada frame cuesta caro y no
+ * aporta nada. Se regenera sólo cuando cambia el layout o el tamaño.
+ */
+let backdrop: HTMLCanvasElement | null = null
+let backdropKey = ''
+
+function getBackdrop(
+  ctx: CanvasRenderingContext2D,
+  canvasW: number,
+  canvasH: number,
+  layout: Layout,
+  board: Board,
+  trayCount: number,
+): HTMLCanvasElement {
+  // El canvas está escalado por DPR; la capa se dibuja en las mismas unidades
+  // para que el blit no la suavice.
+  const dpr = ctx.getTransform().a || 1
+  const key = [
+    canvasW,
+    canvasH,
+    dpr,
+    layout.originX,
+    layout.originY,
+    layout.cell,
+    board.width,
+    board.height,
+    trayCount,
+  ].join('|')
+  if (backdrop && key === backdropKey) return backdrop
+
+  const layer = backdrop ?? document.createElement('canvas')
+  layer.width = Math.round(canvasW * dpr)
+  layer.height = Math.round(canvasH * dpr)
+  const bctx = layer.getContext('2d') as CanvasRenderingContext2D
+  bctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  drawBackdrop(bctx, canvasW, canvasH, layout, board, trayCount)
+
+  backdrop = layer
+  backdropKey = key
+  return layer
+}
+
+function drawBackdrop(
+  ctx: CanvasRenderingContext2D,
+  canvasW: number,
+  canvasH: number,
+  layout: Layout,
+  board: Board,
+  trayCount: number,
+): void {
+  const px = layout.cell * board.width
+  const py = layout.cell * board.height
+
+  ctx.fillStyle = '#0e1018'
+  ctx.fillRect(0, 0, canvasW, canvasH)
+
+  // Halo detrás del tablero: sin esto el marco flota sobre un fondo plano y el
+  // límite del área de juego no se lee.
+  const cx = layout.originX + px / 2
+  const cy = layout.originY + py / 2
+  const wash = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(px, py) * 0.85)
+  wash.addColorStop(0, BOARD.wash)
+  wash.addColorStop(1, 'rgba(127, 212, 255, 0)')
+  ctx.fillStyle = wash
+  ctx.fillRect(0, 0, canvasW, canvasH)
+
+  drawFrame(ctx, layout, px, py)
+  drawWells(ctx, layout, board)
+  drawTrayPlate(ctx, canvasW, layout, trayCount)
+}
+
+/** Marco del tablero: borde definido y halo, para que sea un objeto. */
+function drawFrame(
+  ctx: CanvasRenderingContext2D,
+  layout: Layout,
+  px: number,
+  py: number,
+): void {
+  const pad = Math.max(8, layout.cell * 0.16)
+  const x = layout.originX - pad
+  const y = layout.originY - pad
+  const w = px + pad * 2
+  const h = py + pad * 2
+  const radius = Math.max(12, layout.cell * 0.32)
+
+  ctx.save()
+  ctx.shadowColor = BOARD.frameGlow
+  ctx.shadowBlur = layout.cell * 0.8
+  ctx.fillStyle = BOARD.frame
+  roundRect(ctx, x, y, w, h, radius)
+  ctx.fill()
+  ctx.restore()
+
+  ctx.save()
+  ctx.strokeStyle = BOARD.frameEdge
+  ctx.lineWidth = 2
+  roundRect(ctx, x + 1, y + 1, w - 2, h - 2, radius - 1)
+  ctx.stroke()
+  ctx.restore()
+}
+
+/**
+ * Una casilla por celda.
+ *
+ * Es lo que reemplaza la retícula de puntos: con el borde de cada casilla se
+ * cuentan filas y columnas de un vistazo y quedan claros los límites del
+ * tablero, sobre todo en el borde, donde antes no había nada.
+ */
+function drawWells(
+  ctx: CanvasRenderingContext2D,
+  layout: Layout,
+  board: Board,
+): void {
+  const inset = Math.max(1.5, layout.cell * 0.055)
+  const size = layout.cell - inset * 2
+  const radius = Math.max(3, layout.cell * 0.16)
+
+  ctx.save()
+  ctx.fillStyle = BOARD.well
+  ctx.strokeStyle = BOARD.wellEdge
+  // El borde es fino de verdad; engrosarlo en pantallas chicas se come la
+  // casilla, así que acompaña el tamaño de celda.
+  ctx.lineWidth = Math.max(1.5, layout.cell * 0.028)
+  for (let y = 0; y < board.height; y++) {
+    for (let x = 0; x < board.width; x++) {
+      roundRect(
+        ctx,
+        layout.originX + x * layout.cell + inset,
+        layout.originY + y * layout.cell + inset,
+        size,
+        size,
+        radius,
+      )
+      ctx.fill()
+      ctx.stroke()
+    }
+  }
+  ctx.restore()
+}
+
+/** Placa de la bandeja: agrupa las piezas del turno como una zona aparte. */
+function drawTrayPlate(
+  ctx: CanvasRenderingContext2D,
+  canvasW: number,
   layout: Layout,
   trayCount: number,
-  canvasW: number,
-  i: number,
-): { x: number; y: number } {
+): void {
   const { slotW, slotSize, top } = slotMetrics(layout, trayCount)
-  const startX = (canvasW - trayCount * slotW) / 2
-  return { x: startX + i * slotW + slotW / 2, y: top + slotSize / 2 }
+  const padX = slotW * 0.2
+  const padY = slotSize * 0.14
+
+  ctx.save()
+  ctx.fillStyle = BOARD.trayPlate
+  roundRect(ctx, (canvasW - trayCount * slotW) / 2 - padX, top - padY, trayCount * slotW + padX * 2, slotSize + padY * 2, 18)
+  ctx.fill()
+  ctx.strokeStyle = BOARD.trayEdge
+  ctx.lineWidth = 1
+  ctx.stroke()
+  ctx.restore()
 }
+
+// ---------------------------------------------------------------- escena
 
 export function render(
   ctx: CanvasRenderingContext2D,
@@ -198,45 +377,21 @@ export function render(
   tray: Piece[],
   state: RenderState,
 ): void {
-  ctx.clearRect(0, 0, canvasW, canvasH)
-  drawGrid(ctx, layout, board)
+  // La capa estática cubre todo el canvas, así que no hace falta limpiar.
+  ctx.drawImage(getBackdrop(ctx, canvasW, canvasH, layout, board, tray.length), 0, 0, canvasW, canvasH)
   drawBoardBlocks(ctx, layout, board)
   drawPreview(ctx, layout, state)
-  drawGhost(ctx, layout, state)
   drawPops(ctx, layout, state)
   drawFloaters(ctx, layout, state)
   drawTray(ctx, canvasW, layout, tray, state)
   drawDragging(ctx, layout, state)
-}
-
-function drawGrid(ctx: CanvasRenderingContext2D, layout: Layout, board: Board): void {
-  const px = layout.cell * board.width
-  const py = layout.cell * board.height
-
-  ctx.save()
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.035)'
-  roundRect(ctx, layout.originX - 6, layout.originY - 6, px + 12, py + 12, 14)
-  ctx.fill()
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)'
-  ctx.lineWidth = 1
-  ctx.stroke()
-
-  // Retícula tenue: ayuda a contar celdas sin distraer.
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.05)'
-  for (let y = 0; y < board.height; y++) {
-    for (let x = 0; x < board.width; x++) {
-      const cx = layout.originX + (x + 0.5) * layout.cell
-      const cy = layout.originY + (y + 0.5) * layout.cell
-      ctx.beginPath()
-      ctx.arc(cx, cy, Math.max(1.5, layout.cell * 0.035), 0, Math.PI * 2)
-      ctx.fill()
-    }
-  }
-  ctx.restore()
+  // Último: el anillo de rechazo tiene que quedar por encima de la ficha, que
+  // se dibuja justo en la celda que rechaza.
+  drawInvalidTarget(ctx, layout, state)
 }
 
 function drawBoardBlocks(ctx: CanvasRenderingContext2D, layout: Layout, board: Board): void {
-  const size = layout.cell * 0.9
+  const size = blockSize(layout)
   for (let y = 0; y < board.height; y++) {
     for (let x = 0; x < board.width; x++) {
       const tier = board.at(x, y)
@@ -250,46 +405,67 @@ function drawBoardBlocks(ctx: CanvasRenderingContext2D, layout: Layout, board: B
 /**
  * Resalta las celdas que se van a borrar al soltar.
  *
- * Con un anillo blanco y un relleno del color de la pieza. Como el color no
+ * Con un relleno del color de la pieza y un anillo blanco. Como el color no
  * define la completitud, el anillo es uniforme: lo que se marca es "esta celda
  * se borra", no "este color suma".
  */
 function drawPreview(ctx: CanvasRenderingContext2D, layout: Layout, state: RenderState): void {
   if (!state.preview.length) return
-  const size = layout.cell * 0.9
+  const size = blockSize(layout)
 
+  ctx.save()
   for (const p of state.preview) {
     const c = cellCenter(layout, p.cell)
     const color = COLORS[p.tier] ?? COLORS[1]!
-    ctx.save()
-    ctx.globalAlpha = 0.35
+    ctx.globalAlpha = 0.42
     ctx.fillStyle = color.fill
+    ctx.shadowColor = color.glow
+    ctx.shadowBlur = layout.cell * 0.5
     roundRect(ctx, c.x - size / 2, c.y - size / 2, size, size, size * 0.18)
     ctx.fill()
-    ctx.globalAlpha = 0.95
+    ctx.shadowBlur = 0
+    ctx.globalAlpha = 1
     ctx.strokeStyle = '#ffffff'
-    ctx.lineWidth = Math.max(2, layout.cell * 0.08)
+    ctx.lineWidth = Math.max(2, layout.cell * 0.09)
     ctx.stroke()
-    ctx.restore()
   }
+  ctx.restore()
 }
 
-function drawGhost(ctx: CanvasRenderingContext2D, layout: Layout, state: RenderState): void {
+/**
+ * Marca el destino que no acepta la pieza.
+ *
+ * El destino válido no se dibuja aparte: la ficha levantada ya se dibuja
+ * encajada justo ahí, así que una silueta debajo sería invisible y lo único
+ * que podría hacer es discrepar. El rechazo sí necesita marca propia, porque
+ * la ficha se ve igual que una ya colocada.
+ */
+function drawInvalidTarget(
+  ctx: CanvasRenderingContext2D,
+  layout: Layout,
+  state: RenderState,
+): void {
   const g = state.ghost
-  if (!g || !state.dragging.length) return
-  const size = layout.cell * 0.9
+  if (!g || state.ghostValid || !state.dragging.length) return
+  const size = blockSize(layout)
+  const radius = size * 0.18
+
+  ctx.save()
+  ctx.setLineDash([Math.max(4, layout.cell * 0.22), Math.max(4, layout.cell * 0.16)])
+  ctx.lineWidth = Math.max(2, layout.cell * 0.08)
+  ctx.strokeStyle = BOARD.invalid
   for (const d of state.dragging) {
     for (const c of d.piece.cells) {
       const target = cellCenter(layout, { x: g.x + c.x, y: g.y + c.y })
-      // Verde si completa línea, apagado si no: la señal va en el color.
-      const ok = state.preview.length > 0
-      drawBlock(ctx, target.x, target.y, size, d.piece.tier, ok ? 0.5 : 0.22)
+      roundRect(ctx, target.x - size / 2, target.y - size / 2, size, size, radius)
+      ctx.stroke()
     }
   }
+  ctx.restore()
 }
 
 function drawPops(ctx: CanvasRenderingContext2D, layout: Layout, state: RenderState): void {
-  const size = layout.cell * 0.9
+  const size = blockSize(layout)
   for (const p of state.pops) {
     const k = p.t
     const scale = 1 + 0.5 * (1 - k) * (1 - k)
@@ -336,15 +512,22 @@ function drawTray(
     const used = state.usedPieceIds.has(piece.id)
     const slotX = (canvasW - tray.length * slotW) / 2 + i * slotW + slotW / 2
 
+    // La casilla se dibuja siempre con la misma intensidad: atenuarla junto con
+    // la pieza dejaba el slot usado invisible, y no se distinguía "ya la puse"
+    // de "no hay nada acá".
     ctx.save()
-    ctx.globalAlpha = used ? 0.16 : 1
-    ctx.fillStyle = 'rgba(255,255,255,0.03)'
-    roundRect(ctx, slotX - slotSize / 2, top, slotSize, slotSize, 10)
+    ctx.fillStyle = BOARD.slot
+    ctx.strokeStyle = BOARD.slotEdge
+    ctx.lineWidth = 1
+    roundRect(ctx, slotX - slotSize / 2, top, slotSize, slotSize, 12)
     ctx.fill()
+    ctx.stroke()
 
     if (!used) {
-      const scale = Math.min((slotSize * 0.66) / piece.w, (slotSize * 0.66) / piece.h, 22)
-      drawPieceShape(ctx, slotX, top + slotSize / 2, piece, scale)
+      // En la bandeja el paso es más chico que una celda: la pieza tiene que
+      // entrar en el slot, no medir como en el tablero.
+      const pitch = Math.min((slotSize * 0.66) / piece.w, (slotSize * 0.66) / piece.h, 22)
+      drawPieceShape(ctx, slotX, top + slotSize / 2, piece, pitch, pitch * 0.86)
     }
     ctx.restore()
   }
@@ -356,25 +539,30 @@ function drawPieceShape(
   originY: number,
   piece: Piece,
   cellPx: number,
+  size: number,
+  alpha = 1,
 ): void {
   const offsetX = -((piece.w - 1) * cellPx) / 2
   const offsetY = -((piece.h - 1) * cellPx) / 2
-  const size = cellPx * 0.86
   for (const c of piece.cells) {
-    drawBlock(ctx, originX + offsetX + c.x * cellPx, originY + offsetY + c.y * cellPx, size, piece.tier)
+    drawBlock(
+      ctx,
+      originX + offsetX + c.x * cellPx,
+      originY + offsetY + c.y * cellPx,
+      size,
+      piece.tier,
+      alpha,
+    )
   }
 }
 
 function drawDragging(ctx: CanvasRenderingContext2D, layout: Layout, state: RenderState): void {
+  // Paso igual al de la celda y bloque igual al del tablero: con un paso menor
+  // las celdas de la propia ficha se corrían de la grilla, y con un bloque más
+  // chico la ficha parecía más chica que los bloques ya puestos.
+  // Se apaga cuando el destino no la acepta, para que se vea el bloque de abajo.
+  const alpha = state.ghost && !state.ghostValid ? 0.35 : 1
   for (const d of state.dragging) {
-    const scale = Math.min(layout.cell * 0.9, 30)
-    drawPieceShape(ctx, d.dx, d.dy, d.piece, scale)
+    drawPieceShape(ctx, d.dx, d.dy, d.piece, layout.cell, blockSize(layout), alpha)
   }
 }
-
-/** Para el HUD: cuántas celdas hay libres, un dato útil de lectura. */
-export function freeCells(board: Board): number {
-  return board.width * board.height - board.occupied
-}
-
-export { TUNING }

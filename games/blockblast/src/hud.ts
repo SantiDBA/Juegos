@@ -17,6 +17,9 @@ export interface Hud {
   setHudVisible(visible: boolean): void
   flashBest(): void
   showToast(text: string, durationMs?: number): void
+  /** Botón de sonido: avisa el estado que pidió el jugador. */
+  onSoundToggle(handler: (muted: boolean) => void): void
+  setSoundMuted(muted: boolean): void
 }
 
 export function createHud(): Hud {
@@ -35,8 +38,17 @@ export function createHud(): Hud {
   const comboEl = document.getElementById('combo-value') as HTMLElement
   const progressFill = document.getElementById('progress-fill') as HTMLElement
   const toast = document.getElementById('toast') as HTMLElement
+  const soundBtn = document.getElementById('sound') as HTMLButtonElement
 
   let toastTimer = 0
+  let soundMuted = false
+
+  const applySound = (): void => {
+    soundBtn.textContent = soundMuted ? 'sonido apagado' : 'sonido encendido'
+    soundBtn.setAttribute('aria-pressed', String(soundMuted))
+    soundBtn.classList.toggle('muted', soundMuted)
+  }
+  applySound()
 
   return {
     onPlay(handler) {
@@ -86,6 +98,17 @@ export function createHud(): Hud {
       toast.classList.add('visible')
       window.clearTimeout(toastTimer)
       toastTimer = window.setTimeout(() => toast.classList.remove('visible'), durationMs)
+    },
+    onSoundToggle(handler) {
+      soundBtn.addEventListener('click', () => {
+        soundMuted = !soundMuted
+        applySound()
+        handler(soundMuted)
+      })
+    },
+    setSoundMuted(muted) {
+      soundMuted = muted
+      applySound()
     },
   }
 }

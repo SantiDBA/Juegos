@@ -65,7 +65,10 @@ export const MAX_TIER = TUNING.colors
 
 export interface ColorStyle {
   fill: string
+  /** Borde opuesto al degradado: el bloque se apoya sobre este tono. */
   edge: string
+  /** Franja de brillo del canto superior, para dar relieve. */
+  hi: string
   glow: string
 }
 
@@ -74,8 +77,43 @@ export interface ColorStyle {
  * poder distinguir dos piezas contiguas de un vistazo.
  */
 export const COLORS: Record<number, ColorStyle> = {
-  1: { fill: '#ff6b6b', edge: '#d63f4f', glow: 'rgba(255, 107, 107, 0.5)' },
-  2: { fill: '#7fd4ff', edge: '#3aa7dd', glow: 'rgba(127, 212, 255, 0.5)' },
-  3: { fill: '#5ee6b5', edge: '#2bb886', glow: 'rgba(94, 230, 181, 0.5)' },
-  4: { fill: '#ffd166', edge: '#e0a92c', glow: 'rgba(255, 209, 102, 0.5)' },
+  1: { fill: '#ff6b6b', edge: '#c8354a', hi: '#ffb8b8', glow: 'rgba(255, 107, 107, 0.5)' },
+  2: { fill: '#7fd4ff', edge: '#2b8fc4', hi: '#c8eeff', glow: 'rgba(127, 212, 255, 0.5)' },
+  3: { fill: '#5ee6b5', edge: '#1f9d72', hi: '#b6f6de', glow: 'rgba(94, 230, 181, 0.5)' },
+  4: { fill: '#ffd166', edge: '#cc9218', hi: '#ffedbe', glow: 'rgba(255, 209, 102, 0.5)' },
 }
+
+/**
+ * Paleta del tablero.
+ *
+ * El tablero es un objeto sobre el fondo, no una mancha: marco con borde y
+ * halo, y una casilla dibujada por celda. Con sólo un punto en el centro de
+ * cada celda la grilla y los límites se perdían, y sin límites no se puede
+ * planear dónde entra una pieza — que es todo el juego.
+ */
+export const BOARD = {
+  /** Halo radial detrás del tablero: lo despega del fondo plano. */
+  wash: 'rgba(127, 212, 255, 0.10)',
+  /** Panel del marco. */
+  frame: 'rgba(26, 33, 52, 0.96)',
+  frameEdge: 'rgba(154, 206, 250, 0.42)',
+  frameGlow: 'rgba(127, 212, 255, 0.40)',
+  /**
+   * Casilla vacía: relleno y borde.
+   *
+   * El borde es el que dibuja la grilla, así que tiene que verse sobre el
+   * panel. Con blanco puro quedaba en 1.5:1 y sobre fondo oscuro no se lee:
+   * va con tinte del acento y más opacidad.
+   */
+  well: 'rgba(255, 255, 255, 0.045)',
+  wellEdge: 'rgba(168, 205, 245, 0.30)',
+  /** Bandeja: placa de fondo y casilla de cada pieza. */
+  trayPlate: 'rgba(255, 255, 255, 0.03)',
+  trayEdge: 'rgba(255, 255, 255, 0.08)',
+  slot: 'rgba(255, 255, 255, 0.05)',
+  slotEdge: 'rgba(168, 205, 245, 0.22)',
+  /** Costura entre bloques contiguos: sin esto dos bloques se leen como uno. */
+  blockSeam: 'rgba(0, 0, 0, 0.45)',
+  /** Destino inválido mientras se arrastra. */
+  invalid: 'rgba(255, 122, 122, 0.85)',
+} as const
