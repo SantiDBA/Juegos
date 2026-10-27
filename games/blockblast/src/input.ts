@@ -20,7 +20,7 @@ export interface DragState {
 
 export interface DragCallbacks {
   /** Cambió el estado del arrastre (empezó, se movió o terminó). */
-  onDragStart(index: number): void
+  onDragStart(index: number, px: number, py: number): void
   onDragMove(px: number, py: number): void
   /**
    * Se soltó la pieza, en `px`/`py` de pantalla.
@@ -95,7 +95,7 @@ export class DragController {
       // Algunos navegadores lo rechazan en pointer sintético; no es crítico.
     }
     e.preventDefault()
-    this.callbacks.onDragStart(index)
+    this.callbacks.onDragStart(index, e.clientX, e.clientY)
   }
 
   private onMove(e: PointerEvent): void {
@@ -155,13 +155,18 @@ export class DragController {
     const py = e.clientY - rect.top
 
     const { slotW, slotSize, top } = slotMetrics(this.layout, this.tray.length)
-    const startX = (this.rect.width - this.tray.length * slotW) / 2
+    // Misma fórmula que `drawTray`: la bandeja se centra en el tablero. Con el
+    // ancho del canvas el hit box se corría respecto de lo dibujado.
+    const startX = this.layout.originX + (this.layout.boardPx - this.tray.length * slotW) / 2
 
     for (let i = 0; i < this.tray.length; i++) {
       const slotX = startX + i * slotW + slotW / 2
+      // El ancho del acierto es el del slot entero, no el de la casilla dibujada:
+      // con el ancho de la casilla quedaban huecos muertos entre slots y el dedo
+      // caía en el vacío justo entre dos piezas.
       if (
-        px >= slotX - slotSize / 2 &&
-        px <= slotX + slotSize / 2 &&
+        px >= slotX - slotW / 2 &&
+        px <= slotX + slotW / 2 &&
         py >= top &&
         py <= top + slotSize
       ) {
@@ -169,11 +174,5 @@ export class DragController {
       }
     }
     return null
-  }
-
-  /** Ancho del canvas en px de layout, para el cálculo de slots. */
-  private rect = { width: 0 }
-  setWidth(width: number): void {
-    this.rect = { width }
   }
 }

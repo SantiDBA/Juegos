@@ -140,6 +140,13 @@ export class Sfx {
     this.noise(0.18, 0.06, 4200)
   }
 
+  /** Mano vaciada: se repone completa. Dos notas cortas y ascendentes. */
+  trayClear(): void {
+    this.tone('triangle', 523.25, 659.25, 0.16, 0.18)
+    this.tone('triangle', 783.99, 987.77, 0.18, 0.16, 0.07)
+    this.noise(0.1, 0.04, 3000)
+  }
+
   /** Nivel superado: arpegio mayor ascendente. */
   levelClear(): void {
     const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5]

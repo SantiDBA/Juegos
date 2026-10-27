@@ -16,16 +16,39 @@ export interface Piece {
   /** Ancho y alto, para centrar la pieza bajo el puntero. */
   w: number
   h: number
+  /** Nombre corto para el jugador (p. ej. `3×1`), para nombrar la pieza que traba. */
+  label: string
 }
 
-/** Convierte `1x3` / `2x2` en una lista de celdas con origen en (0,0). */
+/**
+ * Convierte una spec en una lista de celdas con origen en (0,0).
+ *
+ * Dos formatos:
+ * - `1x3` / `2x2`: rectángulo lleno.
+ * - `.##/##.`: patrón por filas separadas por `/`, con `#` ocupada y `.` vacía.
+ *   Es lo que permite L, J, S, Z y T, que un rectángulo no puede expresar.
+ */
 export function parseShape(spec: string): CellPos[] {
+  if (spec.includes('/')) return parsePattern(spec)
   const [wRaw, hRaw] = spec.split('x')
   const w = Number.parseInt(wRaw ?? '1', 10)
   const h = Number.parseInt(hRaw ?? '1', 10)
   const cells: CellPos[] = []
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) cells.push({ x, y })
+  }
+  return cells
+}
+
+/** Celdas de un patrón `.##/##.` (filas separadas por `/`). */
+function parsePattern(spec: string): CellPos[] {
+  const cells: CellPos[] = []
+  const rows = spec.split('/')
+  for (let y = 0; y < rows.length; y++) {
+    const row = rows[y] ?? ''
+    for (let x = 0; x < row.length; x++) {
+      if (row[x] === '#') cells.push({ x, y })
+    }
   }
   return cells
 }
@@ -57,10 +80,10 @@ export function rollTray(rand: () => number): Piece[] {
     const spec = TUNING.shapes[Math.floor(rand() * TUNING.shapes.length)] ?? '1x1'
     const cells = parseShape(spec)
     const { w, h } = shapeSize(cells)
-    // El color se sortea por separado de la forma: una pieza de 5 en línea con
-    // color alto es casi imposible de usar, y ensuciaría el turno.
+    // El color se sortea por separado de la forma: no significan nada juntos, así
+    // que atarlos sólo daría combinaciones predecibles sin ganar nada.
     const tier = 1 + Math.floor(rand() * TUNING.colors)
-    out.push({ id: nextPieceId++, tier, cells, w, h })
+    out.push({ id: nextPieceId++, tier, cells, w, h, label: `${w}×${h}` })
   }
   return out
 }

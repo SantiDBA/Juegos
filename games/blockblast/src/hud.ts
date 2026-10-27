@@ -13,9 +13,18 @@ export interface Hud {
   setBestLine(length: number): void
   setProgress(ratio: number): void
   showOverlay(show: boolean): void
-  setOverlayTitle(title: string, tagline: string, buttonLabel: string): void
+  setOverlayTitle(title: string, tagline: string, buttonLabel: string, result?: string | null): void
   setHudVisible(visible: boolean): void
-  flashBest(): void
+  /** Posición horizontal del HUD en px, o null para dejarla al CSS (móvil). */
+  setOffsetLeft(px: number | null): void
+  /** Celebra el resultado del panel (récord): el HUD quedaba tapado por el velo. */
+  flashResult(): void
+  /** Borde inferior del HUD en px: `computeLayout` lo usa para no tapar el tablero. */
+  bottomPx(): number
+  setUndoEnabled(enabled: boolean): void
+  onUndo(handler: () => void): void
+  /** Aviso de tablero por trabarse. */
+  setDanger(on: boolean): void
   showToast(text: string, durationMs?: number): void
   /** Botón de sonido: avisa el estado que pidió el jugador. */
   onSoundToggle(handler: (muted: boolean) => void): void
@@ -27,6 +36,7 @@ export function createHud(): Hud {
   const title = document.getElementById('overlay-title') as HTMLElement
   const tagline = document.getElementById('overlay-tagline') as HTMLElement
   const playBtn = document.getElementById('play') as HTMLButtonElement
+  const resultEl = document.getElementById('overlay-result') as HTMLElement
   const hud = document.getElementById('hud') as HTMLElement
   const scoreEl = document.getElementById('score') as HTMLElement
   const bestEl = document.getElementById('best') as HTMLElement
@@ -39,13 +49,15 @@ export function createHud(): Hud {
   const progressFill = document.getElementById('progress-fill') as HTMLElement
   const toast = document.getElementById('toast') as HTMLElement
   const soundBtn = document.getElementById('sound') as HTMLButtonElement
+  const undoBtn = document.getElementById('undo') as HTMLButtonElement
 
   let toastTimer = 0
   let soundMuted = false
 
   const applySound = (): void => {
+    // El estado lo dice el propio texto ("encendido"/"apagado"): con `aria-pressed`
+    // además, el botón anunciaba dos veces y las dos podían discrepar.
     soundBtn.textContent = soundMuted ? 'sonido apagado' : 'sonido encendido'
-    soundBtn.setAttribute('aria-pressed', String(soundMuted))
     soundBtn.classList.toggle('muted', soundMuted)
   }
   applySound()
@@ -74,24 +86,54 @@ export function createHud(): Hud {
       lineEl.textContent = length > 0 ? String(length) : '—'
     },
     setProgress(ratio) {
-      progressFill.style.width = `${Math.round(Math.min(1, Math.max(0, ratio)) * 100)}%`
+      // `scaleX` en vez de `width`: animar el ancho dispara layout en cada frame
+      // de la barra; transform lo resuelve en el compositor.
+      const clamped = Math.min(1, Math.max(0, ratio))
+      progressFill.style.transform = `scaleX(${clamped})`
     },
     showOverlay(show) {
       overlay.classList.toggle('hidden', !show)
+      // Es un diálogo modal: el foco entra al panel al abrirse y vuelve al juego
+      // al cerrarse, para que el teclado no siga operando el tablero de atrás.
+      if (show) playBtn.focus()
+      else if (document.activeElement === playBtn) playBtn.blur()
     },
-    setOverlayTitle(newTitle, newTagline, buttonLabel) {
+    setOverlayTitle(newTitle, newTagline, buttonLabel, result = null) {
       title.textContent = newTitle
       tagline.textContent = newTagline
       playBtn.textContent = buttonLabel
+      // El bloque de introducción (teclas, leyenda, hint) es del menú. En
+      // resultado o fin de nivel sobraba: el último texto que leía el jugador
+      // era el manual de principiante.
+      const intro = result === null
+      overlay.classList.toggle('intro', intro)
+      resultEl.textContent = result ?? ''
+      resultEl.classList.toggle('visible', !intro)
     },
     setHudVisible(visible) {
       hud.classList.toggle('visible', visible)
     },
-    flashBest() {
-      bestEl.classList.remove('beat')
-      void bestEl.offsetWidth
-      bestEl.classList.add('beat')
-      window.setTimeout(() => bestEl.classList.remove('beat'), 600)
+    setOffsetLeft(px) {
+      // '' devuelve el control al CSS, que en pantallas angostas lo centra arriba.
+      hud.style.left = px === null ? '' : `${Math.round(px)}px`
+    },
+    bottomPx() {
+      return hud.getBoundingClientRect().bottom
+    },
+    setUndoEnabled(enabled) {
+      undoBtn.disabled = !enabled
+    },
+    onUndo(handler) {
+      undoBtn.addEventListener('click', handler)
+    },
+    setDanger(on) {
+      hud.classList.toggle('danger', on)
+    },
+    flashResult() {
+      resultEl.classList.remove('beat')
+      void resultEl.offsetWidth
+      resultEl.classList.add('beat')
+      window.setTimeout(() => resultEl.classList.remove('beat'), 700)
     },
     showToast(text, durationMs = 1400) {
       toast.textContent = text

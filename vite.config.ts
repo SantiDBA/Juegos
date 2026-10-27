@@ -27,6 +27,8 @@ export default defineConfig({
         coho: `${root}games/coho/index.html`,
         pacman3d: `${root}games/pacman3d/index.html`,
         blockblast: `${root}games/blockblast/index.html`,
+        rocket: `${root}games/rocket/index.html`,
+        michi: `${root}games/michi/index.html`,
       },
     },
   },

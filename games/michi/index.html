@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>michi — un gato en su casa</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="hud">
+      <div id="needs"></div>
+    </div>
+
+    <div id="status">
+      <div class="status-item">
+        <span class="label">cuidados</span>
+        <span class="value cares" id="cares">0</span>
+      </div>
+      <div class="status-item">
+        <span class="label">tiempo</span>
+        <span class="value" id="clock">0:00</span>
+      </div>
+      <div class="status-item">
+        <span class="label">récord</span>
+        <span class="value" id="best">—</span>
+      </div>
+    </div>
+
+    <div id="prompt">
+      <span class="prompt-key" id="prompt-key">E</span>
+      <span class="prompt-text" id="prompt-text">bañarse</span>
+      <div class="prompt-track"><div class="prompt-fill" id="prompt-fill"></div></div>
+    </div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1 id="overlay-title">michi</h1>
+        <p class="tagline" id="overlay-tagline">
+          Cuidá a tu gato, sin final: comé, bañate, jugá, dormí y pasá por el arenero.
+        </p>
+
+        <ul class="keys">
+          <li><b>W A S D</b> moverse · <b>Shift</b> correr</li>
+          <li><b>Mouse</b> girar la cámara</li>
+          <li><b>Espacio</b> saltar</li>
+          <li><b>E</b> mantener cerca de un mueble</li>
+          <li><b>M</b> silenciar · <b>P</b> / <b>Esc</b> pausa</li>
+        </ul>
+
+        <p class="legend" id="legend"></p>
+
+        <button id="play" type="button">Jugar</button>
+        <p class="hint">
+          Partida infinita: el gato nunca se muere. Las barras de la derecha bajan solas y, si
+          alguna llega a cero, se pone mustio hasta que lo atiendas. La flecha amarilla apunta al
+          mueble más urgente.
+        </p>
+      </div>
+    </div>
+
+    <a class="back" href="/">← juegos</a>
+
+    <div id="toast"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

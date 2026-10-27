@@ -2,8 +2,8 @@
  * Lógica pura del tablero. Sin canvas, sin DOM, sin dependencias.
  *
  * Aislarla así permite ejercitar la mecánica con `node` de forma headless, que
- * es la única forma barata de estar seguro de que las líneas y la gravedad no
- * dejan estados imposibles.
+ * es la única forma barata de estar seguro de que las líneas no dejan estados
+ * imposibles.
  */
 
 /** 0 = vacía. Cualquier otro valor es un bloque (el color no importa). */
@@ -28,6 +28,8 @@ export interface PlaceResult {
   lines: FullLine[]
   /** Celdas totales borradas, contando una sola vez las de cruce. */
   cleared: number
+  /** Bloques que aterrizaron en este turno, contados una sola vez por celda. */
+  placed: number
   /** Mayor largo de línea completada. */
   bestLength: number
 }
@@ -109,17 +111,22 @@ export class Board {
     // grupo, no de a una.
     for (const s of shapes) {
       if (!this.fits(s.cells, origin.x, origin.y)) {
-        return { valid: false, lines: [], cleared: 0, bestLength: 0 }
+        return { valid: false, lines: [], cleared: 0, placed: 0, bestLength: 0 }
       }
     }
 
     const work = this.clone()
+    const placedCells = new Set<number>()
     for (const s of shapes) {
-      for (const c of s.cells) work.set(origin.x + c.x, origin.y + c.y, s.tier)
+      for (const c of s.cells) {
+        work.set(origin.x + c.x, origin.y + c.y, s.tier)
+        placedCells.add((origin.y + c.y) * this.width + (origin.x + c.x))
+      }
     }
+    const placed = placedCells.size
 
-    // Líneas completas al soltar. No hay cascadas: lo que se arme al caer se
-    // limpia en el turno siguiente.
+    // Líneas completas al soltar. Se borran y el resto de los bloques se queda
+    // exactamente donde estaba: no hay gravedad ni cascadas.
     const lines = work.findFullLines()
     // Una celda que cruza una fila y una columna se borra una sola vez, así que
     // el puntaje no paga dos veces por el mismo bloque.
@@ -133,35 +140,10 @@ export class Board {
       work.set(Number.parseInt(xs ?? '0', 10), Number.parseInt(ys ?? '0', 10), EMPTY)
     }
 
-    if (cleared > 0) work.applyGravity()
-
     this.cells.set(work.cells)
 
     const bestLength = lines.reduce((m, l) => Math.max(m, l.cells.length), 0)
-    return { valid: true, lines, cleared, bestLength }
-  }
-
-  /**
-   * Deja caer cada bloque hasta apoyarse, columna por columna.
-   *
-   * Se usa sólo tras completar una línea. Al soltar las fichas NO hay gravity:
-   * las piezas quedan exactamente donde las ponés, y completar una fila depende
-   * de poder elegir con qué hueco quedás.
-   */
-  applyGravity(): void {
-    const { width, height, cells } = this
-    for (let x = 0; x < width; x++) {
-      let write = height - 1
-      for (let y = height - 1; y >= 0; y--) {
-        const v = cells[y * width + x] ?? EMPTY
-        if (v === EMPTY) continue
-        if (write !== y) {
-          cells[write * width + x] = v
-          cells[y * width + x] = EMPTY
-        }
-        write--
-      }
-    }
+    return { valid: true, lines, cleared, placed, bestLength }
   }
 
   /**
@@ -216,16 +198,6 @@ export class Board {
     })
 
     return lines
-  }
-
-  /** ¿Hay alguna posición donde `shape` completaría al menos una línea? */
-  hasLinePlacement(shape: readonly CellPos[], tier: number): boolean {
-    for (const origin of this.placements(shape)) {
-      const probe = this.clone()
-      for (const c of shape) probe.set(origin.x + c.x, origin.y + c.y, tier)
-      if (probe.findFullLines().length > 0) return true
-    }
-    return false
   }
 
   /** Serialización para comparar tableros en tests. */

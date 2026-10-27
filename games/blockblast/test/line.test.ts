@@ -63,6 +63,7 @@ console.log('\n== línea completa ==')
   const res = b.place([{ tier: 4, cells: ONE }], { x: 3, y: 1 })
   check('la última pieza completa la fila', res.cleared === 4, `cleared=${res.cleared}`)
   check('una línea', res.lines.length === 1)
+  eq('cuenta el bloque colocado', res.placed, 1)
   eq('la fila quedó vacía', rowsOf(b)[1], '....')
   eq('puntaje 4 celdas x 10', res.cleared * 10, 40)
 }
@@ -128,53 +129,42 @@ console.log('\n== fila y columna a la vez ==')
   eq('tablero vacío', b.occupied, 0)
 }
 
-// ---------------------------------------------------------------- gravity
+// ---------------------------------------------------------------- sin gravedad
 
-console.log('\n== gravity tras completar ==')
+console.log('\n== sin gravedad tras completar ==')
 {
-  // Al vaciarse una fila, sólo caen los bloques de las columnas tocadas.
-  const b = boardFrom([
-    '2.......',
-    '3.......',
-    '........',
-    '........',
-  ])
-  b.applyGravity()
-  eq('la columna cae al fondo', rowsOf(b), ['........', '........', '2.......', '3.......'])
+  // Se completa la fila de abajo con una pieza 1x4; el bloque de arriba se
+  // queda donde estaba en lugar de caer al fondo.
+  const b = boardFrom(['2...', '....', '....', '....'])
+  const res = b.place(
+    [{ tier: 1, cells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }] }],
+    { x: 0, y: 3 },
+  )
+  check('se limpió la fila', res.cleared === 4, `cleared=${res.cleared}`)
+  eq('el bloque de arriba no cae', rowsOf(b), ['2...', '....', '....', '....'])
 }
 {
-  const b = boardFrom([
-    '1...2...',
-    '........',
-    '3...4...',
-    '........',
-  ])
-  b.applyGravity()
-  eq('columnas independientes', rowsOf(b), [
-    '........',
-    '........',
-    '1...2...',
-    '3...4...',
-  ])
+  // Se completa la columna 3; el bloque suelto de la fila 0 se queda quieto en
+  // lugar de caer al fondo.
+  const b = boardFrom(['3..1', '...1', '...1', '....'])
+  const res = b.place([{ tier: 2, cells: ONE }], { x: 3, y: 3 })
+  check('se limpió la columna', res.cleared === 4, `cleared=${res.cleared}`)
+  eq('el bloque suelto no cae', rowsOf(b), ['3...', '....', '....', '....'])
 }
 
-// ---------------------------------------------------------------- sin cascada
+// ---------------------------------------------------------------- resto quieto
 
-console.log('\n== sin cascadas ==')
+console.log('\n== el resto queda quieto ==')
 {
-  // Tablero 4x4. La fila 1 tiene un 2 en x=0, y la columna x=0 tiene 3 en
-  // y=2 y 4 en y=3. Se completa la fila 1 con una pieza 1x3; al borrarla, la
-  // columna x=0 conserva el 2 y los otros dos caen, sin formar línea.
-  const b = boardFrom(['....', '2...', '3...', '4...'])
-  const res = b.place([{ tier: 1, cells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] }], {
-    x: 1,
-    y: 1,
-  })
+  // Tablero 4x4 con un 2 en (0,0) y la fila 1 a un hueco de completarse. Se
+  // completa con una pieza 1x1 en (3,1); al borrarse la fila 1, el 2 se queda
+  // en (0,0) en lugar de caer al fondo.
+  const b = boardFrom(['2...', '111.', '....', '....'])
+  const res = b.place([{ tier: 4, cells: ONE }], { x: 3, y: 1 })
   check('se limpió la fila', res.cleared === 4, `cleared=${res.cleared}`)
   check('una sola línea', res.lines.length === 1, `lineas=${res.lines.length}`)
-  // Al borrarse la fila 1, la columna x=0 queda con 3 y 4: bajó pero no se
-  // limpió, porque 3 y 4 no llenan ninguna fila ni columna.
-  eq('la columna bajó pero no se limpió', rowsOf(b), ['....', '....', '3...', '4...'])
+  // Sin gravedad, el 2 no se mueve de (0,0).
+  eq('la fila se vació y el 2 no cayó', rowsOf(b), ['2...', '....', '....', '....'])
 }
 
 // ---------------------------------------------------------------- validez
@@ -185,6 +175,7 @@ console.log('\n== validez ==')
   const res = b.place([{ tier: 1, cells: ONE }], { x: 0, y: 0 })
   check('colocar sin completar es válido', res.valid)
   eq('pero no limpia nada', res.cleared, 0)
+  eq('cuenta el bloque colocado', res.placed, 1)
   eq('el bloque queda', b.occupied, 1)
 }
 {
@@ -266,10 +257,6 @@ console.log('\n== barrido aleatorio (200 tableros x 200 turnos) ==')
   let rejected = 0
   let moves = 0
   let linesFound = 0
-  // Líneas que aparecieron sólo por la gravity del turno anterior. No se
-  // limpian en el mismo turno (no hay cascadas, por diseño), así que quedan
-  // pendientes para el siguiente: no cuentan como invariante roto.
-  let pendingAfterGravity = 0
 
   for (let g = 0; g < 200; g++) {
     const b = new Board(8)
@@ -286,23 +273,10 @@ console.log('\n== barrido aleatorio (200 tableros x 200 turnos) ==')
       moves++
       linesFound += res.lines.length
 
-      // Invariante: si se borró algo, tras la gravity no puede quedar un bloque
-      // con una celda vacía debajo.
-      if (res.cleared > 0) {
-        for (let x2 = 0; x2 < 8; x2++) {
-          for (let y2 = 0; y2 < 8; y2++) {
-            if (b.at(x2, y2) !== EMPTY && b.at(x2, y2 + 1) === EMPTY && y2 + 1 < 8) invalid++
-          }
-        }
-      }
-      // Una línea completa que queda es válida: la gravity pudo armarla y se
-      // limpia el próximo turno. Sólo es un error si aparece sin haber borrado
-      // nada, porque entonces `place` no la evaluó.
-      const left = b.findFullLines()
-      if (left.length > 0) {
-        if (res.cleared > 0) pendingAfterGravity++
-        else invalid++
-      }
+      // Invariante: `place` limpia TODAS las líneas completas y, sin gravedad,
+      // no puede armar ninguna nueva. Después de un turno válido no debe quedar
+      // ni una línea completa en el tablero.
+      if (b.findFullLines().length > 0) invalid++
     }
   }
 
@@ -310,11 +284,6 @@ console.log('\n== barrido aleatorio (200 tableros x 200 turnos) ==')
   check('hubo movimientos válidos', moves > 5000, `válidos=${moves}`)
   check('hubo rechazos', rejected > 1000, `rechazos=${rejected}`)
   check('se completaron líneas', linesFound > 100, `lineas=${linesFound}`)
-  check(
-    'hubo turnos que dejaron línea para el siguiente',
-    pendingAfterGravity > 0,
-    `pendientes=${pendingAfterGravity}`,
-  )
 }
 
 console.log(`\n${passed} pasaron, ${failed} fallaron`)

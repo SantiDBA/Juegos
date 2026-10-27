@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>rocket — soccar 1v1</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="hud">
+      <div id="scorebar">
+        <span class="team team-blue">
+          <span class="team-name" id="label-blue">vos</span>
+          <span class="score" id="score-blue">0</span>
+        </span>
+        <span class="clock" id="clock">5:00</span>
+        <span class="team team-orange" id="team-orange">
+          <span class="score" id="score-orange">0</span>
+          <span class="team-name" id="label-orange">bot</span>
+        </span>
+      </div>
+
+      <div id="boostwrap">
+        <span class="boost-label">boost</span>
+        <div class="boost-bar"><div class="boost-fill" id="boost-fill"></div></div>
+        <span class="boost-tag" id="supersonic">supersónico</span>
+      </div>
+    </div>
+
+    <div id="countdown" aria-live="polite"></div>
+    <div id="flash" aria-hidden="true"></div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1 id="overlay-title">rocket</h1>
+        <p class="tagline" id="overlay-tagline">
+          Empujá la pelota al arco naranja. Cinco minutos; si hay empate, gol de oro.
+        </p>
+
+        <div class="modes" id="modes" role="group" aria-label="Modo de juego">
+          <button type="button" class="mode" data-mode="training" aria-pressed="false">
+            Entrenamiento
+          </button>
+          <button type="button" class="mode" data-mode="duel" aria-pressed="true">1 vs 1</button>
+          <button type="button" class="mode" data-mode="threes" aria-pressed="false">3 vs 3</button>
+        </div>
+
+        <div class="modes" id="cars" role="group" aria-label="Chasis">
+          <button type="button" class="mode" data-car="octane" aria-pressed="true">Octane</button>
+          <button type="button" class="mode" data-car="dominus" aria-pressed="false">Dominus</button>
+          <button type="button" class="mode" data-car="breakout" aria-pressed="false">Breakout</button>
+          <button type="button" class="mode" data-car="truck" aria-pressed="false">Camioneta</button>
+        </div>
+
+        <ul class="keys">
+          <li><b>W / S</b> acelerar y reversa</li>
+          <li><b>A / D</b> doblar · en el aire, guiñada</li>
+          <li><b>Espacio</b> saltar · dos toques, flip</li>
+          <li><b>Shift</b> boost</li>
+          <li><b>Ctrl</b> freno de mano · air roll</li>
+          <li><b>C</b> ball cam</li>
+          <li><b>M</b> silenciar · <b>Esc</b> pausa</li>
+          <li><b>R</b> pelota al centro (entrenamiento)</li>
+        </ul>
+        <button id="play" type="button">Jugar</button>
+        <p class="hint" id="hint">Shift para el boost; dos toques de Espacio dan el flip, que es el golpe fuerte.</p>
+      </div>
+    </div>
+
+    <a class="back" href="/">← juegos</a>
+
+    <div id="toast"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

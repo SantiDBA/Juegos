@@ -1,11 +1,20 @@
 :root {
-  --bg: #0e1018;
-  --fg: #e8ecf4;
-  --muted: #8b93a7;
-  --accent: #7fd4ff;
-  --accent-2: #ffd85e;
-  --panel: rgba(10, 13, 22, 0.9);
-  --border: rgba(120, 140, 180, 0.2);
+  /*
+   * Atardecer cálido. El fondo era un azul-negro frío y el acento un cian que
+   * era casi el mismo color que el bloque azul del tablero: el block "cyan" se
+   * perdía contra el lienzo y el resultado se leía como dashboard genérico.
+   * Acá el lienzo es espresso y el acento es ámbar: un único color de acción
+   * que contrasta con los cuatro bloques en vez de competir con uno.
+   */
+  --bg: #16110d;
+  --fg: #f5ece1;
+  --muted: #b7a698;
+  --accent: #ffb454;
+  --accent-2: #ff8f79;
+  --panel: rgba(31, 24, 20, 0.92);
+  --border: rgba(255, 205, 155, 0.18);
+  /* Tinta sobre el ámbar: oscura y cálida, nunca el azul de antes. */
+  --on-accent: #2a1608;
 }
 
 * {
@@ -46,7 +55,7 @@ body {
   top: 50%;
   left: 16px;
   transform: translateY(-50%);
-  width: 132px;
+  width: 150px;
   padding: 12px 12px 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -59,6 +68,20 @@ body {
 
 #hud.visible {
   opacity: 1;
+}
+
+/*
+ * Aviso de tablero por trabar: pulsa el panel cuando a alguna pieza que queda le
+ * quedan muy pocas posiciones. Antes, la partida terminaba sin ningún aviso.
+ */
+#hud.danger {
+  border-color: var(--accent-2);
+  animation: dangerPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes dangerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 143, 121, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(255, 143, 121, 0.4); }
 }
 
 .hud-row {
@@ -75,21 +98,61 @@ body {
 }
 
 .hud-item .label {
-  font-size: 9px;
-  letter-spacing: 0.16em;
+  /* Piso de 11px: por debajo, el label deja de leerse en pantallas densas. */
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .hud-item .value {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-#best.beat {
-  color: var(--accent-2);
-  animation: pop 0.5s ease;
+/*
+ * Línea de resultado (récord, líneas, puntaje) del panel de fin de nivel/partida.
+ *
+ * El récord se celebra acá, en el panel: antes se animaba en el HUD, que queda
+ * por debajo del velo del overlay, así que la celebración era invisible.
+ */
+.result {
+  display: none;
+  font-size: clamp(30px, 9vw, 52px);
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.result.visible {
+  display: block;
+}
+
+.result.beat {
+  animation: pop 0.6s ease;
+}
+
+/*
+ * En estado de resultado el titular pasa a ser la etiqueta chica y el número
+ * grande es el logro. Antes "nivel 1 listo" y "se acabó" medían 48px/800 igual
+ * que la portada: el premio se leía como la puerta de entrada.
+ */
+#overlay:not(.intro) h1 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Las ayudas de introducción (teclas, leyenda, hint) son sólo del menú. */
+#overlay:not(.intro) .keys,
+#overlay:not(.intro) .legend,
+#overlay:not(.intro) .hint {
+  display: none;
 }
 
 @keyframes pop {
@@ -109,17 +172,19 @@ body {
 
 .progress-fill {
   height: 100%;
-  width: 0;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
   border-radius: 2px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transition: width 0.25s ease;
+  transition: transform 0.25s ease;
 }
 
 /* Combo: sólo aparece cuando el multiplicador es > 1. */
 .combo {
   margin-top: 7px;
   text-align: center;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--accent-2);
   opacity: 0;
@@ -132,8 +197,8 @@ body {
 }
 
 .combo-label {
-  font-size: 9px;
-  letter-spacing: 0.16em;
+  font-size: 11px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
   margin-left: 5px;
@@ -151,9 +216,24 @@ body {
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(6, 8, 14, 0.76);
+  /*
+   * Velo cálido derivado del fondo. El anterior era un azul-negro frío que
+   * invertía la paleta del tablero detrás de cada modal (bajaba el rojo al 46%
+   * sin tocar el azul).
+   */
+  background: rgba(20, 13, 8, 0.78);
   backdrop-filter: blur(3px);
-  z-index: 10;
+  z-index: 30;
+}
+
+/*
+ * El overlay es modal: mientras está abierto tapa los controles de las
+ * esquinas, así que se ocultan en vez de quedar a medio gas y clickeables.
+ */
+#overlay:not(.hidden) ~ .back,
+#overlay:not(.hidden) ~ #undo,
+#overlay:not(.hidden) ~ #sound {
+  visibility: hidden;
 }
 
 #overlay.hidden {
@@ -174,24 +254,26 @@ body {
 }
 
 .panel h1 {
-  font-size: clamp(28px, 6.5vw, 44px);
-  letter-spacing: 0.04em;
+  font-size: clamp(30px, 7vw, 48px);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-wrap: balance;
   color: var(--accent);
-  text-shadow: 0 0 26px rgba(127, 212, 255, 0.4);
 }
 
 .tagline {
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .keys {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   list-style: none;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--muted);
 }
 
@@ -207,10 +289,10 @@ body {
 }
 
 .chip {
-  padding: 4px 10px;
+  padding: 5px 11px;
   border-radius: 999px;
-  font-size: 10px;
-  letter-spacing: 0.05em;
+  font-size: 11px;
+  letter-spacing: 0.04em;
   border: 1px solid transparent;
 }
 
@@ -221,9 +303,9 @@ body {
 }
 
 .chip-fall {
-  color: #7fd4ff;
-  border-color: rgba(127, 212, 255, 0.35);
-  background: rgba(127, 212, 255, 0.08);
+  color: var(--accent);
+  border-color: rgba(255, 180, 84, 0.35);
+  background: rgba(255, 180, 84, 0.08);
 }
 
 #play {
@@ -232,7 +314,7 @@ body {
   border: none;
   border-radius: 10px;
   background: var(--accent);
-  color: #04121c;
+  color: var(--on-accent);
   font-family: inherit;
   font-size: 15px;
   font-weight: 700;
@@ -250,8 +332,20 @@ body {
 }
 
 .hint {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--muted);
+}
+
+.panel-back {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.panel-back:hover {
+  color: var(--fg);
 }
 
 /* ---------- Volver / toast ---------- */
@@ -259,8 +353,8 @@ body {
 /* El HUD ocupa la franja izquierda, así que el link se va al extremo opuesto. */
 .back {
   position: fixed;
-  top: 16px;
-  right: 18px;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
   z-index: 20;
   padding: 7px 14px;
   border: 1px solid var(--border);
@@ -277,14 +371,44 @@ body {
 }
 
 /*
+ * Deshacer: abajo a la izquierda en escritorio (la esquina libre que el HUD no
+ * usa), centrado abajo en móvil, donde `.back` ya toma la izquierda.
+ */
+#undo {
+  position: fixed;
+  left: 18px;
+  bottom: 16px;
+  z-index: 20;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+#undo:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+#undo:not(:disabled):hover {
+  border-color: var(--accent);
+}
+
+/*
  * Botón de sonido: abajo a la derecha, la única esquina libre en los dos
  * layouts. El HUD ocupa la izquierda en escritorio y toda la franja de arriba
  * en móvil, y `.back` se muda de esquina según el ancho.
  */
 #sound {
   position: fixed;
-  right: 18px;
-  bottom: 16px;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
   z-index: 20;
   padding: 7px 14px;
   border: 1px solid var(--border);
@@ -303,8 +427,8 @@ body {
 }
 
 #sound.muted {
-  color: #f0a3a3;
-  border-color: rgba(240, 163, 163, 0.35);
+  color: var(--accent-2);
+  border-color: rgba(255, 143, 121, 0.35);
 }
 
 /*
@@ -313,22 +437,28 @@ body {
  */
 #play:focus-visible,
 .back:focus-visible,
-#sound:focus-visible {
+#undo:focus-visible,
+#sound:focus-visible,
+.panel-back:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 #toast {
   position: fixed;
-  bottom: 30px;
+  /*
+   * Arriba y centrado en escritorio: en la bandeja la placa llega hasta abajo,
+   * así que un toast abajo pisaba los primeros slots justo cuando cambiaban.
+   */
+  top: 18px;
   left: 50%;
-  transform: translate(-50%, 12px);
+  transform: translate(-50%, -12px);
   padding: 8px 18px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--panel);
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  font-size: 13px;
+  letter-spacing: 0.05em;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -375,33 +505,96 @@ body {
   }
 
   .hud-item .label {
-    font-size: 8px;
+    font-size: 11px;
   }
 
   .hud-item .value {
-    font-size: 14px;
+    font-size: 16px;
+  }
+
+  /*
+   * En móvil el HUD pasaba a dos filas altas y se comía la primera fila del
+   * tablero. Se recortan las dos métricas de adorno (largo de última línea y
+   * cantidad de movimientos) para que entre más chico; el alto medido hace el
+   * resto en `computeLayout`.
+   */
+  .hud-line,
+  .hud-moves {
+    display: none;
   }
 
   /* Arriba a la derecha chocaba con el HUD, que ahora ocupa todo el ancho. */
   .back {
     top: auto;
-    bottom: 14px;
-    left: 14px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: max(14px, env(safe-area-inset-left));
     right: auto;
   }
 
   /*
-   * En móvil el pie tiene los tres controles: volver a la izquierda, sonido a
-   * la derecha y el toast en el medio. El toast sube para no pisar los botones.
+   * En móvil el pie tiene los controles: volver a la izquierda, sonido a la
+   * derecha y deshacer centrado. El toast sube para no pisarlos.
    */
+  #undo {
+    left: 50%;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
   #sound {
-    bottom: 14px;
-    right: 14px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    right: max(14px, env(safe-area-inset-right));
     padding: 6px 10px;
     font-size: 11px;
   }
 
   #toast {
+    top: auto;
     bottom: 56px;
+  }
+}
+
+/* ---------- Movimiento reducido ---------- */
+
+/*
+ * Con `prefers-reduced-motion`, el pulso del combo y el pop del récord son
+ * movimiento decorativo que se repite: se apagan. El estado sigue visible (el
+ * combo se ve, solo que quieto), así que no se pierde información.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .combo.visible,
+  #hud.danger,
+  .result.beat {
+    animation: none;
+  }
+
+  #hud,
+  .combo,
+  .progress-fill,
+  #toast,
+  #play,
+  #undo,
+  .panel-back {
+    transition: none;
+  }
+}
+
+/* ---------- Puntero grueso ---------- */
+
+/*
+ * En pantalla táctil los controles fijos tienen que ser alcanzables con el dedo:
+ * 44px de alto mínimo. No cambia la posición ni el layout del canvas, solo el
+ * tamaño del objetivo de toque.
+ */
+@media (pointer: coarse) {
+  .back,
+  #undo,
+  #sound {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 16px;
   }
 }
