@@ -2,9 +2,11 @@ export type ResourceKey = 'suministros' | 'materiales' | 'combustible' | 'minera
 
 export type EntityKind = 'unit' | 'building' | 'resource'
 
-export type UnitType = 'ingeniero' | 'milicia' | 'fusilero' | 'blindado'
+export type UnitType =
+  | 'ingeniero' | 'milicia' | 'granadero' | 'fusilero' | 'francotirador' | 'inf_mecanizada'
+  | 'blindado' | 'cazacarros' | 'tanque' | 'canon' | 'mlrs' | 'dron' | 'tanque_autonomo'
 
-export type BuildingType = 'ayuntamiento' | 'vivienda' | 'cuartel' | 'almacen'
+export type BuildingType = 'ayuntamiento' | 'vivienda' | 'cuartel' | 'almacen' | 'fabrica' | 'torre'
 
 export type ResourceNodeType = 'granja' | 'bosque' | 'petroleo' | 'mina'
 
@@ -52,6 +54,7 @@ export interface BuildingDef {
   popProvided?: number
   dropoff?: boolean
   produces?: UnitType[]
+  attack?: { damage: number; range: number; cooldown: number }
 }
 
 export interface EraDef {
@@ -60,6 +63,24 @@ export interface EraDef {
   years: string
   advanceCost: Cost
   advanceTime: number
+}
+
+export interface TechDef {
+  id: string
+  name: string
+  era: number
+  cost: Cost
+  time: number
+  desc: string
+  effects: { attackPct?: number; hpPct?: number; speedPct?: number; gatherPct?: number; armorFlat?: number }
+}
+
+export interface PlayerBonuses {
+  attackPct: number
+  hpPct: number
+  speedPct: number
+  gatherPct: number
+  armorFlat: number
 }
 
 export interface BaseEntity {
@@ -93,6 +114,7 @@ export interface BuildingEntity extends BaseEntity {
   btype: BuildingType
   built: boolean
   buildProgress: number
+  attackCd: number
   queue: { type: UnitType; remaining: number; total: number }[]
   rally?: Vec2
 }

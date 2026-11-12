@@ -1,6 +1,6 @@
-import { BUILDING_DEFS, ERAS, RESOURCE_LABEL, UNIT_DEFS } from '../core/config'
+import { BUILDING_DEFS, ERAS, RESOURCE_LABEL, TECHS, UNIT_DEFS } from '../core/config'
 import { formatCost } from '../core/utils'
-import { canTrain, getEntity, type GameState } from '../sim/state'
+import { canResearch, canTrain, getEntity, type GameState } from '../sim/state'
 import type { BuildingType, ResourceKey, UnitType } from '../core/types'
 
 export interface UIRefs {
@@ -54,13 +54,14 @@ export function createUI(root: HTMLElement): UIRefs {
             <h4>Controles y objetivo</h4>
             <ul>
               <li>Ingenieros recolectan y construyen (seleccionalos).</li>
-              <li>Cuartel entrena Milicia/Fusileros (según era).</li>
-              <li>Contra: infantería &lt; distancia &lt; movilidad (simplificado).</li>
+              <li>Cuartel entrena infantería; Fábrica Militar vehículos y artillería.</li>
+              <li>Investigá tecnologías en el Ayuntamiento para mejorar tu ejército.</li>
+              <li>Contra: cada unidad tiene fortalezas y debilidades (counters).</li>
               <li><b>Victoria:</b> destruir el Ayuntamiento enemigo.</li>
             </ul>
           </div>
         </div>
-        <p class="small">Prototipo jugable (slice vertical) en Three.js: foco en bucle económico-militar, era progresiva y presentación atmosférica. Algunas unidades/edificios avanzados quedan como expansión futura.</p>
+        <p class="small">Prototipo jugable (slice vertical) en Three.js: bucle económico-militar, 4 eras, 13 unidades con counters, tecnologías, torres defensivas y una IA que avanza de era. La niebla de guerra y el pathfinding avanzado quedan como expansión futura.</p>
         <button class="primary" id="start">Comenzar partida</button>
       </div>
     </div>
@@ -92,12 +93,13 @@ export function updateTopBar(ui: UIRefs, gs: GameState): void {
   ui.resEls.minerales.textContent = String(Math.floor(p.resources.minerales))
   ui.popEl.textContent = `${p.pop}/${p.popCap}`
   const era = ERAS[p.era - 1]
+  const research = p.research ? TECHS.find(t => t.id === p.research!.id) : null
   ui.eraEl.textContent = p.advancing
     ? `Avanzando a ${ERAS[p.advancing.to - 1].name} (${Math.ceil(p.advancing.remaining)}s)`
-    : `${era.name} (${era.years})`
+    : `${era.name} (${era.years})${research ? ` · Investigando ${research.name} (${Math.ceil(p.research!.remaining)}s)` : ''}`
 }
 
-export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, t: UnitType) => void, onBuild: (t: BuildingType) => void, onAdvance: () => void): void {
+export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, t: UnitType) => void, onBuild: (t: BuildingType) => void, onAdvance: () => void, onResearch: (id: string) => void): void {
   const acts = ui.actions
   const sigParts = [
     gs.selectedIds.join(','),
@@ -105,6 +107,8 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
     gs.players.player.pop,
     gs.players.player.popCap,
     gs.players.player.advancing ? `a${gs.players.player.advancing.to}:${Math.ceil(gs.players.player.advancing.remaining)}` : 'a0',
+    gs.players.player.research ? `res${gs.players.player.research.id}:${Math.ceil(gs.players.player.research.remaining)}` : 'res0',
+    gs.players.player.researched.join(','),
     Math.floor(gs.players.player.resources.suministros),
     Math.floor(gs.players.player.resources.materiales),
     Math.floor(gs.players.player.resources.combustible),
@@ -147,12 +151,17 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
       const next = ERAS[p.era]
       if (next) addBtn(`Avanzar era`, `${next.name} · ${formatCost(next.advanceCost)}`, onAdvance, !!p.advancing)
       else addBtn('Era máxima', 'IV alcanzada', () => {}, true)
+      for (const t of TECHS) {
+        if (p.researched.includes(t.id)) continue
+        const chk = canResearch(gs, 'player', t.id)
+        addBtn(`Investigar ${t.name}`, `${t.desc} · ${formatCost(t.cost)}`, () => onResearch(t.id), !chk.ok)
+      }
     }
   }
 
   const hasEngineer = sel.some((e: any) => e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero')
   if (hasEngineer) {
-    const defs: BuildingType[] = ['vivienda', 'cuartel', 'almacen']
+    const defs: BuildingType[] = ['vivienda', 'cuartel', 'almacen', 'torre', 'fabrica']
     for (const bt of defs) {
       const d = BUILDING_DEFS[bt]
       addBtn(`Construir ${d.name}`, formatCost(d.cost), () => onBuild(bt))

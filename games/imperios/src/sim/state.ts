@@ -1,6 +1,6 @@
-import { BUILDING_DEFS, ERAS, MAP_SIZE, START_RESOURCES, UNIT_DEFS } from '../core/config'
+import { BUILDING_DEFS, ERAS, MAP_SIZE, START_RESOURCES, TECHS, UNIT_DEFS } from '../core/config'
 import { canAfford, dist, spend, uid } from '../core/utils'
-import type { AnyEntity, BuildingEntity, BuildingType, ResourceEntity, Resources, Team, UnitEntity, UnitType, Vec2 } from '../core/types'
+import type { AnyEntity, BuildingEntity, BuildingType, PlayerBonuses, ResourceEntity, Resources, Team, UnitEntity, UnitType, Vec2 } from '../core/types'
 
 export interface PlayerState {
   team: Team
@@ -9,7 +9,12 @@ export interface PlayerState {
   pop: number
   popCap: number
   advancing: { to: number; remaining: number; total: number } | null
+  bonuses: PlayerBonuses
+  research: { id: string; remaining: number; total: number } | null
+  researched: string[]
 }
+
+const NO_BONUSES: PlayerBonuses = { attackPct: 0, hpPct: 0, speedPct: 0, gatherPct: 0, armorFlat: 0 }
 
 export interface GameState {
   entities: Map<number, AnyEntity>
@@ -26,8 +31,8 @@ export function createState(): GameState {
   return {
     entities: new Map(),
     players: {
-      player: { team: 'player', resources: { ...START_RESOURCES }, era: 1, pop: 0, popCap: 0, advancing: null },
-      enemy: { team: 'enemy', resources: { suministros: 300, materiales: 300, combustible: 120, minerales: 120 }, era: 1, pop: 0, popCap: 0, advancing: null },
+      player: { team: 'player', resources: { ...START_RESOURCES }, era: 1, pop: 0, popCap: 0, advancing: null, bonuses: { ...NO_BONUSES }, research: null, researched: [] },
+      enemy: { team: 'enemy', resources: { suministros: 300, materiales: 300, combustible: 120, minerales: 120 }, era: 1, pop: 0, popCap: 0, advancing: null, bonuses: { ...NO_BONUSES }, research: null, researched: [] },
     },
     time: 0,
     status: 'menu',
@@ -101,9 +106,10 @@ export function recomputePop(gs: GameState): void {
 
 export function spawnUnit(gs: GameState, team: Team, type: UnitType, x: number, z: number): UnitEntity {
   const def = UNIT_DEFS[type]
+  const hp = Math.round(def.hp * (1 + gs.players[team].bonuses.hpPct))
   const u: UnitEntity = {
     id: uid(), kind: 'unit', team, x, z,
-    hp: def.hp, maxHp: def.hp, selected: false, dead: false,
+    hp, maxHp: hp, selected: false, dead: false,
     utype: type, path: [], carrying: {}, carryAmount: 0,
     attackCd: 0, workCd: 0, state: 'idle',
   }
@@ -117,7 +123,7 @@ export function spawnBuilding(gs: GameState, team: Team, type: BuildingType, x: 
   const b: BuildingEntity = {
     id: uid(), kind: 'building', team, x, z,
     hp: built ? def.hp : Math.max(1, def.hp * 0.1), maxHp: def.hp, selected: false, dead: false,
-    btype: type, built, buildProgress: built ? 1 : 0, queue: [],
+    btype: type, built, buildProgress: built ? 1 : 0, attackCd: 0, queue: [],
   }
   addEntity(gs, b)
   recomputePop(gs)
@@ -188,6 +194,36 @@ export function tryAdvanceEra(gs: GameState): boolean {
   p.advancing = { to: next.id, remaining: next.advanceTime, total: next.advanceTime }
   gs.toast = { msg: `Avanzando a ${next.name}...`, t: 3 }
   return true
+}
+
+export function canResearch(gs: GameState, team: Team, techId: string): { ok: boolean; reason?: string } {
+  const t = TECHS.find(tt => tt.id === techId)
+  if (!t) return { ok: false, reason: 'Tecnología desconocida' }
+  const p = gs.players[team]
+  if (t.era > p.era) return { ok: false, reason: 'Requiere era superior' }
+  if (p.researched.includes(t.id)) return { ok: false, reason: 'Ya investigada' }
+  if (p.research) return { ok: false, reason: 'Investigación en curso' }
+  if (!canAfford(p.resources, t.cost)) return { ok: false, reason: 'Recursos insuficientes' }
+  return { ok: true }
+}
+
+export function queueResearch(gs: GameState, team: Team, techId: string): boolean {
+  if (!canResearch(gs, team, techId).ok) return false
+  const t = TECHS.find(tt => tt.id === techId)!
+  spend(gs.players[team].resources, t.cost)
+  gs.players[team].research = { id: t.id, remaining: t.time, total: t.time }
+  return true
+}
+
+export function applyTech(p: PlayerState, techId: string): void {
+  const t = TECHS.find(tt => tt.id === techId)
+  if (!t) return
+  p.bonuses.attackPct += t.effects.attackPct ?? 0
+  p.bonuses.hpPct += t.effects.hpPct ?? 0
+  p.bonuses.speedPct += t.effects.speedPct ?? 0
+  p.bonuses.gatherPct += t.effects.gatherPct ?? 0
+  p.bonuses.armorFlat += t.effects.armorFlat ?? 0
+  p.researched.push(techId)
 }
 
 export function setSelection(gs: GameState, ids: number[]): void {

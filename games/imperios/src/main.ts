@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import './style.css'
-import { BUILDING_DEFS, MAP_SIZE, UNIT_DEFS } from './core/config'
+import { BUILDING_DEFS, MAP_SIZE, TECHS, UNIT_DEFS } from './core/config'
 import type { BuildingType, UnitType } from './core/types'
-import { createState, commandAttack, commandGather, commandMove, getEntity, queueTrain, setSelection, spawnBuilding, spawnResource, spawnUnit, tryAdvanceEra, tryPlaceBuilding } from './sim/state'
+import { createState, commandAttack, commandGather, commandMove, getEntity, queueResearch, queueTrain, setSelection, spawnBuilding, spawnResource, spawnUnit, tryAdvanceEra, tryPlaceBuilding } from './sim/state'
 import { stepSim } from './sim/sim'
 import { createRender, removeEntityMesh, renderFrame, resize, syncEntityMesh, updateCamera } from './render/scene'
 import { createUI, renderActions, showEnd, showToast, updateMinimap, updateSelectionInfo, updateTopBar } from './ui/ui'
@@ -50,13 +50,27 @@ function setupWorld(): void {
 }
 
 function startGame(): void {
-  // clear render meshes
   for (const id of [...rc.entityMeshes.keys()]) removeEntityMesh(rc, id)
   setupWorld()
   gs.status = 'playing'
   ui.overlay.classList.add('hidden')
   ui.overlay.innerHTML = ''
-  // rebind start not needed
+  // Camera intro: start high and far, ease to player base
+  rc.target.set(0, 0, 0)
+  rc.camDist = 120
+  const startT = performance.now()
+  const introDuration = 1800
+  function introCam() {
+    const elapsed = performance.now() - startT
+    const t = Math.min(1, elapsed / introDuration)
+    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+    rc.target.x = -48 * ease
+    rc.target.z = 4 * ease
+    rc.camDist = 120 - 55 * ease
+    updateCamera(rc)
+    if (t < 1) requestAnimationFrame(introCam)
+  }
+  introCam()
 }
 
 function bindUI(): void {
@@ -107,6 +121,21 @@ canvas.addEventListener('pointerdown', (e) => {
   if (e.button === 0) { dragging = true; dragStart = { x: e.clientX, y: e.clientY } }
 })
 
+// Also handle placement click directly on canvas (more reliable than window pointerup)
+canvas.addEventListener('pointerup', (e) => {
+  if (gs.status !== 'playing') return
+  if (e.button === 0 && gs.placing) {
+    const p = rayGround(e.clientX, e.clientY)
+    if (p) {
+      const ok = tryPlaceBuilding(gs, gs.placing, p.x, p.z)
+      if (ok) gs.placing = null
+    }
+    dragging = false; dragStart = null
+    e.stopPropagation()
+    return
+  }
+})
+
 window.addEventListener('pointermove', (e) => {
   pointer.x = e.clientX; pointer.y = e.clientY
   if (gs.placing) {
@@ -116,6 +145,19 @@ window.addEventListener('pointermove', (e) => {
       rc.placementGhost.position.set(p.x, 0.5, p.z)
       const sz = (BUILDING_DEFS[gs.placing] as any).size
       rc.placementGhost.scale.set(sz.x, 1, sz.z)
+      // Validate placement: check collision
+      let valid = true
+      if (Math.abs(p.x) > MAP_SIZE / 2 - 6 || Math.abs(p.z) > MAP_SIZE / 2 - 6) valid = false
+      for (const ent of gs.entities.values()) {
+        if (ent.dead || ent.kind !== 'building') continue
+        const d = BUILDING_DEFS[ent.btype]
+        if (Math.abs(ent.x - p.x) < (d.size.x + sz.x) / 2 + 1 && Math.abs(ent.z - p.z) < (d.size.z + sz.z) / 2 + 1) {
+          valid = false; break
+        }
+      }
+      const ghostMat = rc.placementGhost.material as THREE.MeshStandardMaterial
+      ghostMat.color.setHex(valid ? 0x44cc66 : 0xcc4444)
+      ghostMat.emissive.setHex(valid ? 0x226633 : 0x662222)
     }
   } else {
     rc.placementGhost.visible = false
@@ -124,6 +166,9 @@ window.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerup', (e) => {
   if (gs.status !== 'playing') return
+  // Ignore clicks that originated from UI elements (buttons, panels, etc.)
+  const target = e.target as HTMLElement
+  if (target && target.closest && target.closest('#ui button, #ui .btn, #ui .primary, .back, .overlay')) return
   if (e.button === 0) {
     if (gs.placing) {
       const p = rayGround(e.clientX, e.clientY)
@@ -209,8 +254,8 @@ function updateCameraControls(dt: number): void {
   const right = new THREE.Vector3(-forward.z, 0, forward.x)
   if (keys.has('w')) rc.target.addScaledVector(forward, -speed)
   if (keys.has('s')) rc.target.addScaledVector(forward, speed)
-  if (keys.has('a')) rc.target.addScaledVector(right, -speed)
-  if (keys.has('d')) rc.target.addScaledVector(right, speed)
+  if (keys.has('a')) rc.target.addScaledVector(right, speed)
+  if (keys.has('d')) rc.target.addScaledVector(right, -speed)
   if (keys.has('q')) rc.camYaw += 1.8 * dt
   if (keys.has('e')) rc.camYaw -= 1.8 * dt
   const lim = MAP_SIZE / 2 - 8
@@ -278,6 +323,11 @@ function refreshActions(): void {
     },
     () => {
       tryAdvanceEra(gs)
+    },
+    (id) => {
+      const ok = queueResearch(gs, 'player', id)
+      if (ok) gs.toast = { msg: `Investigando ${TECHS.find(t => t.id === id)?.name}...`, t: 1.8 }
+      else gs.toast = { msg: 'No se pudo investigar (era/recursos)', t: 1.8 }
     },
   )
 }
