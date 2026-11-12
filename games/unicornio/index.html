@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>unicornio — academia unicornio</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="hud">
+      <div class="hud-item">
+        <span class="label">distancia al castillo</span>
+        <span class="value" id="dist">—</span>
+      </div>
+      <div class="hud-item">
+        <span class="label">tiempo</span>
+        <span class="value" id="time">0.00s</span>
+      </div>
+      <div class="hud-item">
+        <span class="label">récord</span>
+        <span class="value" id="best">—</span>
+      </div>
+    </div>
+
+    <div id="hint">Buscá el castillo entre las montañas y los bosques.</div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1>Academia Unicornio</h1>
+        <p class="tagline">Encontrá el castillo escondido en el campo. Explorá los bosques y las montañas.</p>
+        <ul class="keys">
+          <li><b>W A S D</b> moverse</li>
+          <li><b>Shift</b> correr</li>
+          <li><b>Mouse</b> mirar</li>
+          <li><b>C</b> alternar cámara</li>
+          <li><b>Esc</b> liberar el cursor</li>
+        </ul>
+        <button id="play" type="button">Jugar</button>
+        <p class="hint">Hacé clic para capturar el mouse.</p>
+      </div>
+    </div>
+
+    <div id="win" class="hidden">
+      <div class="panel">
+        <h1>¡Castillo encontrado!</h1>
+        <p class="tagline">Tiempo: <span id="win-time">0.00s</span></p>
+        <button id="restart" type="button">Volver a jugar</button>
+      </div>
+    </div>
+
+    <a class="back" href="/">← juegos</a>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

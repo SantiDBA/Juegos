@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CommandCode of Duty</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="hud">
+      <div class="hud-top">
+        <div class="hud-item">
+          <span class="label">PUNTOS</span>
+          <span class="value" id="score">0</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">ELIMINADOS</span>
+          <span class="value" id="kills">0 / 0</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">TIEMPO</span>
+          <span class="value" id="time">0:00</span>
+        </div>
+      </div>
+
+      <div class="hud-bottom">
+        <div class="health-box">
+          <div class="health-bar"><div class="health-fill" id="health-fill"></div></div>
+          <span class="health-text"><span id="health">100</span></span>
+        </div>
+        <div class="ammo-box">
+          <span class="ammo-current" id="ammo">30</span>
+          <span class="ammo-sep">/</span>
+          <span class="ammo-reserve" id="reserve">90</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="crosshair">
+      <div class="crosshair-dot"></div>
+      <div class="crosshair-line crosshair-h"></div>
+      <div class="crosshair-line crosshair-v"></div>
+    </div>
+
+    <div id="hitmarker" class="hitmarker"></div>
+
+    <div id="damage-overlay"></div>
+
+    <div id="objective">
+      <div class="objective-text" id="objective-text">Elimina a todos los enemigos</div>
+    </div>
+
+    <div id="killfeed"></div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1>COMMANDCODE OF DUTY</h1>
+        <p class="tagline">Operación: Eliminar Hostiles</p>
+        <ul class="keys">
+          <li><b>W A S D</b> Moverse</li>
+          <li><b>Mouse</b> Apuntar/Mirar</li>
+          <li><b>Click Izq.</b> Disparar</li>
+          <li><b>R</b> Recargar</li>
+          <li><b>Shift</b> Correr</li>
+          <li><b>Ctrl</b> Agacharse</li>
+          <li><b>Espacio</b> Saltar</li>
+          <li><b>Esc</b> Liberar cursor</li>
+        </ul>
+        <button id="play" type="button">DESPLEGAR</button>
+        <p class="hint">Click para capturar el mouse</p>
+      </div>
+    </div>
+
+    <div id="victory-overlay" class="hidden">
+      <div class="panel victory">
+        <h1>¡MISIÓN CUMPLIDA!</h1>
+        <p class="victory-stats">
+          Eliminados: <span id="victory-kills">0</span><br/>
+          Puntos: <span id="victory-score">0</span><br/>
+          Tiempo: <span id="victory-time">0:00</span>
+        </p>
+        <button id="restart" type="button">NUEVA MISIÓN</button>
+      </div>
+    </div>
+
+    <a class="back" href="/">← juegos</a>
+
+    <div id="toast"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
