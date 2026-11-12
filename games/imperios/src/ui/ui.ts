@@ -99,6 +99,26 @@ export function updateTopBar(ui: UIRefs, gs: GameState): void {
 
 export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, t: UnitType) => void, onBuild: (t: BuildingType) => void, onAdvance: () => void): void {
   const acts = ui.actions
+  const sigParts = [
+    gs.selectedIds.join(','),
+    gs.players.player.era,
+    gs.players.player.pop,
+    gs.players.player.popCap,
+    gs.players.player.advancing ? `a${gs.players.player.advancing.to}:${Math.ceil(gs.players.player.advancing.remaining)}` : 'a0',
+    Math.floor(gs.players.player.resources.suministros),
+    Math.floor(gs.players.player.resources.materiales),
+    Math.floor(gs.players.player.resources.combustible),
+    Math.floor(gs.players.player.resources.minerales),
+    ...gs.selectedIds.map(id => {
+      const e = getEntity(gs, id)
+      if (!e) return 'x'
+      if (e.kind === 'building') return `b${e.id}:${e.btype}:${e.built ? 1 : 0}:${e.queue.length}`
+      if (e.kind === 'unit') return `u${e.id}:${e.utype}:${e.team}`
+      return `r${e.id}`
+    }),
+  ].join('|')
+  if ((acts as any).dataset.sig === sigParts) return
+  ;(acts as any).dataset.sig = sigParts
   acts.innerHTML = ''
   const sel = gs.selectedIds.map(id => getEntity(gs, id)).filter(Boolean) as any[]
   const p = gs.players.player
