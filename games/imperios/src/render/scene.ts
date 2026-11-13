@@ -3,8 +3,8 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
-import { GRID, MAP_SIZE, TEAM_COLORS } from '../core/config'
-import type { AnyEntity, BuildingEntity, ResourceEntity, Team, UnitEntity } from '../core/types'
+import { BUILDING_DEFS, GRID, MAP_SIZE, TEAM_COLORS } from '../core/config'
+import type { AnyEntity, BuildingEntity, ResourceEntity, ResourceKey, Team, UnitEntity } from '../core/types'
 
 /** How the observer perceives an entity under the fog of war. */
 export type EntityVisibility = 'full' | 'ghost' | 'hidden'
@@ -34,11 +34,13 @@ export interface RenderContext {
   fx: THREE.Group
   composer: EffectComposer | null
   bloom: UnrealBloomPass | null
-  /** Live VFX particles (tracers, impacts, death smoke). */
+  /** Live VFX particles (tracers, impacts, death smoke, craters, wrecks). */
   fxItems: FxItem[]
   /** Recycled meshes per VFX kind: no per-shot allocation. */
   fxPool: Record<FxKind, THREE.Mesh[]>
   fxGeo: Record<FxKind, THREE.BufferGeometry>
+  /** Live (in-scene) item count per kind, so per-kind caps stay O(1). */
+  fxLive: Record<FxKind, number>
   /** Shared "remembered but not seen" material for explored enemy buildings. */
   ghostMaterial: THREE.MeshBasicMaterial
   /** Terrain-hugging fog plane, textured from the team vision grid. */
@@ -48,23 +50,56 @@ export interface RenderContext {
   fogCtx: CanvasRenderingContext2D
 }
 
-type FxKind = 'beam' | 'flash' | 'ring' | 'puff'
+type FxKind = 'beam' | 'flash' | 'ring' | 'puff' | 'muzzle' | 'spark' | 'decal' | 'wreck' | 'rubble'
 
 interface FxItem {
   kind: FxKind
   mesh: THREE.Mesh
   t: number
   life: number
-  /** Anchor position; `puff` items drift from it along `vel`. */
+  /** Anchor position; `puff`/`spark` items drift from it along `vel`. */
   pos: THREE.Vector3
   vel: THREE.Vector3
   s0: number
   s1: number
   o0: number
+  /**
+   * Seconds of full strength before the fade starts. Used by the persistent
+   * combat footprint (craters, wrecks, rubble): they must sit still for a
+   * while and only then dissolve, instead of pulsing like a particle.
+   */
+  hold?: number
 }
 
 /** Hard cap on simultaneous VFX so a big battle cannot tank the frame. */
 const FX_MAX = 200
+
+/**
+ * Per-kind live caps. Everything shares FX_MAX as a global ceiling; the small
+ * numbers are the ones that matter, because craters/wrecks are persistent
+ * props and would otherwise pile up forever in a long match.
+ */
+const FX_LIVE_CAP: Record<FxKind, number> = {
+  beam: FX_MAX,
+  flash: FX_MAX,
+  ring: FX_MAX,
+  puff: FX_MAX,
+  muzzle: 40, // judge-visible muzzle flashes: pooled at 40
+  spark: 150,
+  decal: 60, // craters
+  wreck: 26,
+  rubble: 26,
+}
+
+/** Lifetime of a crater, and how long it holds full opacity before fading. */
+const CRATER_LIFE = 8
+const CRATER_HOLD = 6.4
+const WRECK_LIFE = 9
+const WRECK_HOLD = 7.4
+const RUBBLE_LIFE = 10
+const RUBBLE_HOLD = 8.4
+/** Wounded buildings cough smoke at this interval (presentation only). */
+const DAMAGE_SMOKE_INTERVAL = 0.5
 
 function hash2(x: number, y: number): number {
   const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123
@@ -318,13 +353,27 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   beamGeo.rotateX(Math.PI / 2) // axis along +Z, length 1
   const ringGeo = new THREE.RingGeometry(0.62, 1, 28)
   ringGeo.rotateX(-Math.PI / 2)
+  const craterGeo = new THREE.CircleGeometry(1, 18)
+  craterGeo.rotateX(-Math.PI / 2) // flat on the ground, no per-frame rotation
   const fxGeo: Record<FxKind, THREE.BufferGeometry> = {
     beam: beamGeo,
     flash: new THREE.SphereGeometry(1, 10, 8),
     ring: ringGeo,
     puff: new THREE.SphereGeometry(1, 8, 6),
+    muzzle: new THREE.PlaneGeometry(1, 1),
+    spark: new THREE.OctahedronGeometry(1, 0),
+    decal: craterGeo,
+    wreck: new THREE.BoxGeometry(1, 1, 1),
+    rubble: new THREE.BoxGeometry(1, 1, 1),
   }
-  const fxPool: Record<FxKind, THREE.Mesh[]> = { beam: [], flash: [], ring: [], puff: [] }
+  const fxPool: Record<FxKind, THREE.Mesh[]> = {
+    beam: [], flash: [], ring: [], puff: [],
+    muzzle: [], spark: [], decal: [], wreck: [], rubble: [],
+  }
+  const fxLive: Record<FxKind, number> = {
+    beam: 0, flash: 0, ring: 0, puff: 0,
+    muzzle: 0, spark: 0, decal: 0, wreck: 0, rubble: 0,
+  }
 
   const ghostMaterial = new THREE.MeshBasicMaterial({
     color: 0x93a4b4, transparent: true, opacity: 0.42, depthWrite: false,
@@ -349,7 +398,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
     target: new THREE.Vector3(-48, 0, 4),
     camYaw: Math.PI * 0.25, camPitch: Math.PI / 3.25, camDist: 72,
     markers, fx, composer, bloom,
-    fxItems: [], fxPool, fxGeo, ghostMaterial,
+    fxItems: [], fxPool, fxGeo, fxLive, ghostMaterial,
     fogOverlay, fogTexture, fogImage, fogCtx,
   }
   updateCamera(rc)
@@ -410,34 +459,59 @@ export function groundHeightAt(x: number, z: number): number {
 
 /** Canvas resolution of an HP bar; the on-screen size comes from the sprite scale. */
 const HP_BAR_W = 128
-const HP_BAR_H = 28
+const HP_BAR_H = 24
 
 const VEHICLE_UNITS = new Set(['blindado', 'tanque', 'cazacarros', 'mlrs', 'canon', 'tanque_autonomo'])
 
-/**
- * Sprite size/offset per entity: the bar is 45-60% of the silhouette width, so
- * it reads at a glance instead of being a hairline. Units are drawn inside a
- * group scaled 1.35, so their numbers are pre-divided by that factor.
- */
-function hpBarSpec(e: AnyEntity): { w: number; h: number; y: number } {
-  if (e.kind === 'building') {
-    const y = e.btype === 'torre' ? 6.5
-      : e.btype === 'ayuntamiento' ? 6.3
-      : e.btype === 'fabrica' ? 5.0
-      : e.btype === 'cuartel' ? 3.9
-      : e.btype === 'vivienda' ? 3.4
-      : 2.9
-    return { w: 5.6, h: 0.72, y }
-  }
-  if (e.kind === 'unit') {
-    return VEHICLE_UNITS.has(e.utype)
-      ? { w: 2.05, h: 0.6, y: 2.1 }
-      : { w: 1.65, h: 0.5, y: 1.72 }
-  }
-  return { w: 2.2, h: 0.5, y: 2 }
+/** Height of the bar above a building's base, in world units (roof + a gap). */
+const BUILDING_BAR_Y: Record<BuildingEntity['btype'], number> = {
+  ayuntamiento: 4.6,
+  cuartel: 4.6,
+  vivienda: 3.2,
+  almacen: 3.2,
+  fabrica: 5.4,
+  torre: 5.4,
 }
 
-function makeHpSprite(e: AnyEntity): THREE.Sprite {
+/** Where damage smoke leaves a building, in world units above its base. */
+const BUILDING_SMOKE_Y: Record<BuildingEntity['btype'], number> = {
+  ayuntamiento: 4.3,
+  cuartel: 2.6,
+  vivienda: 2.7,
+  almacen: 2.1,
+  fabrica: 3.0,
+  torre: 5.1,
+}
+
+interface HpBarSpec {
+  /** World-space width/height: the caller counter-scales the entity group. */
+  w: number
+  h: number
+  /** Vertical placement in the entity's local space (above the head / roof). */
+  y: number
+  /** Horizontal anti-overlap nudge, world units. */
+  ox: number
+}
+
+/**
+ * Per-entity bar size: ~55-60% of the silhouette width, thin enough to hug the
+ * model instead of floating like a banner. Units use one small fixed size (the
+ * group they live in is scaled 1.35, so the caller divides these out) and get a
+ * deterministic horizontal nudge from their id, which stops two adjacent
+ * soldiers' bars from merging into one long stripe.
+ */
+function hpBarSpec(e: AnyEntity): HpBarSpec {
+  if (e.kind === 'building') {
+    const size = BUILDING_DEFS[e.btype]?.size ?? { x: 4, z: 4 }
+    return { w: Math.max(2.8, size.x * 0.5), h: 0.55, y: BUILDING_BAR_Y[e.btype] ?? 3.2, ox: 0 }
+  }
+  if (e.kind === 'unit') {
+    return { w: VEHICLE_UNITS.has(e.utype) ? 1.85 : 1.7, h: 0.42, y: 1.55, ox: ((e.id % 3) - 1) * 0.35 }
+  }
+  return { w: 2.2, h: 0.5, y: 2, ox: 0 }
+}
+
+function makeHpSprite(): THREE.Sprite {
   const c = document.createElement('canvas')
   c.width = HP_BAR_W
   c.height = HP_BAR_H
@@ -448,9 +522,6 @@ function makeHpSprite(e: AnyEntity): THREE.Sprite {
   tex.generateMipmaps = false
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false })
   const sp = new THREE.Sprite(mat)
-  const spec = hpBarSpec(e)
-  sp.scale.set(spec.w, spec.h, 1)
-  sp.position.set(0, spec.y, 0)
   sp.renderOrder = 200 // on top of the fog overlay
   sp.name = 'hpbar'
   const anySp = sp as any
@@ -462,7 +533,8 @@ function makeHpSprite(e: AnyEntity): THREE.Sprite {
 
 /**
  * Redraws the bar: team colour (player green / enemy red), amber below 35% HP,
- * dark frame so it stays readable over grass, snow and buildings.
+ * a 2px dark frame instead of a heavy border, so it stays readable over grass,
+ * snow and buildings without becoming a black slab.
  */
 export function updateHpSprite(sp: THREE.Sprite, ratio: number, team: Team = 'player'): void {
   const anySp = sp as any
@@ -476,23 +548,89 @@ export function updateHpSprite(sp: THREE.Sprite, ratio: number, team: Team = 'pl
   const tex = anySp._tex as THREE.CanvasTexture
   const w = HP_BAR_W, h = HP_BAR_H
   ctx.clearRect(0, 0, w, h)
-  // frame + track
-  ctx.fillStyle = 'rgba(6,8,10,0.88)'
+  // 2px frame + track: a thin dark edge reads as UI, a fat one eats the model
+  ctx.fillStyle = 'rgba(6,8,10,0.72)'
   ctx.fillRect(0, 0, w, h)
-  ctx.fillStyle = 'rgba(38,46,54,0.98)'
-  ctx.fillRect(3, 3, w - 6, h - 6)
+  ctx.fillStyle = 'rgba(34,41,49,0.96)'
+  ctx.fillRect(2, 2, w - 4, h - 4)
   // fill
-  ctx.fillStyle = rq < 0.35 ? '#e8c341' : team === 'player' ? '#58d05e' : '#e05555'
-  const fw = Math.round((w - 6) * r)
+  ctx.fillStyle = rq < 0.35 ? '#e0c24a' : team === 'player' ? '#58d05e' : '#e05555'
+  const fw = Math.round((w - 4) * r)
   if (fw > 0) {
-    ctx.fillRect(3, 3, fw, h - 6)
+    ctx.fillRect(2, 2, fw, h - 4)
     ctx.fillStyle = 'rgba(255,255,255,0.28)'
-    ctx.fillRect(3, 3, fw, Math.max(2, Math.round((h - 6) * 0.33)))
+    ctx.fillRect(2, 2, fw, Math.max(1, Math.round((h - 4) * 0.33)))
   }
-  // outline
-  ctx.strokeStyle = 'rgba(0,0,0,0.9)'
+  // hairline outline
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)'
+  ctx.lineWidth = 1
+  ctx.strokeRect(0.5, 0.5, w - 1, h - 1)
+  tex.needsUpdate = true
+}
+
+// ---------------------------------------------------------------------------
+// Floating text label (resource node amounts)
+// ---------------------------------------------------------------------------
+
+const NODE_LABEL_W = 192
+const NODE_LABEL_H = 72
+/** World size of a node label; the node itself shrinks as it depletes. */
+const NODE_LABEL_SCALE_W = 2.4
+const NODE_LABEL_SCALE_H = 0.9
+/** World height of the label above the node's base. */
+const NODE_LABEL_Y = 3.1
+
+/** Builds the reusable canvas sprite used for on-world numbers. */
+function makeLabelSprite(): THREE.Sprite {
+  const c = document.createElement('canvas')
+  c.width = NODE_LABEL_W
+  c.height = NODE_LABEL_H
+  const ctx = c.getContext('2d')!
+  const tex = new THREE.CanvasTexture(c)
+  tex.minFilter = THREE.LinearFilter
+  tex.magFilter = THREE.LinearFilter
+  tex.generateMipmaps = false
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false })
+  const sp = new THREE.Sprite(mat)
+  sp.name = 'nodelabel'
+  sp.renderOrder = 210 // above bars and the fog overlay
+  sp.visible = false
+  const anySp = sp as any
+  anySp._canvas = c
+  anySp._ctx = ctx
+  anySp._tex = tex
+  anySp._text = ''
+  return sp
+}
+
+/**
+ * Paints a resource node's remaining amount. Redraws only when the text
+ * changes: a canvas upload per frame per selected node would be wasteful.
+ */
+export function updateNodeLabel(sp: THREE.Sprite, amount: number): void {
+  const anySp = sp as any
+  const text = String(Math.max(0, Math.ceil(amount)))
+  if (anySp._text === text) return
+  anySp._text = text
+
+  const ctx = anySp._ctx as CanvasRenderingContext2D
+  const tex = anySp._tex as THREE.CanvasTexture
+  const w = NODE_LABEL_W, h = NODE_LABEL_H
+  ctx.clearRect(0, 0, w, h)
+  ctx.font = 'bold 42px ui-sans-serif, system-ui, -apple-system, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const textW = Math.min(w - 8, Math.max(64, ctx.measureText(text).width + 40))
+  const x0 = (w - textW) / 2
+  // pill
+  ctx.fillStyle = 'rgba(8,11,16,0.82)'
+  ctx.fillRect(x0, 8, textW, h - 16)
+  ctx.strokeStyle = 'rgba(198,216,236,0.35)'
   ctx.lineWidth = 2
-  ctx.strokeRect(1, 1, w - 2, h - 2)
+  ctx.strokeRect(x0 + 1, 9, textW - 2, h - 18)
+  // digits
+  ctx.fillStyle = '#e9eef7'
+  ctx.fillText(text, w / 2, h / 2 + 1)
   tex.needsUpdate = true
 }
 
@@ -562,6 +700,18 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     tool.position.set(0.28, 0.65, 0.18); tool.rotation.z = -0.5; tool.castShadow = true; g.add(tool)
     const bag = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.18), mat(0x5a4a3a))
     bag.position.set(-0.18, 0.5, -0.05); g.add(bag)
+    // Visible load: a small crate over the shoulders that only appears while the
+    // engineer is carrying something, tinted by the resource it gathered.
+    const cargo = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.3, 0.3),
+      new THREE.MeshStandardMaterial({ color: 0xc9e06b, emissive: 0xc9e06b, emissiveIntensity: 0.12, roughness: 0.75, metalness: 0.08 }),
+    )
+    cargo.name = 'cargo'
+    cargo.position.set(0, 1.34, -0.1)
+    cargo.castShadow = true
+    cargo.visible = false
+    cargo.userData.baseY = cargo.position.y
+    g.add(cargo)
   } else if (u.utype === 'milicia') {
     addContactShadow(g, 0.6, 0.40)
     addTeamBase(g, u.team, 0.62)
@@ -791,6 +941,7 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
   if (b.btype === 'ayuntamiento') {
     g = buildingBase(sz.x, sz.z, 2.4, 0x78695a, teamC)
     const roof = new THREE.Mesh(new THREE.ConeGeometry(4.9, 2.6, 4), mat(0x5b4636, { roughness: 0.9 }))
+    roof.name = 'roof' // applyEraDetails recolours it per era
     roof.position.y = 3.7; roof.rotation.y = Math.PI / 4; roof.castShadow = true; g.add(roof)
     const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.95, 4.8, 8), mat(0x8a7a66))
     tower.position.set(2.5, 2.4, -2.5); tower.castShadow = true; g.add(tower)
@@ -922,9 +1073,114 @@ function createResourceMesh(r: ResourceEntity): THREE.Object3D {
   return g
 }
 
+/** Town-hall roof/steel colour per era: wood -> gunmetal -> slate -> deep teal. */
+const TOWNHALL_ROOF: Record<number, number> = {
+  1: 0x5b4636,
+  2: 0x4a4f57,
+  3: 0x3d434b,
+  4: 0x2f3a44,
+}
+
+/**
+ * Era upgrades for the town hall, the way AoE2 rebuilds the Town Centre: the
+ * same silhouette gains steel (era 2), a radio mast and amber beacons (era 3),
+ * then solar panels, a dish and cyan light strips (era 4). Everything is added
+ * exactly once per entity — the flags below are the guard, and the roof colour
+ * is only touched when it actually changes (never on a ghosted material).
+ */
+function applyTownHallEra(o: THREE.Object3D, era: number): void {
+  const anyO = o as any
+
+  const roof = o.getObjectByName('roof') as THREE.Mesh | undefined
+  if (roof) {
+    // while ghosted the mesh borrows the shared ghost material: recolour only
+    // the entity's own material, never the shared one
+    const own = (roof.userData.origMaterial ?? roof.material) as THREE.MeshStandardMaterial
+    const target = TOWNHALL_ROOF[Math.min(4, Math.max(1, era))] ?? TOWNHALL_ROOF[1]
+    if (own && (own as any).isMeshStandardMaterial && anyO._roofEra !== target) {
+      anyO._roofEra = target
+      own.color.setHex(target)
+    }
+  }
+
+  if (era >= 2 && !anyO._th2) {
+    anyO._th2 = true
+    // steel cupola over the apex + a working chimney on the front slope
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.24, 1.5), paintMat(0x6b737d, 0.42, 0.6))
+    cap.position.y = 4.44; cap.rotation.y = Math.PI / 4; cap.castShadow = true
+    o.add(cap)
+    const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2.2, 10), paintMat(0x8d8577, 0.7, 0.2))
+    chimney.position.set(-2.1, 3.9, 2.1); chimney.castShadow = true
+    o.add(chimney)
+    const chimneyTop = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.16, 0.52), paintMat(0x55606b, 0.5, 0.4))
+    chimneyTop.position.set(-2.1, 5.06, 2.1)
+    o.add(chimneyTop)
+    // steel window frames over the timber facade
+    for (const dx of [-2.4, 0, 2.4]) {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.94, 0.08), paintMat(0x8f99a3, 0.35, 0.55))
+      frame.position.set(dx, 1.4, 3.99)
+      o.add(frame)
+    }
+  }
+
+  if (era >= 3 && !anyO._th3) {
+    anyO._th3 = true
+    // radio mast over the corner tower + amber beacons along the eave
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 2.4, 6), paintMat(0x4a525a, 0.4, 0.6))
+    mast.position.set(2.5, 8.0, -2.5); mast.castShadow = true
+    o.add(mast)
+    const beacon = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffc06a, emissive: 0xffa53c, emissiveIntensity: 1.3, roughness: 0.3 }),
+    )
+    beacon.position.set(2.5, 9.25, -2.5)
+    o.add(beacon)
+    for (const dx of [-2.4, 0, 2.4]) {
+      const lamp = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.14, 0.14),
+        new THREE.MeshStandardMaterial({ color: 0xffd08a, emissive: 0xffa53c, emissiveIntensity: 1.1, roughness: 0.3 }),
+      )
+      lamp.position.set(dx, 2.66, 3.9)
+      o.add(lamp)
+    }
+  }
+
+  if (era >= 4 && !anyO._th4) {
+    anyO._th4 = true
+    // solar panels on both roof slopes
+    for (const sz2 of [1, -1]) {
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(2.6, 0.08, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x1d3a5c, emissive: 0x2d6fb0, emissiveIntensity: 0.22, roughness: 0.25, metalness: 0.5 }),
+      )
+      panel.position.set(0, 3.78, sz2 * 1.72)
+      panel.rotation.x = sz2 * -0.64
+      panel.castShadow = true
+      o.add(panel)
+    }
+    // taller mast with a dish, plus cyan strips on the facade
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 3.6, 6), paintMat(0x39424a, 0.35, 0.65))
+    mast.position.set(2.5, 8.6, -2.5); mast.castShadow = true
+    o.add(mast)
+    const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.06, 14), paintMat(0x9fb4c4, 0.3, 0.7))
+    dish.position.set(2.5, 10.3, -2.5); dish.rotation.z = 0.35
+    o.add(dish)
+    for (const dx of [-2.0, 2.0]) {
+      const strip = new THREE.Mesh(
+        new THREE.BoxGeometry(2.8, 0.07, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.0, roughness: 0.2, metalness: 0.2 }),
+      )
+      strip.position.set(dx, 2.44, 4.02)
+      o.add(strip)
+    }
+  }
+}
+
 function applyEraDetails(obj: THREE.Object3D, e: AnyEntity, era: number): void {
   const o = obj as any
-  if (era >= 2 && !o._era2 && e.kind === 'building') {
+  const isTownHall = e.kind === 'building' && e.btype === 'ayuntamiento'
+  if (isTownHall) applyTownHallEra(obj, era)
+  if (era >= 2 && !o._era2 && e.kind === 'building' && !isTownHall) {
     o._era2 = true
     const vent = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 0.45), paintMat(0x4b5563, 0.45, 0.3))
     vent.position.set(0.9, 0.28, 0.9)
@@ -943,7 +1199,7 @@ function applyEraDetails(obj: THREE.Object3D, e: AnyEntity, era: number): void {
   }
   if (era >= 4 && !o._era4) {
     o._era4 = true
-    if (e.kind === 'building') {
+    if (e.kind === 'building' && !isTownHall) {
       const strip = new THREE.Mesh(
         new THREE.BoxGeometry(1.9, 0.06, 0.08),
         new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 0.9, roughness: 0.2, metalness: 0.2 }),
@@ -1039,6 +1295,9 @@ export function syncEntityMesh(
       obj.position.y = gy + (moving ? Math.abs(Math.sin(t * 10 + e.id)) * 0.04 : Math.sin(t * 2 + e.id) * 0.01)
       obj.rotation.z = moving ? Math.sin(t * 10 + e.id) * 0.03 : 0
     }
+    // Economy legibility: the load on an engineer's back is the only thing that
+    // tells a glance "this one is working". Colour = the resource it holds.
+    if (u.utype === 'ingeniero') syncCargo(u, obj, moving, t)
   } else if (e.kind === 'building') {
     const b = e as BuildingEntity
     if (!b.built) {
@@ -1054,12 +1313,46 @@ export function syncEntityMesh(
         obj.traverse((c) => { if ((c as THREE.Mesh).isMesh) { const m = (c as THREE.Mesh).material as THREE.MeshStandardMaterial; if (m && m.opacity !== undefined && m.transparent && (m as any).emissiveIntensity === undefined) { m.opacity = 1; m.transparent = false } } })
       }
     }
+    // Wounded buildings smoke from the roof: the fog of war only reveals what
+    // the observer can see, so a ghost (remembered) building never smokes.
+    if (b.built && !ghosted && b.hp < b.maxHp * 0.5) {
+      let smokeT = (obj.userData.smokeT as number | undefined) ?? 0
+      smokeT += dt
+      if (smokeT >= DAMAGE_SMOKE_INTERVAL) {
+        smokeT = 0
+        spawnBuildingSmoke(rc, e.x, gy + (BUILDING_SMOKE_Y[b.btype] ?? 3), e.z)
+      }
+      obj.userData.smokeT = smokeT
+    } else {
+      obj.userData.smokeT = 0
+    }
   } else if (e.kind === 'resource') {
     const r = e as ResourceEntity
     const ratio = r.maxAmount > 0 ? r.amount / r.maxAmount : 0
     obj.scale.setScalar(0.6 + 0.4 * ratio)
     const pump = obj.getObjectByName('pump')
     if (pump) pump.rotation.z = Math.sin(rc.clock.elapsedTime * 2.2) * 0.18
+    // Remaining amount, drawn only while the node is selected. The label
+    // counter-scales the node's shrink-to-depletion factor so the digits keep
+    // the same size on screen until the node is gone.
+    let label = obj.userData.nodeLabel as THREE.Sprite | undefined
+    if (!label) {
+      label = makeLabelSprite()
+      obj.add(label)
+      obj.userData.nodeLabel = label
+      obj.userData.labelAmount = -1
+    }
+    label.visible = r.selected
+    if (r.selected) {
+      const s = Math.abs(obj.scale.x) || 1
+      label.scale.set(NODE_LABEL_SCALE_W / s, NODE_LABEL_SCALE_H / s, 1)
+      label.position.set(0, NODE_LABEL_Y / s, 0)
+      const shown = Math.ceil(r.amount)
+      if (obj.userData.labelAmount !== shown) {
+        obj.userData.labelAmount = shown
+        updateNodeLabel(label, r.amount)
+      }
+    }
   }
 
   rc.prevPos.set(e.id, { x: e.x, z: e.z })
@@ -1067,21 +1360,72 @@ export function syncEntityMesh(
   obj.traverse((c) => { if (c.name === 'sel') c.visible = e.selected })
 
   // HP bar: created on demand, only for things that need it right now —
-  // selected or wounded entities. Resources never carry one. Remembered enemy
-  // buildings (ghosts) stay bare so they read as memory, not as live units.
+  // selected or wounded entities, never resources, never remembered ghosts.
   const needsBar = !ghosted && e.kind !== 'resource' && (e.selected || e.hp < e.maxHp)
   let hp = rc.hpBars.get(e.id)
   if (needsBar) {
     if (!hp) {
-      hp = makeHpSprite(e)
+      hp = makeHpSprite()
       obj.add(hp)
       rc.hpBars.set(e.id, hp)
     }
+    // The bar hangs off the (possibly scaled) entity group, so its size is
+    // divided back out to keep a constant on-screen footprint. Its height stays
+    // in local space: that is what keeps it glued just above the head/roof.
+    const spec = hpBarSpec(e)
+    const s = Math.abs(obj.scale.x) || 1
+    hp.scale.set(spec.w / s, spec.h / s, 1)
+    hp.position.set(spec.ox / s, spec.y, 0)
     hp.visible = true
     updateHpSprite(hp, e.hp / Math.max(1, e.maxHp), e.team)
   } else if (hp) {
     hp.visible = false
   }
+}
+
+/** Tint of an engineer's load, per resource (matches the node's palette). */
+const CARRY_COLORS: Record<ResourceKey, number> = {
+  suministros: 0xc9e06b,
+  materiales: 0x8a6a3a,
+  combustible: 0x33383d,
+  minerales: 0xb8c6d8,
+}
+
+/** Which resource dominates the engineer's load (deterministic tie-break). */
+function dominantCarry(carrying: UnitEntity['carrying']): ResourceKey {
+  let best: ResourceKey = 'suministros'
+  let bestV = -1
+  for (const k of Object.keys(CARRY_COLORS) as ResourceKey[]) {
+    const v = (carrying as any)[k] ?? 0
+    if (v > bestV) { bestV = v; best = k }
+  }
+  return best
+}
+
+/**
+ * Show/hide and colour the engineer's cargo box, plus a small side-to-side
+ * sway while walking so the load reads as weight instead of a floating cube.
+ */
+function syncCargo(u: UnitEntity, obj: THREE.Object3D, moving: boolean, t: number): void {
+  const cargo = obj.getObjectByName('cargo')
+  if (!cargo) return
+  const carrying = u.carryAmount > 0.001
+  cargo.visible = carrying
+  if (!carrying) return
+  const key = dominantCarry(u.carrying)
+  if (cargo.userData.resKey !== key) {
+    cargo.userData.resKey = key
+    const m = (cargo as THREE.Mesh).material as THREE.MeshStandardMaterial
+    if (m && (m as any).isMeshStandardMaterial) {
+      m.color.setHex(CARRY_COLORS[key])
+      m.emissive.setHex(CARRY_COLORS[key])
+    }
+  }
+  const baseY = (cargo.userData.baseY as number | undefined) ?? 1.34
+  const sway = moving ? Math.sin(t * 9 + u.id) : 0
+  cargo.rotation.z = sway * 0.16
+  cargo.position.x = sway * 0.05
+  cargo.position.y = baseY + (moving ? Math.abs(sway) * 0.04 : 0)
 }
 
 export function removeEntityMesh(rc: RenderContext, id: number): void {
@@ -1095,7 +1439,8 @@ export function removeEntityMesh(rc: RenderContext, id: number): void {
         m.material = m.userData.origMaterial
         m.userData.origMaterial = undefined
       }
-      if (m.geometry) m.geometry.dispose()
+      // sprites (hp bars, labels) share one internal geometry: never dispose it
+      if (m.isMesh && m.geometry) m.geometry.dispose()
       const matAny = m.material as any
       if (Array.isArray(matAny)) matAny.forEach((mm) => mm.dispose?.())
       else matAny?.dispose?.()
@@ -1142,7 +1487,31 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   })
 }
 
-/** Impact: a hot flash plus a shockwave ring on the ground. */
+/**
+ * Muzzle flash: a camera-facing additive quad that blooms for 80 ms. Pooled
+ * apart from the tracers (cap 40) so a 30-unit volley cannot starve them.
+ */
+export function spawnMuzzleFlash(rc: RenderContext, x: number, y: number, z: number): void {
+  const mesh = acquireFx(rc, 'muzzle')
+  if (!mesh) return
+  mesh.position.set(x, y, z)
+  mesh.quaternion.copy(rc.camera.quaternion) // billboard, no per-frame lookAt
+  mesh.scale.setScalar(0.3)
+  const m = mesh.material as THREE.MeshBasicMaterial
+  m.color.setHex(0xfff0c6)
+  m.opacity = 0.95
+  rc.fxItems.push({
+    kind: 'muzzle', mesh, t: 0, life: 0.08,
+    pos: mesh.position.clone(), vel: new THREE.Vector3(),
+    s0: 0.3, s1: 1.25, o0: 0.95,
+  })
+}
+
+/**
+ * Impact: hot flash + shockwave ring + 4-6 sparks, and a crater decal that
+ * stays on the ground for 8 s. Craters are capped at 60 live so a long siege
+ * cannot grow the scene without bound.
+ */
 export function spawnImpact(rc: RenderContext, x: number, y: number, z: number): void {
   const flash = acquireFx(rc, 'flash')
   if (flash) {
@@ -1170,32 +1539,143 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
       s0: 0.5, s1: 3.4, o0: 0.85,
     })
   }
+
+  // Sparks: 4-6 per hit, deterministic count/spread from the impact point.
+  const seed = hash2(x * 0.7, z * 1.3)
+  const sparks = 4 + Math.floor(seed * 3)
+  for (let i = 0; i < sparks; i++) {
+    const mesh = acquireFx(rc, 'spark')
+    if (!mesh) break
+    const ang = (i / sparks) * Math.PI * 2 + (x + z) * 0.9
+    const spread = 2.4 + (i % 3) * 0.9
+    const size = 0.055 + ((i % 2) * 0.03)
+    mesh.position.set(x, y, z)
+    mesh.rotation.set(0, ang, 0)
+    mesh.scale.setScalar(size)
+    const m = mesh.material as THREE.MeshBasicMaterial
+    m.color.setHex(i % 2 === 0 ? 0xffd06a : 0xfff3c4)
+    m.opacity = 0.95
+    rc.fxItems.push({
+      kind: 'spark', mesh, t: 0, life: 0.35,
+      pos: mesh.position.clone(),
+      vel: new THREE.Vector3(Math.cos(ang) * spread, 3.2 + (i % 2) * 1.1, Math.sin(ang) * spread),
+      s0: size, s1: size, o0: 0.95,
+    })
+  }
+
+  // Crater decal: dark scorch on the terrain, holds 6.4 s then dissolves.
+  if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
+  const crater = acquireFx(rc, 'decal')
+  if (crater) {
+    const rad = 0.7 + seed * 0.45
+    crater.position.set(x, groundHeightAt(x, z) + 0.07, z)
+    crater.scale.set(rad, 1, rad)
+    const m = crater.material as THREE.MeshBasicMaterial
+    m.color.setHex(seed > 0.5 ? 0x100c08 : 0x17110b)
+    m.opacity = 0.35
+    rc.fxItems.push({
+      kind: 'decal', mesh: crater, t: 0, life: CRATER_LIFE,
+      pos: crater.position.clone(), vel: new THREE.Vector3(),
+      s0: 1, s1: 1, o0: 0.35, hold: CRATER_HOLD,
+    })
+  }
 }
 
-/** Death: a puff of smoke where a unit/building fell. `scale` sizes buildings up. */
-export function spawnDeathFx(rc: RenderContext, x: number, z: number, y: number, scale = 1): void {
-  const puffs = scale > 1.5 ? 7 : 4
+/** Grey smoke rising from a wounded building's roof (presentation only). */
+export function spawnBuildingSmoke(rc: RenderContext, x: number, y: number, z: number): void {
+  const mesh = acquireFx(rc, 'puff')
+  if (!mesh) return
+  const seed = hash2(x * 0.31, z * 0.57)
+  mesh.position.set(x + (seed - 0.5) * 1.2, y, z + (seed - 0.5) * 1.2)
+  mesh.scale.setScalar(0.4)
+  const m = mesh.material as THREE.MeshBasicMaterial
+  m.color.setHex(seed > 0.55 ? 0x4b4b4b : 0x37373a)
+  m.opacity = 0.5
+  rc.fxItems.push({
+    kind: 'puff', mesh, t: 0, life: 2.2,
+    pos: mesh.position.clone(),
+    vel: new THREE.Vector3((seed - 0.5) * 0.5, 1.15, (seed - 0.5) * 0.5),
+    s0: 0.4, s1: 1.7, o0: 0.5,
+  })
+}
+
+/**
+ * Death footprint. A unit leaves a slumped wreck in its team's dark colours
+ * (9 s, then it dissolves); a building leaves grey smoke for 4 s plus 2-3
+ * rubble boxes that persist 10 s. Both kinds are capped so a 200-unit brawl
+ * does not turn into a junkyard.
+ */
+export function spawnDeathFx(
+  rc: RenderContext,
+  x: number,
+  z: number,
+  entity: 'unit' | 'building',
+  team: Team = 'player',
+): void {
+  const y = groundHeightAt(x, z)
+  // smoke first: this is the part that reads instantly as "something died"
+  const puffs = entity === 'building' ? 7 : 4
   for (let i = 0; i < puffs; i++) {
     const mesh = acquireFx(rc, 'puff')
-    if (!mesh) return
+    if (!mesh) break
     // deterministic spread from the index: no RNG in the render path
     const ang = (i / puffs) * Math.PI * 2 + (x + z) * 0.37
     const rad = 0.25 + (i % 3) * 0.28
+    const scale = entity === 'building' ? 2.4 : 1
     mesh.position.set(x + Math.cos(ang) * rad, y + 0.45 + (i % 2) * 0.35, z + Math.sin(ang) * rad)
     mesh.scale.setScalar(0.35 * scale)
     const m = mesh.material as THREE.MeshBasicMaterial
     m.color.setHex(i % 2 === 0 ? 0x2b2b2b : 0x4a4640)
     m.opacity = 0.72
     rc.fxItems.push({
-      kind: 'puff', mesh, t: 0, life: 0.6,
+      kind: 'puff', mesh, t: 0, life: entity === 'building' ? 4 : 0.6,
       pos: mesh.position.clone(),
       vel: new THREE.Vector3(Math.cos(ang) * 0.9, 1.7 + (i % 3) * 0.4, Math.sin(ang) * 0.9),
       s0: 0.35 * scale, s1: 1.15 * scale, o0: 0.72,
     })
   }
+
+  const seed = hash2(x * 0.83, z * 0.41)
+  if (entity === 'building') {
+    if (rc.fxLive.rubble >= FX_LIVE_CAP.rubble) evictOldest(rc, 'rubble')
+    const chunks = 2 + Math.floor(seed * 2) // 2-3
+    for (let i = 0; i < chunks; i++) {
+      const mesh = acquireFx(rc, 'rubble')
+      if (!mesh) break
+      const ang = (i / chunks) * Math.PI * 2 + seed * 3.1
+      const rad = 0.6 + (i % 2) * 0.8
+      mesh.position.set(x + Math.cos(ang) * rad, y + 0.22, z + Math.sin(ang) * rad)
+      mesh.rotation.set(0.25 * (i % 2), ang, 0.18 * (i % 2))
+      mesh.scale.set(0.9 + (i % 3) * 0.35, 0.35 + (i % 2) * 0.2, 0.8 + (i % 2) * 0.4)
+      const m = mesh.material as THREE.MeshStandardMaterial
+      m.color.setHex(i % 2 === 0 ? 0x4a4640 : 0x5c584f)
+      m.opacity = 1
+      rc.fxItems.push({
+        kind: 'rubble', mesh, t: 0, life: RUBBLE_LIFE,
+        pos: mesh.position.clone(), vel: new THREE.Vector3(),
+        s0: 1, s1: 1, o0: 1, hold: RUBBLE_HOLD,
+      })
+    }
+  } else {
+    if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
+    const mesh = acquireFx(rc, 'wreck')
+    if (mesh) {
+      mesh.position.set(x, y + 0.16, z)
+      mesh.rotation.set(0.18, seed * Math.PI * 2, 0.12)
+      mesh.scale.set(0.55, 0.26, 0.95)
+      const m = mesh.material as THREE.MeshStandardMaterial
+      m.color.setHex(new THREE.Color(TEAM_COLORS[team]).multiplyScalar(0.42).getHex())
+      m.opacity = 1
+      rc.fxItems.push({
+        kind: 'wreck', mesh, t: 0, life: WRECK_LIFE,
+        pos: mesh.position.clone(), vel: new THREE.Vector3(),
+        s0: 1, s1: 1, o0: 1, hold: WRECK_HOLD,
+      })
+    }
+  }
 }
 
-function fxMaterial(kind: FxKind): THREE.MeshBasicMaterial {
+function fxMaterial(kind: FxKind): THREE.Material {
   switch (kind) {
     case 'beam':
       return new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
@@ -1203,21 +1683,39 @@ function fxMaterial(kind: FxKind): THREE.MeshBasicMaterial {
       return new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
     case 'ring':
       return new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false })
+    case 'muzzle':
+      return new THREE.MeshBasicMaterial({ color: 0xfff0c6, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false })
+    case 'spark':
+      return new THREE.MeshBasicMaterial({ color: 0xffd06a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
+    case 'decal':
+      // a scorch mark: slight polygon offset keeps it off the terrain
+      return new THREE.MeshBasicMaterial({
+        color: 0x100c08, transparent: true, opacity: 0.35, depthWrite: false, toneMapped: false,
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      })
+    case 'wreck':
+    case 'rubble':
+      return new THREE.MeshStandardMaterial({ color: 0x3a3a38, roughness: 0.95, metalness: 0.06, transparent: true })
     default:
       return new THREE.MeshBasicMaterial({ color: 0x2b2b2b, transparent: true, depthWrite: false })
   }
 }
 
-/** Pooled mesh for a VFX kind, or null when the live cap is reached. */
+/**
+ * Pooled mesh for a VFX kind, or null when the global or per-kind live cap is
+ * reached. `fxLive` is the O(1) counter the caps and the eviction path rely on.
+ */
 function acquireFx(rc: RenderContext, kind: FxKind): THREE.Mesh | null {
+  if (rc.fxLive[kind] >= FX_LIVE_CAP[kind]) return null
+  if (rc.fxItems.length >= FX_MAX && rc.fxPool[kind].length === 0) return null
   const pool = rc.fxPool[kind]
   const pooled = pool.pop()
+  rc.fxLive[kind]++
   if (pooled) {
     rc.fx.add(pooled)
     pooled.visible = true
     return pooled
   }
-  if (rc.fxItems.length >= FX_MAX) return null
   const mesh = new THREE.Mesh(rc.fxGeo[kind], fxMaterial(kind))
   mesh.frustumCulled = false
   rc.fx.add(mesh)
@@ -1229,8 +1727,24 @@ function releaseFx(rc: RenderContext, it: FxItem): void {
   const m = it.mesh.material as THREE.MeshBasicMaterial
   m.opacity = 1
   it.mesh.rotation.set(0, 0, 0)
+  it.mesh.quaternion.identity()
   it.mesh.scale.setScalar(1)
   rc.fxPool[it.kind].push(it.mesh)
+  rc.fxLive[it.kind] = Math.max(0, rc.fxLive[it.kind] - 1)
+}
+
+/** Recycles the oldest live item of a kind, so persistent props never overflow. */
+function evictOldest(rc: RenderContext, kind: FxKind): void {
+  let oldest = -1
+  let bestT = -1
+  for (let i = 0; i < rc.fxItems.length; i++) {
+    const it = rc.fxItems[i]
+    if (it.kind !== kind) continue
+    if (it.t > bestT) { bestT = it.t; oldest = i }
+  }
+  if (oldest < 0) return
+  releaseFx(rc, rc.fxItems[oldest])
+  rc.fxItems.splice(oldest, 1)
 }
 
 export function updateFx(rc: RenderContext, dt: number): void {
@@ -1238,6 +1752,10 @@ export function updateFx(rc: RenderContext, dt: number): void {
     const it = rc.fxItems[i]
     it.t += dt
     const k = Math.min(1, it.t / it.life)
+    // persistent props hold full strength, then dissolve over the remaining life
+    const fade = it.hold != null
+      ? Math.max(0, Math.min(1, (it.t - it.hold) / Math.max(1e-4, it.life - it.hold)))
+      : k
     const m = it.mesh.material as THREE.MeshBasicMaterial
     if (it.kind === 'puff') {
       it.mesh.position.copy(it.pos).addScaledVector(it.vel, it.t)
@@ -1247,6 +1765,14 @@ export function updateFx(rc: RenderContext, dt: number): void {
       m.opacity = (1 - k) * it.o0
       // the streak thins out as it fades, reading like a tracer round
       it.mesh.scale.x = it.mesh.scale.y = 0.115 * (1 - 0.6 * k)
+    } else if (it.kind === 'spark') {
+      // ballistic arc, solved analytically so no per-particle state is needed
+      it.mesh.position.copy(it.pos).addScaledVector(it.vel, it.t)
+      it.mesh.position.y -= 4.5 * it.t * it.t
+      it.mesh.rotation.x += dt * 12
+      m.opacity = (1 - k) * it.o0
+    } else if (it.kind === 'decal' || it.kind === 'wreck' || it.kind === 'rubble') {
+      m.opacity = (1 - fade) * it.o0
     } else {
       m.opacity = (1 - k) * it.o0
       it.mesh.scale.setScalar(it.s0 + (it.s1 - it.s0) * k)

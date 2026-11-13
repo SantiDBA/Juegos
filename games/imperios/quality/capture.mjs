@@ -208,8 +208,31 @@ const SCENARIOS = [
   },
   {
     id: '03-economia',
-    title: 'Economía: recursos holgados para ver HUD y colas de producción',
-    js: `(() => { const g = window.__imperios; g.give(5000); return 'ok' })()`,
+    title: 'Economía real: 8 ingenieros trabajando nodo→depósito sin give()',
+    js: `(() => {
+      const g = window.__imperios
+      g.camera(-42, 4, 70)
+      const assigned = g.assignEconomy(8)
+      return 'ok assigned=' + assigned
+    })()`,
+    settleMs: 6000, // dejar correr la economía real: caminar, recolectar y volver
+  },
+  {
+    id: '03b-nodos',
+    title: 'Nodos: cantidad restante visible al seleccionar un recurso',
+    js: `(() => {
+      const g = window.__imperios
+      let node = null
+      for (const e of g.state.entities.values()) {
+        if (e.dead || e.kind !== 'resource' || e.amount <= 0) continue
+        if (!node || e.resource === 'materiales') node = e
+        if (e.resource === 'materiales') break
+      }
+      if (!node) return 'no-node'
+      g.camera(node.x, node.z, 55)
+      g.select([node.id])
+      return 'ok node=' + node.id
+    })()`,
     settleMs: SETTLE_MS,
   },
   {

@@ -67,11 +67,15 @@ medición y hay que registrar el cambio en el JOURNAL.**
 |---|---------|-------------|-----------------|
 | 1 | `01-menu.png` | pantalla de inicio / overlay | carga + `networkidle` |
 | 2 | `02-arranque.png` | partida recién empezada, base del jugador | click en `#start`, espera de intro de cámara (1800 ms) |
-| 3 | `03-economia.png` | HUD con recursos holgados | `give(5000)` |
-| 4 | `04-combate.png` | choque 8 milicias vs 8 milicias + 4 fusileros | 3 `spawn` + `skip(8)` + 1 s real |
-| 5 | `05-fog.png` | niebla / exploración en era 3 | `setEra(3)` + `skip(2)` |
+| 3 | `03-economia.png` | economía real: 8+ ingenieros trabajando nodo→depósito | `assignEconomy(8)` + 6 s reales (sin `give`) |
+| 3b | `03b-nodos.png` | nodo de recurso seleccionado con cantidad restante | `select([nodeId])` sobre un `resource` de `state.entities` |
+| 4 | `04-combate.png` | choque de infantería + fuego a distancia con VFX | 3 `spawn` + `skip(4)` + cámara al centroide |
+| 5 | `05-fog.png` | niebla / exploración en era 3 | `setEra(3)` + `skip(2)` + `fog()` |
 | 6 | `06-ui.png` | ayuntamiento seleccionado, command card visible | búsqueda del TC en `state.entities` + `select([id])` |
+| 6b | `06b-unidades.png` | 6 unidades propias seleccionadas (barras + posturas) | `spawn` + `select` de las milicias |
+| 6c | `06c-formacion.png` | formación en cuña ordenada al mismo grupo | `moveFormation(ids, x, z, 'wedge')` + espera |
 | 7 | `07-late-game.png` | era 4: tanques + MLRS vs tanques autónomos | `give(20000)`, `setEra(4)`, 3 `spawn`, `skip(10)` |
+| 8 | `08-asedio.png` | asedio a la base enemiga con su torre y ejército | `camera(55,0)` + `spawn` de asalto + `skip(6)` |
 
 Por qué hay esperas reales: el juego avanza con `requestAnimationFrame`. Entre mutar el
 hook y capturar hay que dejar correr frames (`setTimeout`), o la imagen sale con el

@@ -220,11 +220,69 @@ Promedio: (2.5+4.0+6.0+6.0+5.5+3.5+5.5+6.0+4.0+4.5)/10 = **4.75**
 
 ---
 
+## Ciclo 03 — 2026-11-13 · economía visible y huella de combate
+
+**Qué se hizo:** economía real en capturas (ingenieros trabajando con carga coloreada por
+recurso y nodo con cantidad restante), barras de vida más chicas con color por equipo y
+visibilidad al daño/selección, VFX con pools (fogonazo, tracer, cráter persistente, humo en
+edificios heridos, despojos), Ayuntamiento con material/silueta por era, barra de
+investigación/avance de era en el HUD, dev hook `assignEconomy/gatherAll/focus`.
+
+| Campo | Valor |
+|---|---|
+| Fecha | 2026-11-13 |
+| Fase | ciclo-03 (economía/HP/juice/edades) |
+| Capturas | 11 (shots/ciclo-03-economia/) |
+| Promedio | **5.30 / 10** |
+| Mínima | 4.0 (pathfinding/formaciones; art direction) |
+| Verdicto | **SORPRENDIDO: NO** |
+
+### Detalle por dimensión (rúbrica v1, 10 ejes)
+
+| Dimensión | fase-0 | ciclo-01 | ciclo-02 | ciclo-03 |
+|---|---:|---:|---:|---:|
+| 1. Economía de aldeanos | 2.5 | 3.0 | 2.5 | **6.0** |
+| 2. Combate/counters/proyectiles | 3.0 | 4.0 | 4.0 | **6.0** |
+| 3. Niebla/exploración | 1.5 | 2.0 | 6.0 | 6.0 |
+| 4. Pathfinding/formaciones | 2.5 | 6.0 | 6.0 | 4.0 |
+| 5. Tech tree/edades | 4.5 | 5.0 | 5.5 | **7.0** |
+| 6. Contenido y densidad | 3.5 | 4.0 | 3.5 | 4.0 |
+| 7. IA legítima | 4.5 | 4.0 | 5.5 | 5.0 |
+| 8. HUD/UX AoE2 | 5.0 | 6.0 | 6.0 | 5.0 |
+| 9. Art direction/diorama | 2.5 | 4.0 | 4.0 | 4.0 |
+| 10. Audio/juice | 1.5 | 2.0 | 4.5 | **6.0** |
+
+Promedio: (6.0+6.0+6.0+4.0+7.0+4.0+5.0+5.0+4.0+6.0)/10 = **5.30**
+
+### Brechas del juez → ciclo 04
+
+1. `07-late-game` no muestra late game: encuadre sobre terreno vacío. Fotografiar 25-30
+   unidades propias en dos bloques + enemigo compuesto + Ayuntamiento en cuadro.
+2. Población imposible (25/18, 30/18, 35/18) por spawns del dev hook: respetar el tope o
+   construir viviendas; recursos a 4 dígitos y reloj de partida.
+3. Command card fija de texto que se solapa con la ayuda de cámara: contextual, con íconos
+   y sin superposición; panel de selección con retrato y filas por unidad.
+4. La barra de investigación/avance no aparece en ninguna captura: escenario que inicie una
+   investigación y capture mientras corre.
+5. Combate en amasijo (facciones atravesándose) y vehículos interpenetrados: separación por
+   radio para vehículos y frente legible.
+6. Mapa de prototipo: clusters de bosque, vetas, caminos y aldea satélite.
+7. Economía: ciclo visible (tránsito a depósito) y nodo desgastándose entre capturas.
+
+> Topes del renderer 3D: cámara cónica (no diorama 2:1), sprites de HP contra-escalados,
+> niebla festoneada y props planos. HUD, coherencia de población, separación de vehículos,
+> densidad y encuadres NO están topados.
+
+---
+
+## Historial de ciclos
+
 | Fecha | Fase / feature | Shots | Puntajes | Veredicto | Cambios |
 |---|---|---|---|---|---|
 | 2026-11-13 | fase-0 · fundaciones (tick fijo, RNG, eventos, comandos, navgrid, IA sin trampas, dev hook) | `shots/fase-0/` (7) | 3.10 (mín 1.5; sin cambio visual esperado) | NO | harness de capturas + juez ciego + JOURNAL |
 | 2026-11-13 | ciclo-01 · pathfinding A*, colisiones, formaciones box/line/wedge, stances, attack-move, shift-queue | `shots/ciclo-01-pathfinding/` (7) | 4.00 (mín 2.0; pathfinding 2.5→6.0, HUD 5.0→6.0, combate 3.0→4.0, art 2.5→4.0) | NO (visual topado por renderer 3D; formaciones no acreditadas por captura) | A*+navgrid+followPath con slide/watchdog; stances + botones; formaciones y cola de waypoints |
 | 2026-11-13 | ciclo-02 · niebla 3 estados, barras por equipo, VFX de combate, capturas de formación/asedio | `shots/ciclo-02-fog-combate/` (10) | 4.75 (mín 2.5; niebla 2.0→6.0, IA 4.0→5.5, juice 2.0→4.5, eco 3.0→2.5) | NO (niebla y HUD funcionan; arte/combate topados por renderer 3D) | visión por equipo + nearestVisibleEnemy; overlay de niebla + minimapa enmascarado; HP por equipo al daño; tracer/impacto/muerte; escenarios 06b/06c/08 |
+| 2026-11-13 | ciclo-03 · economía visible, HP chicas, VFX con cráteres/despojos, era visual, barra de investigación | `shots/ciclo-03-economia/` (11) | 5.30 (mín 4.0; eco 2.5→6.0, combate 4.0→6.0, juice 4.5→6.0, edades 5.5→7.0) | NO (piezas correctas; HUD/población/encuadres a corregir) | cargo por recurso, nodos con cantidad, HP por equipo, pools muzzle/impact/cráter/humo/wreck, TC por era, barra de progreso, assignEconomy real |
 
 _Sin entradas todavía: el primer ciclo se registra después del baseline._
 

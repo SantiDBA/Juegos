@@ -1,14 +1,14 @@
 import * as THREE from 'three'
 import './style.css'
 import { BUILDING_DEFS, MAP_SIZE, TECHS, UNIT_DEFS } from './core/config'
-import type { AnyEntity, BuildingType, Team, UnitType } from './core/types'
+import type { AnyEntity, BuildingEntity, BuildingType, ResourceEntity, Team, UnitType } from './core/types'
 import { createState, commandAttack, commandGather, commandMove, commandMoveFormation, commandStance, getEntity, queueResearch, queueTrain, setSelection, spawnBuilding, spawnResource, spawnUnit, tryAdvanceEra, tryPlaceBuilding, unitsOfTeam, type Formation } from './sim/state'
 import { stepSim } from './sim/sim'
 import { advance } from './sim/loop'
 import { forceVisionUpdate, isExplored, isVisible, revealAll } from './sim/vision'
 import {
   createRender, groundHeightAt, paintFog, removeEntityMesh, renderFrame, resize,
-  spawnDeathFx, spawnImpact, spawnTracer, syncEntityMesh, updateCamera,
+  spawnDeathFx, spawnImpact, spawnMuzzleFlash, spawnTracer, syncEntityMesh, updateCamera,
 } from './render/scene'
 import type { EntityVisibility } from './render/scene'
 import { createUI, renderActions, showEnd, showToast, updateMinimap, updateSelectionInfo, updateTopBar } from './ui/ui'
@@ -405,13 +405,15 @@ function drainSimEvents(): void {
       if (!seen(tx, tz)) continue
       const from = new THREE.Vector3(ev.x, groundHeightAt(ev.x, ev.z) + 1.2, ev.z)
       const to = new THREE.Vector3(tx, groundHeightAt(tx, tz) + 1.0, tz)
+      // muzzle flash at the shooter, then the streak it just fired
+      spawnMuzzleFlash(rc, from.x, from.y, from.z)
       spawnTracer(rc, from, to, tracerColor(attacker, ev.unitType))
     } else if (ev.kind === 'damage') {
       if (!seen(ev.x, ev.z)) continue
       spawnImpact(rc, ev.x, groundHeightAt(ev.x, ev.z) + 1.0, ev.z)
     } else if (ev.kind === 'death') {
       if (!seen(ev.x, ev.z)) continue
-      spawnDeathFx(rc, ev.x, ev.z, groundHeightAt(ev.x, ev.z), ev.entity === 'building' ? 2.4 : 1)
+      spawnDeathFx(rc, ev.x, ev.z, ev.entity, ev.team)
     }
   }
 }
@@ -483,6 +485,64 @@ updateSelectionInfo(ui, gs)
 frame()
 
 if (import.meta.hot) {
+  /**
+   * Sends every idle engineer of `team` to a resource node and returns how many
+   * orders actually landed. Workers are spread out (each extra crew member on a
+   * node costs 6 virtual units), so a real economy does not collapse onto one
+   * farm. Player only: commandGather is the player-facing order path.
+   */
+  function devGatherAll(team: Team = 'player'): number {
+    const nodes: ResourceEntity[] = []
+    for (const e of gs.entities.values()) {
+      if (!e.dead && e.kind === 'resource' && e.amount > 0) nodes.push(e as ResourceEntity)
+    }
+    if (nodes.length === 0) return 0
+    const crew = unitsOfTeam(gs, team).filter(u => u.utype === 'ingeniero' && (u.state === 'idle' || u.gatherTargetId == null))
+    const load = new Map<number, number>()
+    let assigned = 0
+    for (const u of crew) {
+      let best: ResourceEntity | null = null
+      let bestD = Infinity
+      for (const n of nodes) {
+        const d = Math.hypot(n.x - u.x, n.z - u.z) + (load.get(n.id) ?? 0) * 6
+        if (d < bestD) { bestD = d; best = n }
+      }
+      if (!best) continue
+      commandGather(gs, [u.id], best.id)
+      if (u.gatherTargetId === best.id) {
+        assigned++
+        load.set(best.id, (load.get(best.id) ?? 0) + 1)
+      }
+    }
+    return assigned
+  }
+
+  /** Re-centres (and optionally zooms) the camera, then applies it immediately. */
+  function devFocus(x: number, z: number, dist?: number): void {
+    rc.target.set(x, 0, z)
+    if (dist != null) rc.camDist = Math.max(25, Math.min(120, dist))
+    updateCamera(rc)
+  }
+
+  /**
+   * Builds a real economy: spawns `n` engineers in a ring around the player's
+   * town hall and orders all idle engineers to gather. No `give()` here — the
+   * capture scenario must show resources actually being worked.
+   */
+  function devAssignEconomy(n = 6): number {
+    let tc: BuildingEntity | null = null
+    for (const e of gs.entities.values()) {
+      if (e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') { tc = e; break }
+    }
+    if (!tc) return 0
+    for (let i = 0; i < n; i++) {
+      const ang = (i / Math.max(1, n)) * Math.PI * 2
+      const rad = 6.5 + (i % 3) * 1.6
+      spawnUnit(gs, 'player', 'ingeniero', tc.x + Math.cos(ang) * rad, tc.z + Math.sin(ang) * rad)
+    }
+    return devGatherAll('player')
+  }
+
   ;(window as any).__imperios = {
     get state() { return gs },
     render: rc,
@@ -522,6 +582,12 @@ if (import.meta.hot) {
       if (dist != null) rc.camDist = Math.max(25, Math.min(120, dist))
       updateCamera(rc)
     },
+    /** Pans the camera to a world point (alias of `camera` without zoom). */
+    focus: (x: number, z: number, dist?: number) => { devFocus(x, z, dist); return 'ok' },
+    /** Orders every idle engineer to the nearest resource node. */
+    gatherAll: (team: Team = 'player') => devGatherAll(team),
+    /** Spawns `n` engineers around the town hall and puts them to work. */
+    assignEconomy: (n = 6) => devAssignEconomy(n),
     /** Lift the fog for a team (QA only). */
     reveal: (team: Team = 'player') => {
       revealAll(gs, team)

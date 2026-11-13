@@ -25,6 +25,10 @@ export interface UIRefs {
   minimap: HTMLCanvasElement
   /** Reusable ImageData buffer for the fog-masked minimap background. */
   mmImage: ImageData | null
+  /** Research / era-advance progress strip under the top bar. */
+  progWrap: HTMLElement
+  progFill: HTMLElement
+  progLabel: HTMLElement
 }
 
 export function createUI(root: HTMLElement): UIRefs {
@@ -37,6 +41,7 @@ export function createUI(root: HTMLElement): UIRefs {
       <div class="res"><span>Minerales</span><b id="r-minerales">0</b></div>
       <div class="res"><span>Pob.</span><b id="pop">0/0</b></div>
     </div>
+    <div class="prog-wrap" id="prog"><div class="prod-bar"><div class="prod-bar-fill" id="prog-fill"></div></div><div class="prog-label" id="prog-label"></div></div>
     <div class="leftpanel">
       <h3>Acciones</h3>
       <div id="actions" class="actions"></div>
@@ -115,9 +120,16 @@ export function createUI(root: HTMLElement): UIRefs {
     toast: q('toast'),
     minimap: root.querySelector('#minimap') as HTMLCanvasElement,
     mmImage: null,
+    progWrap: q('prog'),
+    progFill: q('prog-fill'),
+    progLabel: q('prog-label'),
   }
 }
 
+/**
+ * Research / era progress strip. AoE2 tells you what is being researched and
+ * how long is left in the top bar; the bar under it answers "how far along".
+ */
 export function updateTopBar(ui: UIRefs, gs: GameState): void {
   const p = gs.players.player
   ui.resEls.suministros.textContent = String(Math.floor(p.resources.suministros))
@@ -130,6 +142,32 @@ export function updateTopBar(ui: UIRefs, gs: GameState): void {
   ui.eraEl.textContent = p.advancing
     ? `Avanzando a ${ERAS[p.advancing.to - 1].name} (${Math.ceil(p.advancing.remaining)}s)`
     : `${era.name} (${era.years})${research ? ` · Investigando ${research.name} (${Math.ceil(p.research!.remaining)}s)` : ''}`
+
+  // progress strip: era advance wins over research (it is the bigger decision)
+  let label = ''
+  let pct = 0
+  let kind: 'era' | 'research' = 'research'
+  if (p.advancing) {
+    const { remaining, total, to } = p.advancing
+    pct = total > 0 ? ((total - remaining) / total) * 100 : 0
+    label = `Avanzando a ${ERAS[to - 1].name} · ${Math.ceil(Math.max(0, remaining))}s`
+    kind = 'era'
+  } else if (p.research && research) {
+    const { remaining, total } = p.research
+    pct = total > 0 ? ((total - remaining) / total) * 100 : 0
+    label = `Investigando ${research.name} · ${Math.ceil(Math.max(0, remaining))}s`
+  }
+  if (!label) {
+    ui.progWrap.classList.remove('show')
+    return
+  }
+  const clamped = Math.max(0, Math.min(100, pct))
+  ui.progWrap.classList.add('show')
+  ui.progFill.style.width = `${clamped.toFixed(1)}%`
+  ui.progFill.className = `prod-bar-fill ${kind === 'era' ? 'era' : 'research'}`
+  if (ui.progLabel.textContent !== `${label} · ${Math.floor(clamped)}%`) {
+    ui.progLabel.textContent = `${label} · ${Math.floor(clamped)}%`
+  }
 }
 
 export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, t: UnitType) => void, onBuild: (t: BuildingType) => void, onAdvance: () => void, onResearch: (id: string) => void, onStance?: (s: Stance) => void): void {
@@ -224,7 +262,22 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
     const e = sel[0]
     if (e.kind === 'unit') {
       const d = UNIT_DEFS[e.utype]
-      ui.selInfo.innerHTML = `<b>${d.name}</b> (${e.team === 'player' ? 'Aliado' : 'Enemigo'}) — Vida ${Math.ceil(e.hp)}/${e.maxHp} · ${d.role === 'economy' ? 'Recolecta y construye' : 'Unidad militar'}${e.team === 'player' ? ` · Postura: ${STANCE_LABEL[e.stance as Stance]}` : ''}`
+      let econ = ''
+      if (e.utype === 'ingeniero') {
+        // what the engineer is actually doing right now: rate, load, node
+        const rate = (d.gatherRate ?? 8) * (1 + gs.players[e.team as Team].bonuses.gatherPct)
+        const load = `${Math.floor(e.carryAmount)}/${d.carry ?? 10}`
+        if (e.gatherTargetId != null) {
+          const node = getEntity(gs, e.gatherTargetId)
+          const resName = node && node.kind === 'resource' ? RESOURCE_LABEL[node.resource] : 'recurso'
+          econ = ` · Recolectando ${resName} a ${rate.toFixed(1)}/s · Carga ${load}`
+        } else if (e.carryAmount > 0) {
+          econ = ` · Volviendo a depositar · Carga ${load}`
+        } else if (e.state === 'build') {
+          econ = ' · Construyendo'
+        }
+      }
+      ui.selInfo.innerHTML = `<b>${d.name}</b> (${e.team === 'player' ? 'Aliado' : 'Enemigo'}) — Vida ${Math.ceil(e.hp)}/${e.maxHp} · ${d.role === 'economy' ? 'Recolecta y construye' : 'Unidad militar'}${econ}${e.team === 'player' ? ` · Postura: ${STANCE_LABEL[e.stance as Stance]}` : ''}`
     } else if (e.kind === 'building') {
       const d = BUILDING_DEFS[e.btype]
       let info = `<b>${d.name}</b> (${e.team === 'player' ? 'Aliado' : 'Enemigo'}) — Vida ${Math.ceil(e.hp)}/${e.maxHp}`
