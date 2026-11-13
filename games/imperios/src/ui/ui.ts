@@ -1,7 +1,16 @@
 import { BUILDING_DEFS, ERAS, RESOURCE_LABEL, TECHS, UNIT_DEFS } from '../core/config'
 import { formatCost } from '../core/utils'
 import { canResearch, canTrain, getEntity, type GameState } from '../sim/state'
-import type { BuildingType, ResourceKey, UnitType } from '../core/types'
+import type { BuildingType, ResourceKey, Stance, UnitType } from '../core/types'
+
+const STANCE_LABEL: Record<Stance, string> = {
+  aggressive: 'Agresiva',
+  defensive: 'Defensiva',
+  standground: 'Mantener',
+  noattack: 'No atacar',
+}
+
+const STANCES: Stance[] = ['aggressive', 'defensive', 'standground', 'noattack']
 
 export interface UIRefs {
   root: HTMLElement
@@ -99,7 +108,7 @@ export function updateTopBar(ui: UIRefs, gs: GameState): void {
     : `${era.name} (${era.years})${research ? ` · Investigando ${research.name} (${Math.ceil(p.research!.remaining)}s)` : ''}`
 }
 
-export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, t: UnitType) => void, onBuild: (t: BuildingType) => void, onAdvance: () => void, onResearch: (id: string) => void): void {
+export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, t: UnitType) => void, onBuild: (t: BuildingType) => void, onAdvance: () => void, onResearch: (id: string) => void, onStance?: (s: Stance) => void): void {
   const acts = ui.actions
   const sigParts = [
     gs.selectedIds.join(','),
@@ -117,7 +126,7 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
       const e = getEntity(gs, id)
       if (!e) return 'x'
       if (e.kind === 'building') return `b${e.id}:${e.btype}:${e.built ? 1 : 0}:${e.queue.length}`
-      if (e.kind === 'unit') return `u${e.id}:${e.utype}:${e.team}`
+      if (e.kind === 'unit') return `u${e.id}:${e.utype}:${e.team}:${e.stance}`
       return `r${e.id}`
     }),
   ].join('|')
@@ -168,6 +177,14 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
     }
   }
 
+  const ownUnits = sel.filter((e: any) => e.kind === 'unit' && e.team === 'player')
+  if (ownUnits.length > 0 && onStance) {
+    const current: Stance = ownUnits.every((e: any) => e.stance === ownUnits[0].stance) ? ownUnits[0].stance : 'aggressive'
+    for (const s of STANCES) {
+      addBtn(`${STANCE_LABEL[s]}${s === current ? ' ●' : ''}`, 'Postura de combate', () => onStance(s))
+    }
+  }
+
   if (acts.children.length === 0) {
     const span = document.createElement('div')
     span.style.color = '#98a6bd'; span.style.fontSize = '12px'
@@ -183,7 +200,7 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
     const e = sel[0]
     if (e.kind === 'unit') {
       const d = UNIT_DEFS[e.utype]
-      ui.selInfo.innerHTML = `<b>${d.name}</b> (${e.team === 'player' ? 'Aliado' : 'Enemigo'}) — Vida ${Math.ceil(e.hp)}/${e.maxHp} · ${d.role === 'economy' ? 'Recolecta y construye' : 'Unidad militar'}`
+      ui.selInfo.innerHTML = `<b>${d.name}</b> (${e.team === 'player' ? 'Aliado' : 'Enemigo'}) — Vida ${Math.ceil(e.hp)}/${e.maxHp} · ${d.role === 'economy' ? 'Recolecta y construye' : 'Unidad militar'}${e.team === 'player' ? ` · Postura: ${STANCE_LABEL[e.stance as Stance]}` : ''}`
     } else if (e.kind === 'building') {
       const d = BUILDING_DEFS[e.btype]
       let info = `<b>${d.name}</b> (${e.team === 'player' ? 'Aliado' : 'Enemigo'}) — Vida ${Math.ceil(e.hp)}/${e.maxHp}`

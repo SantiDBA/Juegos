@@ -12,6 +12,9 @@ export type ResourceNodeType = 'granja' | 'bosque' | 'petroleo' | 'mina'
 
 export type Team = 'player' | 'enemy'
 
+/** Combat stance: how a unit reacts to enemies it was not explicitly ordered to fight. */
+export type Stance = 'aggressive' | 'defensive' | 'standground' | 'noattack'
+
 export interface Vec2 { x: number; z: number }
 
 export interface Resources {
@@ -95,9 +98,12 @@ export interface BaseEntity {
   dead: boolean
 }
 
+export interface PatrolOrder { a: Vec2; b: Vec2; toB: boolean }
+
 export interface UnitEntity extends BaseEntity {
   kind: 'unit'
   utype: UnitType
+  /** Queued waypoints in world space, consumed front to back. */
   path: Vec2[]
   targetId?: number
   gatherTargetId?: number
@@ -107,6 +113,16 @@ export interface UnitEntity extends BaseEntity {
   attackCd: number
   workCd: number
   state: 'idle' | 'move' | 'gather' | 'return' | 'attack' | 'build'
+  stance: Stance
+  /** Anchor for the defensive leash, refreshed on every order. */
+  home?: Vec2
+  patrol?: PatrolOrder
+  /** Seconds until the next chase repath (staggered per unit id). */
+  repathT?: number
+  /** Watchdog: the waypoint currently being driven to, plus the closest approach. */
+  wpRef?: Vec2
+  wpBest?: number
+  stuckT?: number
 }
 
 export interface BuildingEntity extends BaseEntity {

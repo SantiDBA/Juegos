@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import './style.css'
 import { BUILDING_DEFS, MAP_SIZE, TECHS, UNIT_DEFS } from './core/config'
 import type { BuildingType, UnitType } from './core/types'
-import { createState, commandAttack, commandGather, commandMove, getEntity, queueResearch, queueTrain, setSelection, spawnBuilding, spawnResource, spawnUnit, tryAdvanceEra, tryPlaceBuilding } from './sim/state'
+import { createState, commandAttack, commandGather, commandMove, commandStance, getEntity, queueResearch, queueTrain, setSelection, spawnBuilding, spawnResource, spawnUnit, tryAdvanceEra, tryPlaceBuilding } from './sim/state'
 import { stepSim } from './sim/sim'
 import { advance } from './sim/loop'
 import { createRender, removeEntityMesh, renderFrame, resize, syncEntityMesh, updateCamera } from './render/scene'
@@ -229,14 +229,14 @@ window.addEventListener('pointerup', (e) => {
         gs.toast = { msg: 'Órden: atacar', t: 1.5 }
       } else if (te && te.kind === 'building' && te.team === 'player') {
         // rally-like move
-        commandMove(gs, selectedPlayerUnits, { x: te.x + 3, z: te.z + 3 })
+        commandMove(gs, selectedPlayerUnits, { x: te.x + 3, z: te.z + 3 }, false, e.shiftKey)
       } else {
         const p = rayGround(e.clientX, e.clientY)
-        if (p) commandMove(gs, selectedPlayerUnits, { x: p.x, z: p.z })
+        if (p) commandMove(gs, selectedPlayerUnits, { x: p.x, z: p.z }, false, e.shiftKey)
       }
     } else {
       const p = rayGround(e.clientX, e.clientY)
-      if (p) commandMove(gs, selectedPlayerUnits, { x: p.x, z: p.z })
+      if (p) commandMove(gs, selectedPlayerUnits, { x: p.x, z: p.z }, false, e.shiftKey)
     }
   }
 })
@@ -329,6 +329,10 @@ function refreshActions(): void {
       const ok = queueResearch(gs, 'player', id)
       if (ok) gs.toast = { msg: `Investigando ${TECHS.find(t => t.id === id)?.name}...`, t: 1.8 }
       else gs.toast = { msg: 'No se pudo investigar (era/recursos)', t: 1.8 }
+    },
+    (stance) => {
+      commandStance(gs, gs.selectedIds, stance)
+      gs.toast = { msg: `Postura: ${stance}`, t: 1.5 }
     },
   )
 }

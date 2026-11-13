@@ -119,9 +119,65 @@ Promedio: (2.5+3.0+1.5+2.5+4.5+3.5+4.5+5.0+2.5+1.5)/10 = **3.10**
 
 ---
 
+## Ciclo 01 — 2026-11-13 · pathfinding, formaciones y stances
+
+**Qué se hizo:** pathfinding A* sobre navgrid con colisión de edificios/bosques, suavizado
+por línea de visión, movimiento consolidado (`followPath`) con slide y watchdog anti-atasco,
+formaciones box/line/wedge al mover grupos, posturas (agresiva/defensiva/mantener/no atacar),
+attack-move, patrulla (API) y shift-queue de waypoints. Sin cambio de renderer.
+
+| Campo | Valor |
+|---|---|
+| Fecha | 2026-11-13 |
+| Fase | ciclo-01 (pathfinding/formaciones/stances) |
+| Capturas | 7 (shots/ciclo-01-pathfinding/) |
+| Promedio | **4.00 / 10** |
+| Mínima | 2.0 (niebla; juice) |
+| Verdicto | **SORPRENDIDO: NO** |
+
+### Detalle por dimensión (rúbrica v1, 10 ejes)
+
+| Dimensión | fase-0 | ciclo-01 |
+|---|---:|---:|
+| 1. Economía de aldeanos | 2.5 | 3.0 |
+| 2. Combate/counters/proyectiles | 3.0 | 4.0 |
+| 3. Niebla/exploración | 1.5 | 2.0 |
+| 4. Pathfinding/formaciones | 2.5 | **6.0** |
+| 5. Tech tree/edades | 4.5 | 5.0 |
+| 6. Contenido y densidad | 3.5 | 4.0 |
+| 7. IA legítima | 4.5 | 4.0 |
+| 8. HUD/UX AoE2 | 5.0 | **6.0** |
+| 9. Art direction/diorama | 2.5 | 4.0 |
+| 10. Audio/juice | 1.5 | 2.0 |
+
+Promedio: (3.0+4.0+2.0+6.0+5.0+4.0+4.0+6.0+4.0+2.0)/10 = **4.00**
+
+### Hallazgos del juez (acciones obligatorias para el ciclo 02)
+
+1. **El harness no acredita formaciones/posturas**: ninguna captura selecciona unidades
+   propias sin edificio. Agregar escenario `06b-unidades` (5 unidades seleccionadas + orden
+   de formación) y hacer visible la formación elegida.
+2. **Barras de vida desproporcionadas y todas verdes**: visibles solo al daño/selección,
+   45-60% del ancho, verde propio / rojo enemigo, con merma real.
+3. **Combate sin proyectiles/impactos/bajas visibles** y cortado por el HUD.
+4. **Niebla de guerra ausente**: implementar dos estados y espejarla en minimapa.
+5. **Economía sin ciclo visible** (aldeanos amontonados, recursos de debug): capturas de
+   partida real + ciclo nodo→depósito + cola de producción.
+6. **Base enemiga nunca en cuadro**: agregar escenario de asedio a la base enemiga.
+7. Menú desactualizado: dice que niebla y pathfinding son "expansión futura" (ya no).
+
+> El juez marcó como topadas por el renderer 3D actual: art direction, densidad, juice y
+> legibilidad de combate. Se esperan mejoras plenas recién en la fase 4 (renderer 2D
+> isométrico), pero economía, tech tree, IA, HUD y barras no tienen excusa.
+
+---
+
+## Historial de ciclos
+
 | Fecha | Fase / feature | Shots | Puntajes | Veredicto | Cambios |
 |---|---|---|---|---|---|
 | 2026-11-13 | fase-0 · fundaciones (tick fijo, RNG, eventos, comandos, navgrid, IA sin trampas, dev hook) | `shots/fase-0/` (7) | 3.10 (mín 1.5; sin cambio visual esperado) | NO | harness de capturas + juez ciego + JOURNAL |
+| 2026-11-13 | ciclo-01 · pathfinding A*, colisiones, formaciones box/line/wedge, stances, attack-move, shift-queue | `shots/ciclo-01-pathfinding/` (7) | 4.00 (mín 2.0; pathfinding 2.5→6.0, HUD 5.0→6.0, combate 3.0→4.0, art 2.5→4.0) | NO (visual topado por renderer 3D; formaciones no acreditadas por captura) | A*+navgrid+followPath con slide/watchdog; stances + botones; formaciones y cola de waypoints |
 
 _Sin entradas todavía: el primer ciclo se registra después del baseline._
 

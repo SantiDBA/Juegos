@@ -1,9 +1,16 @@
 import { BUILDING_DEFS, ERAS, MAP_SIZE, START_RESOURCES, TECHS, UNIT_DEFS } from '../core/config'
 import { createRng } from '../core/rng'
 import { canAfford, dist, spend } from '../core/utils'
+import { markNavDirty } from './navgrid'
+import { findPath } from './path'
 import type { Rng } from '../core/rng'
-import type { AnyEntity, BuildingEntity, BuildingType, PlayerBonuses, ResourceEntity, Resources, Team, UnitEntity, UnitType, Vec2 } from '../core/types'
+import type { AnyEntity, BuildingEntity, BuildingType, PlayerBonuses, ResourceEntity, Resources, Stance, Team, UnitEntity, UnitType, Vec2 } from '../core/types'
 import type { SimEvent } from './events'
+
+export type Formation = 'line' | 'box' | 'wedge'
+
+/** World-space gap between two units in a formation slot. */
+const FORMATION_SPACING = 1.6
 
 export interface PlayerState {
   team: Team
@@ -35,6 +42,9 @@ export interface GameState {
   events: SimEvent[]
   viewAs: 'player' | 'enemy' | 'all'
   acc: number
+  /** Static walkability grid, rebuilt lazily when navDirty is set. */
+  nav: Uint8Array
+  navDirty: boolean
 }
 
 export function createState(seed = 1): GameState {
@@ -56,6 +66,8 @@ export function createState(seed = 1): GameState {
     events: [],
     viewAs: 'player',
     acc: 0,
+    nav: new Uint8Array(0),
+    navDirty: true,
   }
 }
 
@@ -131,7 +143,7 @@ export function spawnUnit(gs: GameState, team: Team, type: UnitType, x: number, 
     id: uid(gs), kind: 'unit', team, x, z,
     hp, maxHp: hp, selected: false, dead: false,
     utype: type, path: [], carrying: {}, carryAmount: 0,
-    attackCd: 0, workCd: 0, state: 'idle',
+    attackCd: 0, workCd: 0, state: 'idle', stance: 'aggressive',
   }
   addEntity(gs, u)
   recomputePop(gs)
@@ -146,6 +158,7 @@ export function spawnBuilding(gs: GameState, team: Team, type: BuildingType, x: 
     btype: type, built, buildProgress: built ? 1 : 0, attackCd: 0, queue: [],
   }
   addEntity(gs, b)
+  markNavDirty(gs)
   recomputePop(gs)
   return b
 }
@@ -157,6 +170,7 @@ export function spawnResource(gs: GameState, rtype: ResourceEntity['rtype'], res
     rtype, resource, amount, maxAmount: amount,
   }
   addEntity(gs, r)
+  markNavDirty(gs)
   return r
 }
 
@@ -260,33 +274,174 @@ export function setSelection(gs: GameState, ids: number[]): void {
   for (const id of ids) { const e = getEntity(gs, id); if (e) e.selected = true }
 }
 
-export function commandMove(gs: GameState, ids: number[], target: Vec2, attackMove = false): void {
+/** Player units among `ids`, in selection order. */
+function playerUnits(gs: GameState, ids: number[]): UnitEntity[] {
+  const out: UnitEntity[] = []
   for (const id of ids) {
     const e = getEntity(gs, id)
-    if (!e || e.kind !== 'unit' || e.team !== 'player') continue
-    e.path = [{ x: target.x, z: target.z }]
+    if (e && e.kind === 'unit' && e.team === 'player') out.push(e)
+  }
+  return out
+}
+
+/**
+ * Slot layout around `target`, facing the direction the group is coming from.
+ * `from` is the group centroid so the frontage axis is perpendicular to travel.
+ */
+export function formationSlots(count: number, formation: Formation, from: Vec2, target: Vec2): Vec2[] {
+  let dx = target.x - from.x
+  let dz = target.z - from.z
+  const len = Math.hypot(dx, dz)
+  if (len < 0.001) { dx = 1; dz = 0 } else { dx /= len; dz /= len }
+  const px = -dz, pz = dx // frontage axis
+  const slots: Vec2[] = []
+
+  if (formation === 'line') {
+    const span = (count - 1) * FORMATION_SPACING
+    for (let i = 0; i < count; i++) {
+      const off = i * FORMATION_SPACING - span / 2
+      slots.push({ x: target.x + px * off, z: target.z + pz * off })
+    }
+  } else if (formation === 'box') {
+    const cols = Math.max(1, Math.ceil(Math.sqrt(count)))
+    const rows = Math.ceil(count / cols)
+    for (let i = 0; i < count; i++) {
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      const along = (col - (cols - 1) / 2) * FORMATION_SPACING
+      const depth = (row - (rows - 1) / 2) * FORMATION_SPACING
+      slots.push({ x: target.x + px * along + dx * depth, z: target.z + pz * along + dz * depth })
+    }
+  } else {
+    // wedge: the first unit holds the tip, the rest fan out in pairs behind it
+    slots.push({ x: target.x, z: target.z })
+    for (let i = 1; i < count; i++) {
+      const side = i % 2 === 1 ? 1 : -1
+      const rank = Math.ceil(i / 2)
+      const along = side * rank * FORMATION_SPACING * 0.85
+      const depth = -rank * FORMATION_SPACING
+      slots.push({ x: target.x + px * along + dx * depth, z: target.z + pz * along + dz * depth })
+    }
+  }
+  return slots
+}
+
+/**
+ * Groups move as a formation: every unit gets its own slot and its own A* route
+ * so the whole squad does not stack on a single waypoint. Units are paired with
+ * slots by their frontage projection, which keeps them from crossing over.
+ */
+export function commandMoveFormation(
+  gs: GameState,
+  ids: number[],
+  target: Vec2,
+  formation: Formation = 'box',
+  attackMove = false,
+): void {
+  const units = playerUnits(gs, ids)
+  if (units.length === 0) return
+  if (units.length === 1) { commandMove(gs, [units[0].id], target, attackMove); return }
+
+  let cx = 0, cz = 0
+  for (const u of units) { cx += u.x; cz += u.z }
+  cx /= units.length; cz /= units.length
+
+  let dx = target.x - cx, dz = target.z - cz
+  const len = Math.hypot(dx, dz) || 1
+  dx /= len; dz /= len
+  const frontage = (x: number, z: number): number => x * -dz + z * dx
+  const order = units.map((u, i) => ({ i, p: frontage(u.x, u.z) })).sort((a, b) => a.p - b.p)
+  const slots = formationSlots(units.length, formation, { x: cx, z: cz }, target)
+
+  for (let s = 0; s < order.length && s < slots.length; s++) {
+    const u = units[order[s].i]
+    const slot = slots[s]
+    u.path = findPath(gs, u.x, u.z, slot.x, slot.z)
+    u.state = attackMove ? 'attack' : 'move'
+    u.targetId = undefined
+    u.gatherTargetId = undefined
+    u.dropoffTargetId = undefined
+    u.patrol = undefined
+    u.home = { x: slot.x, z: slot.z }
+    u.repathT = 0
+  }
+}
+
+/**
+ * Movement order. Multi-unit groups default to a box formation; `append` pushes
+ * the new leg onto the existing queue (shift-click) instead of replacing it.
+ */
+export function commandMove(gs: GameState, ids: number[], target: Vec2, attackMove = false, append = false): void {
+  const units = playerUnits(gs, ids)
+  if (units.length === 0) return
+  if (!append && units.length > 1) {
+    commandMoveFormation(gs, units.map(u => u.id), target, 'box', attackMove)
+    return
+  }
+  for (const e of units) {
+    const leg = findPath(gs, e.x, e.z, target.x, target.z)
+    if (append && e.path.length > 0) {
+      e.path = e.path.concat(leg)
+    } else {
+      e.path = leg
+      e.home = { x: target.x, z: target.z }
+      e.patrol = undefined
+    }
     e.state = attackMove ? 'attack' : 'move'
     e.targetId = undefined
     e.gatherTargetId = undefined
+    e.dropoffTargetId = undefined
+    e.repathT = 0
   }
 }
 
 export function commandGather(gs: GameState, ids: number[], nodeId: number): void {
-  for (const id of ids) {
-    const e = getEntity(gs, id)
-    if (!e || e.kind !== 'unit' || e.team !== 'player' || e.utype !== 'ingeniero') continue
+  const node = getEntity(gs, nodeId)
+  if (!node || node.kind !== 'resource') return
+  for (const e of playerUnits(gs, ids)) {
+    if (e.utype !== 'ingeniero') continue
     e.gatherTargetId = nodeId
     e.targetId = undefined
+    e.dropoffTargetId = undefined
+    e.patrol = undefined
     e.state = 'gather'
+    e.path = findPath(gs, e.x, e.z, node.x, node.z)
+    e.home = { x: node.x, z: node.z }
+    e.repathT = 0
   }
 }
 
 export function commandAttack(gs: GameState, ids: number[], targetId: number): void {
-  for (const id of ids) {
-    const e = getEntity(gs, id)
-    if (!e || e.kind !== 'unit' || e.team !== 'player') continue
+  const tgt = getEntity(gs, targetId)
+  for (const e of playerUnits(gs, ids)) {
     e.targetId = targetId
     e.state = 'attack'
+    e.patrol = undefined
+    // the defensive leash measures from wherever the order was issued
+    e.home = { x: e.x, z: e.z }
+    if (tgt) e.path = findPath(gs, e.x, e.z, tgt.x, tgt.z)
+    e.repathT = 0
+  }
+}
+
+/** Patrol between two points: the unit walks A->B, then B->A, forever. */
+export function commandPatrol(gs: GameState, ids: number[], a: Vec2, b: Vec2): void {
+  for (const e of playerUnits(gs, ids)) {
+    e.patrol = { a: { x: a.x, z: a.z }, b: { x: b.x, z: b.z }, toB: true }
+    e.path = findPath(gs, e.x, e.z, b.x, b.z)
+    e.state = 'move'
+    e.targetId = undefined
+    e.gatherTargetId = undefined
+    e.dropoffTargetId = undefined
+    e.home = { x: a.x, z: a.z }
+    e.repathT = 0
+  }
+}
+
+export function commandStance(gs: GameState, ids: number[], stance: Stance): void {
+  for (const e of playerUnits(gs, ids)) {
+    e.stance = stance
+    if (stance === 'defensive') e.home = { x: e.x, z: e.z }
   }
 }
 
