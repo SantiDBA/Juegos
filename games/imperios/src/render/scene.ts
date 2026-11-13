@@ -71,6 +71,11 @@ interface FxItem {
   hold?: number
 }
 
+/** Canvas resolution of the fog texture. The vision grid is 90x90; the fog
+ * is painted at this resolution with bilinear sampling so the union of edges
+ * reads as a soft penumbra instead of a staircase. */
+const FOG_TEX = 360
+
 /** Hard cap on simultaneous VFX so a big battle cannot tank the frame. */
 const FX_MAX = 200
 
@@ -317,11 +322,13 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   // A second mesh sharing the ground geometry, lifted 1 unit so it hugs every
   // hill instead of clipping through it. The canvas holds one texel per nav
   // tile: UNKNOWN = opaque black, EXPLORED = 58% black, VISIBLE = clear.
+  // Soft edges: the grid has one texel per nav tile, but the canvas is
+  // upsampled 4x with LINEAR filtering so the 90->360 remap below blends.
   const fogCanvas = document.createElement('canvas')
-  fogCanvas.width = GRID
-  fogCanvas.height = GRID
+  fogCanvas.width = FOG_TEX
+  fogCanvas.height = FOG_TEX
   const fogCtx = fogCanvas.getContext('2d')!
-  const fogImage = fogCtx.createImageData(GRID, GRID)
+  const fogImage = fogCtx.createImageData(FOG_TEX, FOG_TEX)
   const fogTexture = new THREE.CanvasTexture(fogCanvas)
   fogTexture.minFilter = THREE.LinearFilter
   fogTexture.magFilter = THREE.LinearFilter
@@ -422,15 +429,34 @@ export function paintFog(rc: RenderContext, grid: Uint8Array | null): void {
 
 function paintFogPixels(image: ImageData, grid: Uint8Array | null): void {
   const data = image.data
-  for (let i = 0; i < GRID * GRID; i++) {
-    const v = grid ? grid[i] : 0
-    const o = i * 4
-    data[o] = 0
-    data[o + 1] = 0
-    data[o + 2] = 0
-    // 0 = never seen (opaque), 1 = remembered (58% black), 2 = visible (clear)
-    data[o + 3] = v >= 2 ? 0 : v === 1 ? 148 : 255
+  const W = image.width // FOG_TEX
+  const scale = GRID / W
+  for (let py = 0; py < W; py++) {
+    for (let px = 0; px < W; px++) {
+      const gx = px * scale + scale * 0.5
+      const gy = py * scale + scale * 0.5
+      // bilinear sample of the 90x90 vision grid
+      const x0 = Math.floor(gx - 0.5), y0 = Math.floor(gy - 0.5)
+      const fx = Math.min(1, Math.max(0, gx - 0.5 - x0)), fy = Math.min(1, Math.max(0, gy - 0.5 - y0))
+      const a = visAlpha(grid, x0, y0), b = visAlpha(grid, x0 + 1, y0)
+      const c = visAlpha(grid, x0, y0 + 1), d = visAlpha(grid, x0 + 1, y0 + 1)
+      const top = a + (b - a) * fx, bot = c + (d - c) * fx
+      const alpha = top + (bot - top) * fy
+      const o = (py * W + px) * 4
+      data[o] = 0
+      data[o + 1] = 0
+      data[o + 2] = 0
+      data[o + 3] = Math.round(alpha)
+    }
   }
+}
+
+function visAlpha(grid: Uint8Array | null, cx: number, cy: number): number {
+  if (!grid) return 255
+  if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) return 255
+  const v = grid[cy * GRID + cx]
+  // 0 = never seen, 1 = remembered, 2 = visible
+  return v >= 2 ? 0 : v === 1 ? 150 : 255
 }
 
 export function updateCamera(rc: RenderContext): void {
