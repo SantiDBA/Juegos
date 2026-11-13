@@ -58,6 +58,8 @@ export interface BuildingDef {
   dropoff?: boolean
   produces?: UnitType[]
   attack?: { damage: number; range: number; cooldown: number }
+  /** Vision radius in world units. Falls back to 6 when a def omits it. */
+  sight?: number
 }
 
 export interface EraDef {

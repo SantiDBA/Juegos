@@ -1,7 +1,10 @@
-import { BUILDING_DEFS, ERAS, TECHS } from '../core/config'
-import { canAfford, spend } from '../core/utils'
+import { BUILDING_DEFS, ERAS, GRID, TECHS } from '../core/config'
+import { canAfford, dist, spend } from '../core/utils'
 import { buildingsOfTeam, canResearch, canTrain, queueResearch, queueTrain, recomputePop, spawnBuilding, unitsOfTeam, type GameState } from './state'
-import type { BuildingEntity, BuildingType, Team, UnitEntity, UnitType } from '../core/types'
+import { cellToWorld } from './navgrid'
+import { findPath } from './path'
+import { VIS_UNKNOWN, knownBuildingTargets } from './vision'
+import type { BuildingEntity, BuildingType, Team, UnitEntity, UnitType, Vec2 } from '../core/types'
 
 const BASE_X: Record<Team, number> = { player: -55, enemy: 55 }
 
@@ -34,6 +37,28 @@ function buildSite(gs: GameState, team: Team, type: BuildingType, dx: number, dz
   const site = spawnBuilding(gs, team, type, mirrorX(team, dx), dz, false)
   assignBuilder(gs, team, site)
   return true
+}
+
+/**
+ * Where to march when no enemy building has been scouted yet. Picks the nearest
+ * unexplored tile, biased toward the far base so the army sweeps outward
+ * instead of orbiting its own base. Pure function of the fog grid: no RNG.
+ */
+function scoutPoint(gs: GameState, team: Team, fromX: number, fromZ: number): Vec2 | null {
+  const foeX = BASE_X[team === 'enemy' ? 'player' : 'enemy']
+  const grid = gs.vision[team]
+  let best: Vec2 | null = null
+  let bestScore = Infinity
+  for (let cz = 0; cz < GRID; cz++) {
+    const row = cz * GRID
+    for (let cx = 0; cx < GRID; cx++) {
+      if (grid[row + cx] !== VIS_UNKNOWN) continue
+      const p = cellToWorld(gs, cx, cz)
+      const score = dist(p.x, p.z, fromX, fromZ) + 0.6 * dist(p.x, p.z, foeX, 0)
+      if (score < bestScore) { bestScore = score; best = p }
+    }
+  }
+  return best
 }
 
 export function stepAI(gs: GameState, team: Team, dt: number): void {
@@ -107,11 +132,28 @@ export function stepAI(gs: GameState, team: Team, dt: number): void {
   // attack waves grow with era
   const waveSize = 6 + p.era * 3
   if (army.length >= waveSize) {
-    const foeBuildings = buildingsOfTeam(gs, foe)
-    const target = foeBuildings.find(b => b.btype === 'ayuntamiento') || foeBuildings[0]
+    // Only buildings the AI has actually scouted can be attacked: the fog
+    // applies to the AI too, so no omniscient target picking.
+    const known = knownBuildingTargets(gs, team, foe)
+    const target = known.find(b => b.btype === 'ayuntamiento') || known[0]
     if (target) {
       for (const u of army) {
         if (u.state === 'idle' || !u.targetId) { u.targetId = target.id; u.state = 'attack' }
+      }
+    } else {
+      // nothing known yet: sweep toward unexplored ground instead of the void
+      let cx = 0, cz = 0
+      for (const u of army) { cx += u.x; cz += u.z }
+      cx /= army.length; cz /= army.length
+      const scout = scoutPoint(gs, team, cx, cz)
+      if (scout) {
+        for (const u of army) {
+          if (u.state !== 'idle' || u.targetId) continue
+          u.path = findPath(gs, u.x, u.z, scout.x, scout.z)
+          u.state = 'move'
+          u.home = { x: scout.x, z: scout.z }
+          u.repathT = 0
+        }
       }
     }
   }

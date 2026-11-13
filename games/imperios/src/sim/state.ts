@@ -1,4 +1,4 @@
-import { BUILDING_DEFS, ERAS, MAP_SIZE, START_RESOURCES, TECHS, UNIT_DEFS } from '../core/config'
+import { BUILDING_DEFS, ERAS, GRID, MAP_SIZE, START_RESOURCES, TECHS, UNIT_DEFS } from '../core/config'
 import { createRng } from '../core/rng'
 import { canAfford, dist, spend } from '../core/utils'
 import { markNavDirty } from './navgrid'
@@ -45,6 +45,17 @@ export interface GameState {
   /** Static walkability grid, rebuilt lazily when navDirty is set. */
   nav: Uint8Array
   navDirty: boolean
+  /**
+   * Fog of war, one byte per tile and team (VIS_UNKNOWN / VIS_EXPLORED /
+   * VIS_VISIBLE, see sim/vision.ts). The grid is indexed `cz * GRID + cx`.
+   */
+  vision: Record<Team, Uint8Array>
+  /** Accumulator for the 5 Hz vision pass. */
+  visionAcc: number
+  /** Ids of enemy buildings each team has seen at least once. */
+  knownBuildings: Record<Team, Set<number>>
+  /** QA/spectator switch: the team sees the whole map, fog never closes again. */
+  visionRevealed: Record<Team, boolean>
 }
 
 export function createState(seed = 1): GameState {
@@ -68,6 +79,13 @@ export function createState(seed = 1): GameState {
     acc: 0,
     nav: new Uint8Array(0),
     navDirty: true,
+    vision: {
+      player: new Uint8Array(GRID * GRID),
+      enemy: new Uint8Array(GRID * GRID),
+    },
+    visionAcc: 0,
+    knownBuildings: { player: new Set<number>(), enemy: new Set<number>() },
+    visionRevealed: { player: false, enemy: false },
   }
 }
 
@@ -445,6 +463,11 @@ export function commandStance(gs: GameState, ids: number[], stance: Stance): voi
   }
 }
 
+/**
+ * Omnipotent proximity query. Gameplay code must use nearestVisibleEnemy()
+ * (sim/vision.ts) instead: this one ignores the fog and is kept only for
+ * diagnostics and headless assertions.
+ */
 export function nearestEnemy(gs: GameState, team: Team, x: number, z: number, range: number): AnyEntity | null {
   let best: AnyEntity | null = null
   let bestD = range * range

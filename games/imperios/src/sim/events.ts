@@ -5,9 +5,11 @@ import type { GameState } from './state'
  * (VFX, audio, UI). They carry ids plus a position snapshot because the entity
  * may be removed by cleanup before the frame renders.
  * `attack` x/z is the attacker position, `damage` x/z is the impact point.
+ * `attack` also snapshots the target position (tx/tz) so the tracer can still be
+ * drawn when the victim died inside the same tick and was already cleaned up.
  */
 export type SimEvent =
-  | { kind: 'attack'; from: number; to: number; unitType?: string; x: number; z: number }
+  | { kind: 'attack'; from: number; to: number; unitType?: string; x: number; z: number; tx?: number; tz?: number }
   | { kind: 'damage'; target: number; amount: number; x: number; z: number }
   | { kind: 'death'; entity: 'unit' | 'building'; team: 'player' | 'enemy'; unitType?: string; x: number; z: number }
   | { kind: 'train-complete'; team: 'player' | 'enemy'; unitType: string; x: number; z: number }

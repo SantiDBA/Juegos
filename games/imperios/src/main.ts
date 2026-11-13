@@ -1,11 +1,16 @@
 import * as THREE from 'three'
 import './style.css'
 import { BUILDING_DEFS, MAP_SIZE, TECHS, UNIT_DEFS } from './core/config'
-import type { BuildingType, UnitType } from './core/types'
-import { createState, commandAttack, commandGather, commandMove, commandStance, getEntity, queueResearch, queueTrain, setSelection, spawnBuilding, spawnResource, spawnUnit, tryAdvanceEra, tryPlaceBuilding } from './sim/state'
+import type { AnyEntity, BuildingType, Team, UnitType } from './core/types'
+import { createState, commandAttack, commandGather, commandMove, commandMoveFormation, commandStance, getEntity, queueResearch, queueTrain, setSelection, spawnBuilding, spawnResource, spawnUnit, tryAdvanceEra, tryPlaceBuilding, unitsOfTeam, type Formation } from './sim/state'
 import { stepSim } from './sim/sim'
 import { advance } from './sim/loop'
-import { createRender, removeEntityMesh, renderFrame, resize, syncEntityMesh, updateCamera } from './render/scene'
+import { forceVisionUpdate, isExplored, isVisible, revealAll } from './sim/vision'
+import {
+  createRender, groundHeightAt, paintFog, removeEntityMesh, renderFrame, resize,
+  spawnDeathFx, spawnImpact, spawnTracer, syncEntityMesh, updateCamera,
+} from './render/scene'
+import type { EntityVisibility } from './render/scene'
 import { createUI, renderActions, showEnd, showToast, updateMinimap, updateSelectionInfo, updateTopBar } from './ui/ui'
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement
@@ -48,6 +53,9 @@ function setupWorld(): void {
     ['bosque','materiales', 0, 0, 400], ['granja','suministros', 4, -6, 400],
   ]
   for (const [rt, rk, x, z, amt] of nodes) spawnResource(gs, rt, rk, x, z, amt)
+
+  // First fog pass: the starting area is visible before the first sim tick.
+  forceVisionUpdate(gs)
 }
 
 function startGame(): void {
@@ -96,7 +104,8 @@ function pickEntity(clientX: number, clientY: number): number | null {
   const rect = canvas.getBoundingClientRect()
   const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -(((clientY - rect.top) / rect.height) * 2 - 1))
   rc.raycaster.setFromCamera(ndc, rc.camera)
-  const objs = [...rc.entityMeshes.values()]
+  // hidden-by-fog entities are not pickable
+  const objs = [...rc.entityMeshes.values()].filter(o => o.visible)
   const hits = rc.raycaster.intersectObjects(objs, true)
   for (const hit of hits) {
     let cur: THREE.Object3D | null = hit.object
@@ -339,7 +348,74 @@ function refreshActions(): void {
 
 let uiFastTimer = 0
 let uiSlowTimer = 0
+let fogTimer = 0
 let prevStatus = gs.status
+
+/** Whose eyes the render uses; null = omniscient (viewAs 'all'). */
+function observerTeam(): Team | null {
+  return gs.viewAs === 'all' ? null : gs.viewAs
+}
+
+/**
+ * Render classification of an entity under the fog.
+ * - own team and anything standing on a visible tile: full
+ * - own... resources stay visible once explored (remembered terrain)
+ * - enemy buildings seen before but not right now: ghost (grey translucent)
+ * - everything else: hidden
+ */
+function visibilityOf(observer: Team | null, e: AnyEntity): EntityVisibility {
+  if (!observer) return 'full'
+  if (e.team === observer) return 'full'
+  if (e.kind === 'resource') return isExplored(gs, observer, e.x, e.z) ? 'full' : 'hidden'
+  if (isVisible(gs, observer, e.x, e.z)) return 'full'
+  if (e.kind === 'building' && gs.knownBuildings[observer].has(e.id)) return 'ghost'
+  return 'hidden'
+}
+
+const TRACER_GUN = 0xffd27a
+const TRACER_SHELL = 0xff9a3c
+const TRACER_TOWER = 0xffe9b0
+
+/** Colour by attacker: shells/artillery burn orange, tower fire is pale. */
+function tracerColor(attacker: AnyEntity | undefined, unitType: string | undefined): number {
+  if (attacker && attacker.kind === 'building') return TRACER_TOWER
+  if (!unitType) return TRACER_SHELL
+  if (unitType === 'canon' || unitType === 'mlrs' || unitType === 'tanque' || unitType === 'tanque_autonomo' || unitType === 'cazacarros') return TRACER_SHELL
+  return TRACER_GUN
+}
+
+/**
+ * Drains the sim event queue into the VFX layer. Damage stays instantaneous in
+ * the sim: the tracer/impact are pure presentation. Anything happening outside
+ * the observer's sight is dropped, so fog hides battles in the dark.
+ */
+function drainSimEvents(): void {
+  if (gs.events.length === 0) return
+  const events = gs.events.splice(0, gs.events.length)
+  const observer = observerTeam()
+  const seen = (x: number, z: number): boolean => observer == null || isVisible(gs, observer, x, z)
+
+  for (const ev of events) {
+    if (ev.kind === 'attack') {
+      if (!seen(ev.x, ev.z)) continue
+      const attacker = getEntity(gs, ev.from)
+      const target = getEntity(gs, ev.to)
+      const tx = ev.tx ?? (target ? target.x : ev.x)
+      const tz = ev.tz ?? (target ? target.z : ev.z)
+      if (!seen(tx, tz)) continue
+      const from = new THREE.Vector3(ev.x, groundHeightAt(ev.x, ev.z) + 1.2, ev.z)
+      const to = new THREE.Vector3(tx, groundHeightAt(tx, tz) + 1.0, tz)
+      spawnTracer(rc, from, to, tracerColor(attacker, ev.unitType))
+    } else if (ev.kind === 'damage') {
+      if (!seen(ev.x, ev.z)) continue
+      spawnImpact(rc, ev.x, groundHeightAt(ev.x, ev.z) + 1.0, ev.z)
+    } else if (ev.kind === 'death') {
+      if (!seen(ev.x, ev.z)) continue
+      spawnDeathFx(rc, ev.x, ev.z, groundHeightAt(ev.x, ev.z), ev.entity === 'building' ? 2.4 : 1)
+    }
+  }
+}
+
 function frame(): void {
   requestAnimationFrame(frame)
   const dt = Math.min(rc.clock.getDelta(), 0.1)
@@ -348,15 +424,25 @@ function frame(): void {
     advance(gs, dt)
   }
 
-  // sync render entities
+  drainSimEvents()
+
+  // sync render entities (fog decides what the observer is allowed to see)
+  const observer = observerTeam()
   const seen = new Set<number>()
   for (const e of gs.entities.values()) {
     if (e.dead) continue
     const era = e.kind === 'resource' ? 1 : (gs.players[e.team as 'player' | 'enemy']?.era ?? 1)
-    syncEntityMesh(rc, e, dt, era)
+    syncEntityMesh(rc, e, dt, era, visibilityOf(observer, e))
     seen.add(e.id)
   }
   for (const id of [...rc.entityMeshes.keys()]) if (!seen.has(id)) removeEntityMesh(rc, id)
+
+  // fog texture follows the 5 Hz vision pass, not the frame rate
+  fogTimer += dt
+  if (fogTimer >= 0.2) {
+    fogTimer = 0
+    paintFog(rc, observer ? gs.vision[observer] : null)
+  }
 
   uiFastTimer += dt
   uiSlowTimer += dt
@@ -400,8 +486,16 @@ if (import.meta.hot) {
   ;(window as any).__imperios = {
     get state() { return gs },
     render: rc,
+    /** Spawns `n` units in a block and returns their ids. */
     spawn: (team: 'player' | 'enemy', type: UnitType, n = 1, x = 0, z = 0) => {
-      for (let i = 0; i < n; i++) spawnUnit(gs, team, type, x + (i % 4) * 2, z + Math.floor(i / 4) * 2)
+      const ids: number[] = []
+      for (let i = 0; i < n; i++) ids.push(spawnUnit(gs, team, type, x + (i % 4) * 2, z + Math.floor(i / 4) * 2).id)
+      return ids
+    },
+    /** Places a building (built by default) — used by the siege scenario. */
+    build: (team: Team, type: BuildingType, x: number, z: number, built = true) => {
+      const b = spawnBuilding(gs, team, type, x, z, built)
+      return b.id
     },
     give: (amount = 1000) => {
       for (const k of ['suministros', 'materiales', 'combustible', 'minerales'] as const) gs.players.player.resources[k] += amount
@@ -411,6 +505,35 @@ if (import.meta.hot) {
       gs.players.enemy.era = gs.players.player.era
     },
     select: (ids: number[]) => setSelection(gs, ids),
+    /** Selects up to `n` existing units of that team/type. Returns their ids. */
+    selectUnits: (team: Team, utype: UnitType, n = 6) => {
+      const ids = unitsOfTeam(gs, team).filter(u => u.utype === utype).slice(0, n).map(u => u.id)
+      setSelection(gs, ids)
+      return ids
+    },
+    /** Formation move for an explicit id list (wedge/box/line). */
+    moveFormation: (ids: number[], x: number, z: number, formation: Formation = 'wedge') => {
+      commandMoveFormation(gs, ids, { x, z }, formation)
+      return ids.length
+    },
+    /** Pans (and optionally zooms) the camera for a framed capture. */
+    camera: (x: number, z: number, dist?: number) => {
+      rc.target.set(x, 0, z)
+      if (dist != null) rc.camDist = Math.max(25, Math.min(120, dist))
+      updateCamera(rc)
+    },
+    /** Lift the fog for a team (QA only). */
+    reveal: (team: Team = 'player') => {
+      revealAll(gs, team)
+      paintFog(rc, observerTeam() ? gs.vision[observerTeam()!] : null)
+      return 'ok'
+    },
+    /** Force one vision pass right now (normally it runs at 5 Hz). */
+    fog: () => {
+      forceVisionUpdate(gs)
+      paintFog(rc, observerTeam() ? gs.vision[observerTeam()!] : null)
+      return 'ok'
+    },
     entityIds: () => [...gs.entities.keys()],
     skip: (seconds: number) => { for (let i = 0; i < Math.ceil(seconds * 20); i++) stepSim(gs, 1 / 20) },
   }

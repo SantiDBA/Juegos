@@ -88,28 +88,28 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
 export const BUILDING_DEFS: Record<string, BuildingDef> = {
   ayuntamiento: {
     type: 'ayuntamiento', name: 'Ayuntamiento', hp: 2200, size: { x: 8, z: 8 },
-    cost: {}, buildTime: 0, era: 1, popProvided: 8, dropoff: true, produces: ['ingeniero'],
+    cost: {}, buildTime: 0, era: 1, popProvided: 8, dropoff: true, produces: ['ingeniero'], sight: 10,
   },
   vivienda: {
     type: 'vivienda', name: 'Vivienda Obrera', hp: 500, size: { x: 4, z: 4 },
-    cost: { materiales: 60 }, buildTime: 18, era: 1, popProvided: 10,
+    cost: { materiales: 60 }, buildTime: 18, era: 1, popProvided: 10, sight: 5,
   },
   cuartel: {
     type: 'cuartel', name: 'Cuartel', hp: 1200, size: { x: 6, z: 6 },
-    cost: { materiales: 150 }, buildTime: 28, era: 1, produces: ['milicia', 'granadero', 'fusilero', 'francotirador', 'inf_mecanizada'],
+    cost: { materiales: 150 }, buildTime: 28, era: 1, sight: 8, produces: ['milicia', 'granadero', 'fusilero', 'francotirador', 'inf_mecanizada'],
   },
   almacen: {
     type: 'almacen', name: 'Depósito', hp: 700, size: { x: 4, z: 4 },
-    cost: { materiales: 80 }, buildTime: 16, era: 1, dropoff: true,
+    cost: { materiales: 80 }, buildTime: 16, era: 1, dropoff: true, sight: 5,
   },
   fabrica: {
     type: 'fabrica', name: 'Fábrica Militar', hp: 1600, size: { x: 8, z: 6 },
-    cost: { materiales: 250, combustible: 100 }, buildTime: 40, era: 2,
+    cost: { materiales: 250, combustible: 100 }, buildTime: 40, era: 2, sight: 8,
     produces: ['canon', 'cazacarros', 'tanque', 'dron', 'mlrs', 'tanque_autonomo'],
   },
   torre: {
     type: 'torre', name: 'Torre Defensiva', hp: 900, size: { x: 3, z: 3 },
-    cost: { materiales: 100 }, buildTime: 22, era: 1,
+    cost: { materiales: 100 }, buildTime: 22, era: 1, sight: 14,
     attack: { damage: 12, range: 13, cooldown: 1.6 },
   },
 }

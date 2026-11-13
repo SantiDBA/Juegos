@@ -1,9 +1,10 @@
 import { BUILDING_DEFS, ERAS, TECHS, TILE, UNIT_DEFS } from '../core/config'
 import { computeDamage, UNIT_COMBAT, type AttackProfile, type DefenseProfile } from '../core/combat'
 import { dist, moveToward } from '../core/utils'
-import { applyTech, buildingsOfTeam, findNearestDropoff, getEntity, nearestEnemy, recomputePop, spawnUnit, unitsOfTeam, type GameState } from './state'
+import { applyTech, buildingsOfTeam, findNearestDropoff, getEntity, recomputePop, spawnUnit, unitsOfTeam, type GameState } from './state'
 import { emit } from './events'
 import { stepAI } from './ai'
+import { nearestVisibleEnemy, stepVision } from './vision'
 import { isBlocked, isHardBlocked, markNavDirty, resolveBlocked } from './navgrid'
 import { findPath } from './path'
 import type { AnyEntity, BuildingEntity, ResourceEntity, UnitEntity } from '../core/types'
@@ -40,6 +41,7 @@ export function stepSim(gs: GameState, dt: number): void {
   stepResearch(gs, dt)
   stepBuildings(gs, dt)
   stepUnits(gs, dt)
+  stepVision(gs, dt)
   cleanupDead(gs)
   stepAI(gs, 'enemy', dt)
   checkVictory(gs)
@@ -96,7 +98,12 @@ function unitSpeed(gs: GameState, e: UnitEntity): number {
 /** Applies one attack: emits attack + damage events and marks the target dead. */
 function applyHit(gs: GameState, attacker: AnyEntity, atk: AttackProfile, tgt: AnyEntity): void {
   const dmg = damageTo(gs, attacker.team, atk, tgt)
-  emit(gs, { kind: 'attack', from: attacker.id, to: tgt.id, unitType: attacker.kind === 'unit' ? attacker.utype : undefined, x: attacker.x, z: attacker.z })
+  emit(gs, {
+    kind: 'attack',
+    from: attacker.id, to: tgt.id,
+    unitType: attacker.kind === 'unit' ? attacker.utype : undefined,
+    x: attacker.x, z: attacker.z, tx: tgt.x, tz: tgt.z,
+  })
   tgt.hp -= dmg
   emit(gs, { kind: 'damage', target: tgt.id, amount: dmg, x: tgt.x, z: tgt.z })
   if (tgt.hp <= 0) tgt.dead = true
@@ -139,7 +146,8 @@ function stepBuildings(gs: GameState, dt: number): void {
     const atkDef = BUILDING_DEFS[b.btype].attack
     if (atkDef) {
       b.attackCd = Math.max(0, b.attackCd - dt)
-      const tgt = nearestEnemy(gs, b.team, b.x, b.z, atkDef.range)
+      // a tower only shoots what its own sight circle covers (range <= sight)
+      const tgt = nearestVisibleEnemy(gs, b.team, b.x, b.z, atkDef.range)
       if (tgt && b.attackCd <= 0) {
         applyHit(gs, b, { base: atkDef.damage, bonusVs: { infanteria: 6, caballeria: 6 } }, tgt)
         b.attackCd = atkDef.cooldown
@@ -189,7 +197,7 @@ function stepUnits(gs: GameState, dt: number): void {
       const radius = acquireRadius(e)
       const holdMove = e.state === 'move' && e.path.length > 0
       if (radius > 0 && !holdMove && (e.state === 'idle' || e.state === 'move' || e.state === 'attack')) {
-        const tgt = nearestEnemy(gs, e.team, e.x, e.z, radius)
+        const tgt = nearestVisibleEnemy(gs, e.team, e.x, e.z, radius)
         if (tgt) { e.targetId = tgt.id; e.state = 'attack' }
       }
     }

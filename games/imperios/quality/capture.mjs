@@ -3,7 +3,7 @@
  * Imperios · capturas deterministas para el loop de calidad
  * =========================================================
  *
- * Toma 7 capturas del juego en un orden fijo (01-menu … 07-late-game) usando el
+ * Toma 10 capturas del juego en un orden fijo (01-menu … 08-asedio) usando el
  * CLI `agent-browser` como único motor de navegador. Cero dependencias npm: sólo
  * módulos nativos de Node (>= 18) y el binario `agent-browser` en el PATH.
  *
@@ -24,8 +24,11 @@
  * ----------
  *   1. `npm run dev` corriendo (Vite en el puerto 5173).
  *   2. El dev hook inyectado en la página:
- *        window.__imperios = { state, render, spawn(team,type,n,x,z), give(amount),
- *                               setEra(era), select(ids), entityIds(), skip(seconds) }
+ *        window.__imperios = { state, render, spawn(team,type,n,x,z) -> ids,
+ *                               build(team,btype,x,z,built), give(amount),
+ *                               setEra(era), select(ids), selectUnits(team,type,n),
+ *                               moveFormation(ids,x,z,formation), camera(x,z),
+ *                               reveal(team), fog(), entityIds(), skip(seconds) }
  *      El script falla con un mensaje explícito si el hook no aparece.
  *   3. `agent-browser` instalado y en el PATH (o `AGENT_BROWSER=/ruta/al/binario`).
  *
@@ -42,8 +45,10 @@
  *     tiempo real con setTimeout. Sin esa espera la captura muestra el frame viejo.
  *   - `startGame()` corre una intro de cámara de 1800 ms: antes de 02-arranque se
  *     espera a que termine; si no, el encuadre depende del momento del click.
+ *   - Los escenarios que miran lejos de la base usan `camera(x,z)`: con niebla de
+ *     guerra, el encuadre por defecto (la base propia) dejaría media toma en negro.
  *   - El escenario de combate pide ~1 s real después de `skip(8)` para que el
- *     render drenen proyectiles/muertes y la captura no salga a mitad de frame.
+ *     render drene trazadoras/impactos y la captura no salga a mitad de frame.
  *
  * NO ejecutar desde un agente sin dev server + hook: es el orquestador quien
  * levanta el entorno. Este archivo sólo se escribe.
@@ -209,13 +214,24 @@ const SCENARIOS = [
   },
   {
     id: '04-combate',
-    title: 'Combate: choque de milicias + fusileros enemigos a distancia',
+    title: 'Combate: choque de milicias + línea de fusileros enemigos a distancia',
     js: `(() => {
       const g = window.__imperios
-      g.spawn('player', 'milicia', 8, -40, 10)
-      g.spawn('enemy', 'milicia', 8, -30, 10)
-      g.spawn('enemy', 'fusilero', 4, -30, 14)
-      g.skip(8)
+      g.spawn('player', 'milicia', 10, -38, 26)
+      g.spawn('player', 'fusilero', 4, -40, 32)
+      g.spawn('enemy', 'milicia', 8, -29, 26)
+      g.spawn('enemy', 'fusilero', 6, -27, 22)
+      g.skip(4)
+      // centrar en el choque real: con la niebla, un encuadre fijo deja el
+      // combate pegado al HUD inferior
+      let cx = 0, cz = 0, n = 0
+      for (const e of g.state.entities.values()) {
+        if (e.dead || e.kind !== 'unit') continue
+        if (e.utype !== 'milicia' && e.utype !== 'fusilero') continue
+        if (Math.abs(e.x + 34) > 22 || Math.abs(e.z - 25) > 22) continue
+        cx += e.x; cz += e.z; n++
+      }
+      if (n > 0) g.camera(cx / n, cz / n, 54)
       return 'ok'
     })()`,
     settleMs: 1000, // 1 s real: el render necesita drenar proyectiles/muertes
@@ -223,7 +239,7 @@ const SCENARIOS = [
   {
     id: '05-fog',
     title: 'Niebla / exploración en era 3',
-    js: `(() => { const g = window.__imperios; g.setEra(3); g.skip(2); return 'ok' })()`,
+    js: `(() => { const g = window.__imperios; g.setEra(3); g.camera(-48, 2); g.skip(2); g.fog(); return 'ok' })()`,
     settleMs: SETTLE_MS,
   },
   {
@@ -239,13 +255,61 @@ const SCENARIOS = [
       const g = window.__imperios
       g.give(20000)
       g.setEra(4)
-      g.spawn('player', 'tanque', 6, -45, 20)
-      g.spawn('player', 'mlrs', 4, -45, 25)
-      g.spawn('enemy', 'tanque_autonomo', 6, 40, 0)
+      g.camera(-34, 40)
+      g.spawn('player', 'tanque', 6, -42, 38)
+      g.spawn('player', 'mlrs', 4, -42, 44)
+      g.spawn('enemy', 'tanque_autonomo', 6, -26, 38)
+      g.spawn('enemy', 'tanque', 4, -26, 44)
       g.skip(10)
       return 'ok'
     })()`,
     settleMs: SETTLE_MS,
+  },
+  // --- ciclo 02: niebla / formaciones / asedio -----------------------------
+  {
+    id: '06b-unidades',
+    title: 'Unidades + barras de vida: 6 milicias propias seleccionadas',
+    js: `(() => {
+      const g = window.__imperios
+      g.camera(-42, 12)
+      const squad = g.spawn('player', 'milicia', 6, -45, 12)
+      g.skip(1)
+      // el hook expone selectUnits(team, utype, n); el grupo recién creado se
+      // vuelve a fijar para que la toma siempre encuadre a estas 6 milicias
+      g.selectUnits('player', 'milicia', 6)
+      g.select(squad)
+      const sel = g.state.selectedIds || []
+      return sel.length === 6 ? 'ok' : 'sel:' + sel.length
+    })()`,
+    settleMs: 700,
+  },
+  {
+    id: '06c-formacion',
+    title: 'Formación en cuña: el mismo grupo, orden de movimiento en wedge',
+    js: `(() => {
+      const g = window.__imperios
+      const squad = (g.state.selectedIds || []).slice()
+      const n = g.moveFormation(squad, -36, 12, 'wedge')
+      return n >= 6 ? 'ok' : 'moved:' + n
+    })()`,
+    settleMs: 1500,
+  },
+  {
+    id: '08-asedio',
+    title: 'Asedio: tanques, milicias y cañones propios contra la base enemiga',
+    js: `(() => {
+      const g = window.__imperios
+      g.camera(52, 0)
+      g.build('enemy', 'torre', 50, -6, true)
+      g.build('enemy', 'cuartel', 48, 18, true)
+      g.spawn('player', 'tanque', 4, 40, 0)
+      g.spawn('player', 'milicia', 6, 38, 6)
+      g.spawn('player', 'canon', 2, 36, -4)
+      g.skip(6)
+      g.fog()
+      return 'ok'
+    })()`,
+    settleMs: 1200,
   },
 ]
 

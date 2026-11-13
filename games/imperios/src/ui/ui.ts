@@ -1,7 +1,8 @@
-import { BUILDING_DEFS, ERAS, RESOURCE_LABEL, TECHS, UNIT_DEFS } from '../core/config'
+import { BUILDING_DEFS, ERAS, RESOURCE_LABEL, TECHS, TILE, UNIT_DEFS } from '../core/config'
 import { formatCost } from '../core/utils'
 import { canResearch, canTrain, getEntity, type GameState } from '../sim/state'
-import type { BuildingType, ResourceKey, Stance, UnitType } from '../core/types'
+import { VIS_EXPLORED, VIS_UNKNOWN, VIS_VISIBLE, visionAtCell } from '../sim/vision'
+import type { BuildingType, ResourceKey, Stance, Team, UnitType } from '../core/types'
 
 const STANCE_LABEL: Record<Stance, string> = {
   aggressive: 'Agresiva',
@@ -22,6 +23,8 @@ export interface UIRefs {
   overlay: HTMLElement
   toast: HTMLElement
   minimap: HTMLCanvasElement
+  /** Reusable ImageData buffer for the fog-masked minimap background. */
+  mmImage: ImageData | null
 }
 
 export function createUI(root: HTMLElement): UIRefs {
@@ -70,7 +73,27 @@ export function createUI(root: HTMLElement): UIRefs {
             </ul>
           </div>
         </div>
-        <p class="small">Prototipo jugable (slice vertical) en Three.js: bucle económico-militar, 4 eras, 13 unidades con counters, tecnologías, torres defensivas y una IA que avanza de era. La niebla de guerra y el pathfinding avanzado quedan como expansión futura.</p>
+        <div class="grid2">
+          <div class="cardopt">
+            <h4>Niebla de guerra</h4>
+            <ul>
+              <li>Lo nunca visto es negro: explorá con ingenieros o avanzá con el ejército.</li>
+              <li>Lo explorado queda en penumbra: recordás el terreno, no las unidades.</li>
+              <li>Los edificios enemigos vistos quedan en gris hasta volver a verlos.</li>
+              <li>El minimapa usa la misma niebla que la vista principal.</li>
+            </ul>
+          </div>
+          <div class="cardopt">
+            <h4>Formaciones y combate</h4>
+            <ul>
+              <li>Clic derecho con un grupo: se mueve en formación (caja, línea, cuña).</li>
+              <li>Posturas: agresiva, defensiva, mantener posición, no atacar.</li>
+              <li>Trazadoras e impactos marcan cada disparo; las bajas dejan humo.</li>
+              <li>Las torres disparan solas a todo lo que entre en su radio de visión.</li>
+            </ul>
+          </div>
+        </div>
+        <p class="small">Prototipo jugable (slice vertical) en Three.js: bucle económico-militar, 4 eras, 13 unidades con counters, tecnologías, torres defensivas, formaciones, pathfinding A* sobre rejilla de navegación y niebla de guerra por equipo.</p>
         <button class="primary" id="start">Comenzar partida</button>
       </div>
     </div>
@@ -91,6 +114,7 @@ export function createUI(root: HTMLElement): UIRefs {
     overlay: q('overlay'),
     toast: q('toast'),
     minimap: root.querySelector('#minimap') as HTMLCanvasElement,
+    mmImage: null,
   }
 }
 
@@ -238,26 +262,59 @@ export function updateMinimap(ui: UIRefs, gs: GameState, camX?: number, camZ?: n
   const c = ui.minimap
   const ctx = c.getContext('2d')!
   const w = c.width, h = c.height
-  ctx.clearRect(0,0,w,h)
-  ctx.fillStyle = '#24331f'
-  ctx.fillRect(0,0,w,h)
   const s = gs.mapSize
   const tx = (x: number) => ((x + s/2) / s) * w
   const tz = (z: number) => ((z + s/2) / s) * h
+
+  // ---- background: one block per vision cell (unknown black / explored dim)
+  const observer: Team | null = gs.viewAs === 'all' ? null : gs.viewAs
+  const gw = Math.max(1, Math.round(gs.mapSize / TILE))
+  let img = ui.mmImage
+  if (!img || img.width !== w || img.height !== h) {
+    img = ctx.createImageData(w, h)
+    ui.mmImage = img
+  }
+  const data = img.data
+  for (let py = 0; py < h; py++) {
+    const cz = Math.min(gw - 1, Math.floor((py / h) * gw))
+    for (let px = 0; px < w; px++) {
+      const cx = Math.min(gw - 1, Math.floor((px / w) * gw))
+      const v = observer ? visionAtCell(gs, observer, cx, cz) : VIS_VISIBLE
+      const o = (py * w + px) * 4
+      // 0 = unexplored (near black), 1 = explored (dark green), 2 = visible
+      if (v === VIS_UNKNOWN) { data[o] = 6; data[o+1] = 8; data[o+2] = 7 }
+      else if (v === VIS_EXPLORED) { data[o] = 24; data[o+1] = 33; data[o+2] = 22 }
+      else { data[o] = 42; data[o+1] = 59; data[o+2] = 36 }
+      data[o + 3] = 255
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+
+  // ---- entities, filtered by the same fog the main view uses
+  const known = observer ? gs.knownBuildings[observer] : null
   for (const e of gs.entities.values()) {
     if (e.dead) continue
+    const own = !observer || e.team === observer
+    const cell = observer ? visionAtCell(gs, observer, Math.floor((e.x + s / 2) / TILE), Math.floor((e.z + s / 2) / TILE)) : VIS_VISIBLE
+    const visible = own || cell >= VIS_VISIBLE
     if (e.kind === 'resource') {
+      if (cell < VIS_EXPLORED) continue // never seen: not on the minimap
       ctx.fillStyle = e.resource === 'suministros' ? '#7bbf5e' : e.resource === 'materiales' ? '#2f7a3d' : e.resource === 'combustible' ? '#222' : '#9aa3ad'
       ctx.fillRect(tx(e.x)-2, tz(e.z)-2, 4, 4)
     } else if (e.kind === 'building') {
-      ctx.fillStyle = e.team === 'player' ? '#4aa3ff' : '#ff5a5a'
+      const remembered = !visible && known != null && known.has(e.id)
+      if (!visible && !remembered) continue
+      if (!visible) ctx.fillStyle = 'rgba(150,164,178,0.75)'      // remembered: grey
+      else ctx.fillStyle = e.team === 'player' ? '#4aa3ff' : '#ff5a5a'
       const sz = e.btype === 'ayuntamiento' ? 6 : 4
       ctx.fillRect(tx(e.x)-sz/2, tz(e.z)-sz/2, sz, sz)
     } else {
+      if (!visible) continue // enemy units only when in sight
       ctx.fillStyle = e.team === 'player' ? '#9fd0ff' : '#ff9a9a'
       ctx.fillRect(tx(e.x)-1.5, tz(e.z)-1.5, 3, 3)
     }
   }
+
   if (camX != null && camZ != null) {
     const cx = tx(camX)
     const cz = tz(camZ)
