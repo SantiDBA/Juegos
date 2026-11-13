@@ -291,9 +291,9 @@ late game encuadrando TC propio + viviendas + fábrica + 34/58 población legal.
 | Fecha | 2026-11-13 |
 | Fase | ciclo-04 (HUD/progreso/coherencia) |
 | Capturas | 14 (shots/ciclo-04-hud/) |
-| Promedio | **pendiente (juez interrumpido: agotó turnos leyendo código; re-medir en ciclo 05)** |
-| Mínima | pendiente |
-| Verdicto | **pendiente (juez NO emitió veredicto; no se declara SORPRENDIDO)** |
+| Promedio | **5.30 / 10** |
+| Mínima | 4.0 (contenido/densidad; pathfinding/formaciones) |
+| Verdicto | **SORPRENDIDO: NO** (juez ciego del ciclo 04, 2026-11-13) |
 
 ### Cambios acreditables (observados en capturas 09/09b/07/03c/02)
 
@@ -307,10 +307,19 @@ late game encuadrando TC propio + viviendas + fábrica + 34/58 población legal.
 
 ### Pendientes / riesgos
 
-- El juez no produjo rúbrica; la comparación formal 10/10 queda para el próximo ciclo.
+- Veredicto completo: HUD 7.0 / Economía 6.0 / Tech 6.0 / IA 6.0 / Combate 5.0 / Niebla 5.0 /
+  Juice 5.0 / Art 5.0 / Path 4.0 / Densidad 4.0.
 - Topes del renderer 3D intactos: cámara cónica, HP sprites contra-escalados, niebla
   festoneada, props planos. El renderer 2D isométrico (fase 4) sigue siendo el siguiente
   bloque grande del plan (destraba art direction, densidad y combate legible).
+- Top-7 (juez): combate pegoteado sin counters legibles; niebla en escalera dura; mapa
+  paupérrimo (1 bioma); juice invisible en stills (tracer/fogonazos no capturables); sin
+  formaciones en pantalla; command card texto-plano sin íconos/retrato; esquina superior
+  izquierda con 'cuña beige' sin resolver (cielo/void).
+- Acción ciclo 05: suavizar borde de niebla (pendiente 3 celdas + explorado ≥40% más oscuro
+  en vista), poblar 03-economia (bosque denso, ruinas, camino, agua), íconos 32px + retrato
+  con vida + cola de entrenamiento del Ayuntamiento visible, sacudida breve de cámara en
+  cañonazos, y aumentar vida/tamaño de trazadoras para que sean legibles en stills.
 
 ---
 
@@ -322,7 +331,7 @@ late game encuadrando TC propio + viviendas + fábrica + 34/58 población legal.
 | 2026-11-13 | ciclo-01 · pathfinding A*, colisiones, formaciones box/line/wedge, stances, attack-move, shift-queue | `shots/ciclo-01-pathfinding/` (7) | 4.00 (mín 2.0; pathfinding 2.5→6.0, HUD 5.0→6.0, combate 3.0→4.0, art 2.5→4.0) | NO (visual topado por renderer 3D; formaciones no acreditadas por captura) | A*+navgrid+followPath con slide/watchdog; stances + botones; formaciones y cola de waypoints |
 | 2026-11-13 | ciclo-02 · niebla 3 estados, barras por equipo, VFX de combate, capturas de formación/asedio | `shots/ciclo-02-fog-combate/` (10) | 4.75 (mín 2.5; niebla 2.0→6.0, IA 4.0→5.5, juice 2.0→4.5, eco 3.0→2.5) | NO (niebla y HUD funcionan; arte/combate topados por renderer 3D) | visión por equipo + nearestVisibleEnemy; overlay de niebla + minimapa enmascarado; HP por equipo al daño; tracer/impacto/muerte; escenarios 06b/06c/08 |
 | 2026-11-13 | ciclo-03 · economía visible, HP chicas, VFX con cráteres/despojos, era visual, barra de investigación | `shots/ciclo-03-economia/` (11) | 5.30 (mín 4.0; eco 2.5→6.0, combate 4.0→6.0, juice 4.5→6.0, edades 5.5→7.0) | NO (piezas correctas; HUD/población/encuadres a corregir) | cargo por recurso, nodos con cantidad, HP por equipo, pools muzzle/impact/cráter/humo/wreck, TC por era, barra de progreso, assignEconomy real |
-| 2026-11-13 | ciclo-04 · HUD con íconos/reloj, progreso de era/investigación visible, población legal, separación vehículos, escenarios 03c/09/09b | `shots/ciclo-04-hud/` (14) | pendiente (juez interrumpido; última medición 5.30) | NO declarado (juez no emitió veredicto) | chips con ícono + reloj, barra prog. investigación/era, ayuda oculta tras "?", spawn con tope, separation por radio vehículo |
+| 2026-11-13 | ciclo-04 · HUD con íconos/reloj, progreso de era/investigación visible, población legal, separación vehículos, escenarios 03c/09/09b | `shots/ciclo-04-hud/` (14) | 5.30 (mín 4.0; HUD 7.0, eco 6.0, tech 6.0, IA 6.0; path/densidad 4.0) | NO (juez ciego; retrato/cola de producción y densidad sin resolver) | chips con ícono + reloj, barra prog. investigación/era, ayuda oculta tras "?", spawn con tope, separation por radio vehículo |
 
 _Sin entradas todavía: el primer ciclo se registra después del baseline._
 
