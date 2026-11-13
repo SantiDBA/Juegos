@@ -1,8 +1,12 @@
-import { BUILDING_DEFS, ERAS, MAP_SIZE, TECHS, UNIT_DEFS } from '../core/config'
+import { BUILDING_DEFS, ERAS, TECHS, UNIT_DEFS } from '../core/config'
 import { computeDamage, UNIT_COMBAT, type AttackProfile, type DefenseProfile } from '../core/combat'
-import { canAfford, dist, moveToward, spend } from '../core/utils'
-import { applyTech, buildingsOfTeam, canResearch, canTrain, findNearestDropoff, getEntity, nearestEnemy, queueResearch, queueTrain, recomputePop, spawnBuilding, spawnUnit, unitsOfTeam, type GameState } from './state'
-import type { AnyEntity, BuildingEntity, ResourceEntity, UnitEntity, UnitType } from '../core/types'
+import { dist, moveToward } from '../core/utils'
+import { applyTech, buildingsOfTeam, findNearestDropoff, getEntity, nearestEnemy, recomputePop, spawnUnit, unitsOfTeam, type GameState } from './state'
+import { emit } from './events'
+import { stepAI } from './ai'
+import type { AnyEntity, BuildingEntity, ResourceEntity, UnitEntity } from '../core/types'
+
+const MAX_EVENTS = 512
 
 export function stepSim(gs: GameState, dt: number): void {
   if (gs.status !== 'playing') return
@@ -14,9 +18,10 @@ export function stepSim(gs: GameState, dt: number): void {
   stepBuildings(gs, dt)
   stepUnits(gs, dt)
   cleanupDead(gs)
-  stepAI(gs, dt)
+  stepAI(gs, 'enemy', dt)
   checkVictory(gs)
   recomputePop(gs)
+  if (gs.events.length > MAX_EVENTS) gs.events.splice(0, gs.events.length - MAX_EVENTS)
 }
 
 function stepEra(gs: GameState, dt: number): void {
@@ -38,9 +43,11 @@ function stepResearch(gs: GameState, dt: number): void {
     if (!p.research) continue
     p.research.remaining -= dt
     if (p.research.remaining <= 0) {
-      const tech = TECHS.find(t => t.id === p.research!.id)
-      applyTech(p, p.research.id)
+      const techId = p.research.id
+      const tech = TECHS.find(t => t.id === techId)
+      applyTech(p, techId)
       p.research = null
+      emit(gs, { kind: 'tech-complete', team, techId })
       if (team === 'player' && tech) gs.toast = { msg: `¡${tech.name} investigada!`, t: 3 }
     }
   }
@@ -63,6 +70,15 @@ function unitSpeed(gs: GameState, e: UnitEntity): number {
   return UNIT_DEFS[e.utype].speed * (1 + gs.players[e.team].bonuses.speedPct)
 }
 
+/** Applies one attack: emits attack + damage events and marks the target dead. */
+function applyHit(gs: GameState, attacker: AnyEntity, atk: AttackProfile, tgt: AnyEntity): void {
+  const dmg = damageTo(gs, attacker.team, atk, tgt)
+  emit(gs, { kind: 'attack', from: attacker.id, to: tgt.id, unitType: attacker.kind === 'unit' ? attacker.utype : undefined, x: attacker.x, z: attacker.z })
+  tgt.hp -= dmg
+  emit(gs, { kind: 'damage', target: tgt.id, amount: dmg, x: tgt.x, z: tgt.z })
+  if (tgt.hp <= 0) tgt.dead = true
+}
+
 function stepBuildings(gs: GameState, dt: number): void {
   for (const e of gs.entities.values()) {
     if (e.dead || e.kind !== 'building') continue
@@ -78,7 +94,10 @@ function stepBuildings(gs: GameState, dt: number): void {
         b.buildProgress += dt * buildSpeed / BUILDING_DEFS[b.btype].buildTime
         b.hp = Math.min(b.maxHp, b.hp + (b.maxHp * buildSpeed / BUILDING_DEFS[b.btype].buildTime) * dt)
       }
-      if (b.buildProgress >= 1) { b.built = true; b.buildProgress = 1; b.hp = b.maxHp }
+      if (b.buildProgress >= 1) {
+        b.built = true; b.buildProgress = 1; b.hp = b.maxHp
+        emit(gs, { kind: 'build-complete', team: b.team, buildingType: b.btype, x: b.x, z: b.z })
+      }
       continue
     }
     if (b.queue.length > 0) {
@@ -86,11 +105,12 @@ function stepBuildings(gs: GameState, dt: number): void {
       job.remaining -= dt
       if (job.remaining <= 0) {
         b.queue.shift()
-        const dir = (b.rally ? Math.atan2(b.rally.z - b.z, b.rally.x - b.x) : Math.random() * Math.PI * 2)
+        const dir = (b.rally ? Math.atan2(b.rally.z - b.z, b.rally.x - b.x) : gs.rng.range(0, Math.PI * 2))
         const rx = b.x + Math.cos(dir) * (BUILDING_DEFS[b.btype].size.x / 2 + 2.2)
         const rz = b.z + Math.sin(dir) * (BUILDING_DEFS[b.btype].size.z / 2 + 2.2)
         const u = spawnUnit(gs, b.team, job.type, rx, rz)
         if (b.rally) { u.path = [{ ...b.rally }]; u.state = 'move' }
+        emit(gs, { kind: 'train-complete', team: b.team, unitType: u.utype, x: u.x, z: u.z })
       }
     }
     const atkDef = BUILDING_DEFS[b.btype].attack
@@ -98,9 +118,8 @@ function stepBuildings(gs: GameState, dt: number): void {
       b.attackCd = Math.max(0, b.attackCd - dt)
       const tgt = nearestEnemy(gs, b.team, b.x, b.z, atkDef.range)
       if (tgt && b.attackCd <= 0) {
-        tgt.hp -= damageTo(gs, b.team, { base: atkDef.damage, bonusVs: { infanteria: 6, caballeria: 6 } }, tgt)
+        applyHit(gs, b, { base: atkDef.damage, bonusVs: { infanteria: 6, caballeria: 6 } }, tgt)
         b.attackCd = atkDef.cooldown
-        if (tgt.hp <= 0) tgt.dead = true
       }
     }
   }
@@ -138,7 +157,9 @@ function stepUnits(gs: GameState, dt: number): void {
       }
     }
 
-    if (e.utype === 'ingeniero' && e.team === 'player') {
+    if (e.utype === 'ingeniero' && e.state === 'build' && stepBuilder(gs, e, dt)) {
+      // on build duty: progress is credited by stepBuildings
+    } else if (e.utype === 'ingeniero' && e.team === 'player') {
       stepEngineer(gs, e, dt)
     } else if (e.utype === 'ingeniero' && e.team === 'enemy') {
       stepEnemyEngineer(gs, e, dt)
@@ -147,10 +168,38 @@ function stepUnits(gs: GameState, dt: number): void {
     }
 
     // bounds
-    const lim = MAP_SIZE / 2 - 2
+    const lim = gs.mapSize / 2 - 2
     e.x = Math.max(-lim, Math.min(lim, e.x))
     e.z = Math.max(-lim, Math.min(lim, e.z))
   }
+}
+
+/** Nearest friendly site still under construction, at any distance. */
+function nearestBuildSite(gs: GameState, team: AnyEntity['team'], x: number, z: number): BuildingEntity | null {
+  let best: BuildingEntity | null = null
+  let bestD = Infinity
+  for (const b of buildingsOfTeam(gs, team)) {
+    if (b.built) continue
+    const d = dist(x, z, b.x, b.z)
+    if (d < bestD) { bestD = d; best = b }
+  }
+  return best
+}
+
+/**
+ * Engineer on build duty (state 'build'): walks to the closest unfinished site
+ * and holds there, where stepBuildings credits it as a builder. Returns false
+ * once nothing is left to build so the engineer resumes its normal job.
+ */
+function stepBuilder(gs: GameState, e: UnitEntity, dt: number): boolean {
+  const site = nearestBuildSite(gs, e.team, e.x, e.z)
+  if (!site) { e.state = 'idle'; e.path = []; return false }
+  const d = dist(e.x, e.z, site.x, site.z)
+  if (d > 3) {
+    const p = moveToward(e.x, e.z, site.x, site.z, unitSpeed(gs, e), dt)
+    e.x = p.x; e.z = p.z
+  }
+  return true
 }
 
 function stepEngineer(gs: GameState, e: UnitEntity, dt: number): void {
@@ -262,107 +311,21 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
     e.state = 'attack'
     if (e.attackCd <= 0) {
       const atkProfile = UNIT_COMBAT[e.utype]?.attack ?? { base: def.damage, bonusVs: {} }
-      tgt.hp -= damageTo(gs, e.team, atkProfile, tgt)
+      applyHit(gs, e, atkProfile, tgt)
       e.attackCd = def.attackCooldown
-      if (tgt.hp <= 0) { tgt.dead = true; if (e.targetId === tgt.id) e.targetId = undefined }
+      if (tgt.dead && e.targetId === tgt.id) e.targetId = undefined
     }
   }
 }
 
 function cleanupDead(gs: GameState): void {
   for (const [id, e] of gs.entities) {
-    if (e.dead && e.kind === 'resource') gs.entities.delete(id)
-    else if (e.dead && e.kind !== 'resource') {
-      // keep briefly? remove now
-      gs.entities.delete(id)
+    if (!e.dead) continue
+    if (e.kind !== 'resource') {
+      emit(gs, { kind: 'death', entity: e.kind, team: e.team, unitType: e.kind === 'unit' ? e.utype : undefined, x: e.x, z: e.z })
     }
+    gs.entities.delete(id)
   }
-}
-
-let aiTimer = 0
-function stepAI(gs: GameState, dt: number): void {
-  aiTimer += dt
-  if (aiTimer < 1.0) return
-  aiTimer = 0
-  const p = gs.players.enemy
-  const buildings = buildingsOfTeam(gs, 'enemy')
-  const tcs = buildings.filter(b => b.btype === 'ayuntamiento' && b.built)
-  const barracks = buildings.filter(b => b.btype === 'cuartel' && b.built)
-  const factories = buildings.filter(b => b.btype === 'fabrica' && b.built)
-  const houses = buildings.filter(b => b.btype === 'vivienda')
-  const towers = buildings.filter(b => b.btype === 'torre')
-  const engs = unitsOfTeam(gs, 'enemy').filter(u => u.utype === 'ingeniero')
-  const army = unitsOfTeam(gs, 'enemy').filter(u => u.utype !== 'ingeniero')
-
-  // economy and base building
-  if (engs.length < 8 && tcs[0] && canTrain(gs, 'enemy', 'ingeniero').ok) queueTrain(gs, 'enemy', tcs[0].id, 'ingeniero')
-  if (houses.length < 2 && p.resources.materiales >= 140) {
-    p.resources.materiales -= 60
-    spawnBuilding(gs, 'enemy', 'vivienda', 58, 10 + houses.length * 8, true)
-  }
-  if (barracks.length < 1 && p.resources.materiales >= 170) {
-    p.resources.materiales -= 150
-    spawnBuilding(gs, 'enemy', 'cuartel', 55 + Math.random() * 8, -10 + Math.random() * 8, true)
-  }
-  if (p.era >= 2 && factories.length < 1 && p.resources.materiales >= 300 && p.resources.combustible >= 120) {
-    p.resources.materiales -= 250
-    p.resources.combustible -= 100
-    spawnBuilding(gs, 'enemy', 'fabrica', 62 + Math.random() * 6, 2 + Math.random() * 8, true)
-  }
-  if (p.era >= 2 && towers.length < 2 && p.resources.materiales >= 130) {
-    p.resources.materiales -= 100
-    spawnBuilding(gs, 'enemy', 'torre', 44, -18 + towers.length * 36, true)
-  }
-
-  // advance eras once the army can hold the line
-  const nextEra = ERAS[p.era]
-  if (!p.advancing && nextEra && army.length >= (p.era === 1 ? 4 : 8) && canAfford(p.resources, nextEra.advanceCost)) {
-    spend(p.resources, nextEra.advanceCost)
-    p.advancing = { to: nextEra.id, remaining: nextEra.advanceTime, total: nextEra.advanceTime }
-  }
-
-  // era-based army composition
-  const infRoster: UnitType[] = ['milicia', 'granadero']
-  if (p.era >= 2) infRoster.push('fusilero')
-  if (p.era >= 3) infRoster.push('fusilero', 'francotirador', 'inf_mecanizada')
-  if (p.era >= 4) infRoster.push('inf_mecanizada', 'francotirador')
-  const vehRoster: UnitType[] = []
-  if (p.era >= 2) vehRoster.push('blindado', 'canon')
-  if (p.era >= 3) vehRoster.push('tanque', 'cazacarros')
-  if (p.era >= 4) vehRoster.push('tanque_autonomo', 'mlrs', 'dron')
-
-  const armyCap = Math.min(32, Math.max(12, p.popCap - 10))
-  if (army.length < armyCap) {
-    const br = barracks[0]
-    if (br && Math.random() < 0.75) {
-      const pick = infRoster[Math.floor(Math.random() * infRoster.length)]
-      if (canTrain(gs, 'enemy', pick).ok) queueTrain(gs, 'enemy', br.id, pick)
-    }
-    const fac = factories[0]
-    if (fac && Math.random() < 0.6) {
-      const pick = vehRoster[Math.floor(Math.random() * vehRoster.length)]
-      if (canTrain(gs, 'enemy', pick).ok) queueTrain(gs, 'enemy', fac.id, pick)
-    }
-  }
-
-  // research affordable techs
-  if (!p.research && tcs[0]) {
-    for (const t of TECHS) {
-      if (canResearch(gs, 'enemy', t.id).ok) { queueResearch(gs, 'enemy', t.id); break }
-    }
-  }
-
-  // attack waves grow with era
-  const waveSize = 6 + p.era * 3
-  if (army.length >= waveSize) {
-    const target = buildingsOfTeam(gs, 'player').find(b => b.btype === 'ayuntamiento') || buildingsOfTeam(gs, 'player')[0]
-    if (target) {
-      for (const u of army) {
-        if (u.state === 'idle' || !u.targetId) { u.targetId = target.id; u.state = 'attack' }
-      }
-    }
-  }
-  recomputePop(gs)
 }
 
 function checkVictory(gs: GameState): void {

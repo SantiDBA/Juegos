@@ -4,6 +4,7 @@ import { BUILDING_DEFS, MAP_SIZE, TECHS, UNIT_DEFS } from './core/config'
 import type { BuildingType, UnitType } from './core/types'
 import { createState, commandAttack, commandGather, commandMove, getEntity, queueResearch, queueTrain, setSelection, spawnBuilding, spawnResource, spawnUnit, tryAdvanceEra, tryPlaceBuilding } from './sim/state'
 import { stepSim } from './sim/sim'
+import { advance } from './sim/loop'
 import { createRender, removeEntityMesh, renderFrame, resize, syncEntityMesh, updateCamera } from './render/scene'
 import { createUI, renderActions, showEnd, showToast, updateMinimap, updateSelectionInfo, updateTopBar } from './ui/ui'
 
@@ -340,7 +341,7 @@ function frame(): void {
   const dt = Math.min(rc.clock.getDelta(), 0.1)
   if (gs.status === 'playing') {
     updateCameraControls(dt)
-    stepSim(gs, dt)
+    advance(gs, dt)
   }
 
   // sync render entities
@@ -390,3 +391,23 @@ refreshActions()
 updateTopBar(ui, gs)
 updateSelectionInfo(ui, gs)
 frame()
+
+if (import.meta.hot) {
+  ;(window as any).__imperios = {
+    get state() { return gs },
+    render: rc,
+    spawn: (team: 'player' | 'enemy', type: UnitType, n = 1, x = 0, z = 0) => {
+      for (let i = 0; i < n; i++) spawnUnit(gs, team, type, x + (i % 4) * 2, z + Math.floor(i / 4) * 2)
+    },
+    give: (amount = 1000) => {
+      for (const k of ['suministros', 'materiales', 'combustible', 'minerales'] as const) gs.players.player.resources[k] += amount
+    },
+    setEra: (era: number) => {
+      gs.players.player.era = Math.max(1, Math.min(4, era))
+      gs.players.enemy.era = gs.players.player.era
+    },
+    select: (ids: number[]) => setSelection(gs, ids),
+    entityIds: () => [...gs.entities.keys()],
+    skip: (seconds: number) => { for (let i = 0; i < Math.ceil(seconds * 20); i++) stepSim(gs, 1 / 20) },
+  }
+}

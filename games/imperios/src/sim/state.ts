@@ -1,6 +1,9 @@
 import { BUILDING_DEFS, ERAS, MAP_SIZE, START_RESOURCES, TECHS, UNIT_DEFS } from '../core/config'
-import { canAfford, dist, spend, uid } from '../core/utils'
+import { createRng } from '../core/rng'
+import { canAfford, dist, spend } from '../core/utils'
+import type { Rng } from '../core/rng'
 import type { AnyEntity, BuildingEntity, BuildingType, PlayerBonuses, ResourceEntity, Resources, Team, UnitEntity, UnitType, Vec2 } from '../core/types'
+import type { SimEvent } from './events'
 
 export interface PlayerState {
   team: Team
@@ -12,6 +15,7 @@ export interface PlayerState {
   bonuses: PlayerBonuses
   research: { id: string; remaining: number; total: number } | null
   researched: string[]
+  aiTimer: number
 }
 
 const NO_BONUSES: PlayerBonuses = { attackPct: 0, hpPct: 0, speedPct: 0, gatherPct: 0, armorFlat: 0 }
@@ -25,14 +29,20 @@ export interface GameState {
   placing: BuildingType | null
   toast: { msg: string; t: number } | null
   mapSize: number
+  seed: number
+  rng: Rng
+  uidCounter: number
+  events: SimEvent[]
+  viewAs: 'player' | 'enemy' | 'all'
+  acc: number
 }
 
-export function createState(): GameState {
+export function createState(seed = 1): GameState {
   return {
     entities: new Map(),
     players: {
-      player: { team: 'player', resources: { ...START_RESOURCES }, era: 1, pop: 0, popCap: 0, advancing: null, bonuses: { ...NO_BONUSES }, research: null, researched: [] },
-      enemy: { team: 'enemy', resources: { suministros: 300, materiales: 300, combustible: 120, minerales: 120 }, era: 1, pop: 0, popCap: 0, advancing: null, bonuses: { ...NO_BONUSES }, research: null, researched: [] },
+      player: { team: 'player', resources: { ...START_RESOURCES }, era: 1, pop: 0, popCap: 0, advancing: null, bonuses: { ...NO_BONUSES }, research: null, researched: [], aiTimer: 0 },
+      enemy: { team: 'enemy', resources: { suministros: 300, materiales: 300, combustible: 120, minerales: 120 }, era: 1, pop: 0, popCap: 0, advancing: null, bonuses: { ...NO_BONUSES }, research: null, researched: [], aiTimer: 0 },
     },
     time: 0,
     status: 'menu',
@@ -40,7 +50,17 @@ export function createState(): GameState {
     placing: null,
     toast: null,
     mapSize: MAP_SIZE,
+    seed,
+    rng: createRng(seed),
+    uidCounter: 1,
+    events: [],
+    viewAs: 'player',
+    acc: 0,
   }
+}
+
+export function uid(gs: GameState): number {
+  return gs.uidCounter++
 }
 
 export function addEntity<T extends AnyEntity>(gs: GameState, e: T): T {
@@ -108,7 +128,7 @@ export function spawnUnit(gs: GameState, team: Team, type: UnitType, x: number, 
   const def = UNIT_DEFS[type]
   const hp = Math.round(def.hp * (1 + gs.players[team].bonuses.hpPct))
   const u: UnitEntity = {
-    id: uid(), kind: 'unit', team, x, z,
+    id: uid(gs), kind: 'unit', team, x, z,
     hp, maxHp: hp, selected: false, dead: false,
     utype: type, path: [], carrying: {}, carryAmount: 0,
     attackCd: 0, workCd: 0, state: 'idle',
@@ -121,7 +141,7 @@ export function spawnUnit(gs: GameState, team: Team, type: UnitType, x: number, 
 export function spawnBuilding(gs: GameState, team: Team, type: BuildingType, x: number, z: number, built = false): BuildingEntity {
   const def = BUILDING_DEFS[type]
   const b: BuildingEntity = {
-    id: uid(), kind: 'building', team, x, z,
+    id: uid(gs), kind: 'building', team, x, z,
     hp: built ? def.hp : Math.max(1, def.hp * 0.1), maxHp: def.hp, selected: false, dead: false,
     btype: type, built, buildProgress: built ? 1 : 0, attackCd: 0, queue: [],
   }
@@ -132,7 +152,7 @@ export function spawnBuilding(gs: GameState, team: Team, type: BuildingType, x: 
 
 export function spawnResource(gs: GameState, rtype: ResourceEntity['rtype'], resource: ResourceEntity['resource'], x: number, z: number, amount: number): ResourceEntity {
   const r: ResourceEntity = {
-    id: uid(), kind: 'resource', team: 'enemy', x, z, // neutral-ish
+    id: uid(gs), kind: 'resource', team: 'enemy', x, z, // neutral-ish
     hp: 1, maxHp: 1, selected: false, dead: false,
     rtype, resource, amount, maxAmount: amount,
   }
@@ -163,21 +183,29 @@ export function queueTrain(gs: GameState, team: Team, buildingId: number, type: 
   return true
 }
 
+function placementBlocker(gs: GameState, type: BuildingType, x: number, z: number): 'bounds' | 'occupied' | null {
+  const def = BUILDING_DEFS[type]
+  const half = gs.mapSize / 2 - 6
+  if (Math.abs(x) > half || Math.abs(z) > half) return 'bounds'
+  for (const e of gs.entities.values()) {
+    if (e.dead || e.kind !== 'building') continue
+    const d = BUILDING_DEFS[e.btype]
+    if (Math.abs(e.x - x) < (d.size.x + def.size.x) / 2 + 1 && Math.abs(e.z - z) < (d.size.z + def.size.z) / 2 + 1) return 'occupied'
+  }
+  return null
+}
+
+export function canPlaceBuilding(gs: GameState, type: BuildingType, x: number, z: number): boolean {
+  return placementBlocker(gs, type, x, z) === null
+}
+
 export function tryPlaceBuilding(gs: GameState, type: BuildingType, x: number, z: number): boolean {
   const def = BUILDING_DEFS[type]
   const p = gs.players.player
   if (!canAfford(p.resources, def.cost)) { gs.toast = { msg: 'Recursos insuficientes', t: 2 }; return false }
-  // simple bounds/collision
-  if (Math.abs(x) > MAP_SIZE / 2 - 6 || Math.abs(z) > MAP_SIZE / 2 - 6) { gs.toast = { msg: 'Fuera del mapa', t: 2 }; return false }
-  for (const e of gs.entities.values()) {
-    if (e.dead) continue
-    if (e.kind === 'building') {
-      const d = BUILDING_DEFS[e.btype]
-      if (Math.abs(e.x - x) < (d.size.x + def.size.x) / 2 + 1 && Math.abs(e.z - z) < (d.size.z + def.size.z) / 2 + 1) {
-        gs.toast = { msg: 'Espacio ocupado', t: 2 }; return false
-      }
-    }
-  }
+  const blocker = placementBlocker(gs, type, x, z)
+  if (blocker === 'bounds') { gs.toast = { msg: 'Fuera del mapa', t: 2 }; return false }
+  if (blocker === 'occupied') { gs.toast = { msg: 'Espacio ocupado', t: 2 }; return false }
   spend(p.resources, def.cost)
   spawnBuilding(gs, 'player', type, x, z, false)
   gs.toast = { msg: `${def.name} en construcción`, t: 2 }

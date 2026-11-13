@@ -1,8 +1,5 @@
 import type { Cost, Resources, Vec2 } from './types'
 
-let nextId = 1
-export function uid(): number { return nextId++ }
-
 export function clamp(v: number, a: number, b: number): number { return Math.max(a, Math.min(b, v)) }
 export function lerp(a: number, b: number, t: number): number { return a + (b - a) * t }
 export function dist2(ax: number, az: number, bx: number, bz: number): number {
