@@ -18,6 +18,7 @@ export interface UIRefs {
   resEls: Record<string, HTMLElement>
   eraEl: HTMLElement
   popEl: HTMLElement
+  clockEl: HTMLElement
   selInfo: HTMLElement
   actions: HTMLElement
   overlay: HTMLElement
@@ -34,12 +35,13 @@ export interface UIRefs {
 export function createUI(root: HTMLElement): UIRefs {
   root.innerHTML = `
     <div class="topbar">
-      <div class="era-badge" id="era">Era del Vapor (1800-1870)</div>
-      <div class="res"><span>Suministros</span><b id="r-suministros">0</b></div>
-      <div class="res"><span>Materiales</span><b id="r-materiales">0</b></div>
-      <div class="res"><span>Combustible</span><b id="r-combustible">0</b></div>
-      <div class="res"><span>Minerales</span><b id="r-minerales">0</b></div>
-      <div class="res"><span>Pob.</span><b id="pop">0/0</b></div>
+      <div class="era-badge" id="era">Era del Vapor</div>
+      <div class="res" title="Suministros"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#d7e07a" d="M8 1.5c-2.6 2-4 4.4-4 7 0 2.8 1.7 5 4 5s4-2.2 4-5c0-2.6-1.4-5-4-7z"/></svg><b id="r-suministros">0</b></div>
+      <div class="res" title="Materiales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c08a4a" d="M2 14V7l6-4 6 4v7h-4V9H6v5z"/></svg><b id="r-materiales">0</b></div>
+      <div class="res" title="Combustible"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#e0734a" d="M9.5 1.5s-4 4.8-4 8a4 4 0 0 0 8 0c0-1.4-.6-2.7-1.5-4-.9 1-1.7 1.2-2.5 1.2.7-1.8.7-3.7 0-5.2z"/></svg><b id="r-combustible">0</b></div>
+      <div class="res" title="Minerales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c8d2dc" d="M8 1.5 13 6.5 8 14.5 3 6.5z"/></svg><b id="r-minerales">0</b></div>
+      <div class="res" title="Población"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#9fd0ff" d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM3 13c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5z"/></svg><b id="pop">0/0</b></div>
+      <div class="res" title="Tiempo de partida"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#98a6bd" d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2v5l3 2" stroke="#98a6bd" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg><b id="clock">0:00</b></div>
     </div>
     <div class="prog-wrap" id="prog"><div class="prod-bar"><div class="prod-bar-fill" id="prog-fill"></div></div><div class="prog-label" id="prog-label"></div></div>
     <div class="leftpanel">
@@ -51,7 +53,18 @@ export function createUI(root: HTMLElement): UIRefs {
     </div>
     <div class="bottombar"><div id="selection-info">Sin selección. Clic izq: seleccionar · Clic der: mover/recolectar/atacar.</div></div>
     <div class="minimap-wrap"><canvas id="minimap" width="220" height="220"></canvas></div>
-    <div class="help">Cámara: WASD mover · Q/E rotar · rueda zoom · clic izq seleccionar · clic der ordenar · Shift agregar selección · Esc cancelar colocación</div>
+    <button class="help-toggle" id="help-toggle" title="Controles" aria-label="Controles">?</button>
+    <div class="help-panel hidden" id="help-panel">
+      <h4>Controles</h4>
+      <ul>
+        <li><b>WASD</b> mover cámara · <b>Q/E</b> rotar · rueda zoom</li>
+        <li><b>Clic izq</b> seleccionar · arrastre: caja</li>
+        <li><b>Clic der</b> mover / recolectar / atacar</li>
+        <li><b>Shift</b> agregar · <b>Shift+clic der</b> encolar orden</li>
+        <li><b>Esc</b> cancelar colocación / deseleccionar</li>
+        <li>Minimapa: clic para centrar la cámara</li>
+      </ul>
+    </div>
     <div class="toast" id="toast"></div>
     <div class="overlay" id="overlay">
       <div class="panel">
@@ -114,6 +127,7 @@ export function createUI(root: HTMLElement): UIRefs {
     },
     eraEl: q('era'),
     popEl: q('pop'),
+    clockEl: q('clock'),
     selInfo: q('selection-info'),
     actions: q('actions'),
     overlay: q('overlay'),
@@ -137,11 +151,13 @@ export function updateTopBar(ui: UIRefs, gs: GameState): void {
   ui.resEls.combustible.textContent = String(Math.floor(p.resources.combustible))
   ui.resEls.minerales.textContent = String(Math.floor(p.resources.minerales))
   ui.popEl.textContent = `${p.pop}/${p.popCap}`
+  ui.popEl.classList.toggle('warn', p.pop >= p.popCap)
+  const mm = Math.floor(gs.time / 60), ss = Math.floor(gs.time % 60)
+  ui.clockEl.textContent = `${mm}:${String(ss).padStart(2, '0')}`
   const era = ERAS[p.era - 1]
   const research = p.research ? TECHS.find(t => t.id === p.research!.id) : null
-  ui.eraEl.textContent = p.advancing
-    ? `Avanzando a ${ERAS[p.advancing.to - 1].name} (${Math.ceil(p.advancing.remaining)}s)`
-    : `${era.name} (${era.years})${research ? ` · Investigando ${research.name} (${Math.ceil(p.research!.remaining)}s)` : ''}`
+  ui.eraEl.textContent = era.name
+  ui.eraEl.title = p.advancing ? `Avanzando a ${ERAS[p.advancing.to - 1].name}` : `${era.name} (${era.years})`
 
   // progress strip: era advance wins over research (it is the bigger decision)
   let label = ''

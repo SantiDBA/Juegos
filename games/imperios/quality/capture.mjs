@@ -229,11 +229,65 @@ const SCENARIOS = [
         if (e.resource === 'materiales') break
       }
       if (!node) return 'no-node'
+      globalThis.__lastNodeId = node.id
       g.camera(node.x, node.z, 55)
       g.select([node.id])
+      g.gatherNode(node.id, 8)
       return 'ok node=' + node.id
     })()`,
     settleMs: SETTLE_MS,
+  },
+  {
+    id: '03c-nodo-agotado',
+    title: 'Economía: el nodo baja de cantidad mientras los ingenieros recolectan',
+    js: `(() => {
+      const g = window.__imperios
+      const id = globalThis.__lastNodeId
+      if (!id) return 'missing-node'
+      g.skip(20)
+      const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
+      let amount = -1
+      for (const e of iter) { if (e && e.id === id) { amount = e.amount; g.camera(e.x, e.z, 55); g.select([id]); break } }
+      if (amount < 0) return 'node-gone'
+      return 'ok amount=' + Math.floor(amount)
+    })()`,
+    settleMs: SETTLE_MS,
+  },
+  {
+    id: '09-research',
+    title: 'Investigación en curso: barra visible con segundos y nombre de la tecnología',
+    js: `(() => {
+      const g = window.__imperios
+      g.give(1500) // combustible for Motor de Combustión (350) in a real economy run
+      g.setEra(3)
+      const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
+      let tc = null
+      for (const e of iter) { if (e && e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') { tc = e.id; break } }
+      if (tc == null) return 'no-tc'
+      g.select([tc])
+      const r = g.research('motor')
+      g.camera(-48, 0, 62)
+      return r === 'ok' ? 'ok' : 'research:' + r
+    })()`,
+    settleMs: 350,
+  },
+  {
+    id: '09b-avance-era',
+    title: 'Avance de era en curso: barra dorada con progreso y segundos',
+    js: `(() => {
+      const g = window.__imperios
+      g.give(4000)
+      g.setEra(1)
+      g.camera(-48, 0, 62)
+      const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
+      let tc = null
+      for (const e of iter) { if (e && e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') { tc = e.id; break } }
+      if (tc == null) return 'no-tc'
+      g.select([tc])
+      const r = g.advanceEra()
+      return r === 'ok' ? 'ok' : 'era:' + r
+    })()`,
+    settleMs: 600,
   },
   {
     id: '04-combate',
@@ -273,20 +327,29 @@ const SCENARIOS = [
   },
   {
     id: '07-late-game',
-    title: 'Late game: era 4, blindados propios vs tanques autónomos enemigos',
+    title: 'Late game: era 4, bloques propios de infantería y blindados vs enemigo compuesto',
     js: `(() => {
       const g = window.__imperios
-      g.give(20000)
+      g.give(3500)
+      // housing so the army fits the population cap (TC +8, cada vivienda +10)
+      g.build('player', 'vivienda', -46, -8, true)
+      g.build('player', 'vivienda', -46, 8, true)
+      g.build('player', 'vivienda', -46, -16, true)
+      g.build('player', 'vivienda', -46, 16, true)
+      g.build('player', 'fabrica', -46, -22, true)
       g.setEra(4)
-      g.camera(-34, 40)
-      g.spawn('player', 'tanque', 6, -42, 38)
-      g.spawn('player', 'mlrs', 4, -42, 44)
-      g.spawn('enemy', 'tanque_autonomo', 6, -26, 38)
-      g.spawn('enemy', 'tanque', 4, -26, 44)
-      g.skip(10)
+      // frame the player's town hall with its army, enemy closing in
+      g.camera(-46, 4, 68)
+      g.spawn('player', 'milicia', 12, -40, -2)
+      g.spawn('player', 'granadero', 6, -40, 3)
+      g.spawn('player', 'tanque', 6, -40, 8)
+      g.spawn('player', 'mlrs', 3, -40, 13)
+      g.spawn('enemy', 'milicia', 10, -22, 4)
+      g.spawn('enemy', 'tanque', 4, -22, 10)
+      g.skip(8)
       return 'ok'
     })()`,
-    settleMs: SETTLE_MS,
+    settleMs: 1000,
   },
   // --- ciclo 02: niebla / formaciones / asedio -----------------------------
   {

@@ -156,6 +156,15 @@ function stepBuildings(gs: GameState, dt: number): void {
   }
 }
 
+const VEHICLES = new Set<string>(['blindado', 'cazacarros', 'canon', 'mlrs', 'tanque', 'tanque_autonomo'])
+
+function unitRadius(utype: string): number {
+  if (utype === 'ingeniero') return 0.75
+  if (utype === 'dron') return 0.9
+  if (VEHICLES.has(utype)) return 1.45
+  return 0.85
+}
+
 function stepUnits(gs: GameState, dt: number): void {
   // separation pass (simple)
   const units = unitsOfTeam(gs, 'player').concat(unitsOfTeam(gs, 'enemy'))
@@ -163,10 +172,11 @@ function stepUnits(gs: GameState, dt: number): void {
     for (let j = i + 1; j < units.length; j++) {
       const a = units[i], b = units[j]
       const dx = b.x - a.x, dz = b.z - a.z
+      const minDist = unitRadius(a.utype) + unitRadius(b.utype)
       const d2 = dx * dx + dz * dz
-      if (d2 < 1.8 * 1.8 && d2 > 0.001) {
+      if (d2 < minDist * minDist && d2 > 0.001) {
         const d = Math.sqrt(d2)
-        const push = (1.8 - d) * 0.5
+        const push = (minDist - d) * 0.5
         // standground units hold their tile: the neighbour absorbs the whole push
         const aHolds = a.stance === 'standground'
         const bHolds = b.stance === 'standground'

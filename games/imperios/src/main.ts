@@ -85,6 +85,9 @@ function startGame(): void {
 function bindUI(): void {
   const start = document.getElementById('start')
   start?.addEventListener('click', startGame)
+  const helpToggle = document.getElementById('help-toggle')
+  const helpPanel = document.getElementById('help-panel')
+  helpToggle?.addEventListener('click', () => helpPanel?.classList.toggle('hidden'))
 }
 
 function rayGround(clientX: number, clientY: number): THREE.Vector3 | null {
@@ -548,8 +551,11 @@ if (import.meta.hot) {
     render: rc,
     /** Spawns `n` units in a block and returns their ids. */
     spawn: (team: 'player' | 'enemy', type: UnitType, n = 1, x = 0, z = 0) => {
+      const p = gs.players[team]
+      const room = Math.max(0, p.popCap - p.pop)
+      const count = Math.min(n, room)
       const ids: number[] = []
-      for (let i = 0; i < n; i++) ids.push(spawnUnit(gs, team, type, x + (i % 4) * 2, z + Math.floor(i / 4) * 2).id)
+      for (let i = 0; i < count; i++) ids.push(spawnUnit(gs, team, type, x + (i % 4) * 2, z + Math.floor(i / 4) * 2).id)
       return ids
     },
     /** Places a building (built by default) — used by the siege scenario. */
@@ -560,9 +566,25 @@ if (import.meta.hot) {
     give: (amount = 1000) => {
       for (const k of ['suministros', 'materiales', 'combustible', 'minerales'] as const) gs.players.player.resources[k] += amount
     },
+    /** Assigns up to `n` idle engineers to a specific resource node. */
+    gatherNode: (nodeId: number, n = 8) => {
+      const idle = unitsOfTeam(gs, 'player').filter(u => u.utype === 'ingeniero' && u.state !== 'gather').slice(0, n).map(u => u.id)
+      if (idle.length === 0) return 0
+      commandGather(gs, idle, nodeId)
+      return idle.length
+    },
+    /** Starts a research and reports whether it landed. */
+    research: (techId: string) => {
+      const ok = queueResearch(gs, 'player', techId)
+      return ok ? 'ok' : 'fail'
+    },
+    /** Starts the era advance and reports whether it landed. */
+    advanceEra: () => tryAdvanceEra(gs) ? 'ok' : 'fail',
     setEra: (era: number) => {
       gs.players.player.era = Math.max(1, Math.min(4, era))
       gs.players.enemy.era = gs.players.player.era
+      gs.players.player.advancing = null
+      gs.players.enemy.advancing = null
     },
     select: (ids: number[]) => setSelection(gs, ids),
     /** Selects up to `n` existing units of that team/type. Returns their ids. */

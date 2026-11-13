@@ -275,6 +275,45 @@ Promedio: (6.0+6.0+6.0+4.0+7.0+4.0+5.0+5.0+4.0+6.0)/10 = **5.30**
 
 ---
 
+## Ciclo 04 — 2026-11-13 · HUD coherente, reloj, progreso y late game encuadrado
+
+**Qué se hizo:** HUD con íconos por recurso, reloj de partida, población con estado de
+tope (rojo al llegar al cap), era como chip en una línea, panel de ayuda oculto tras "?"
+(elimina la superposición con el panel de acciones), separación de vehículos por radio
+(ingeniero 0.75 / infantería 0.85 / dron 0.9 / vehículos 1.45), dev hook con tope de
+población (`spawn` respeta popCap), `gatherNode`, `research`, `advanceEra`, `focus`, y
+escenarios nuevos `03c-nodo-agotado`, `09-research`, `09b-avance-era`. Capturas con la
+investigación y el avance de era corriendo en cuadro, nodo desgastado entre tomas (410→276),
+late game encuadrando TC propio + viviendas + fábrica + 34/58 población legal.
+
+| Campo | Valor |
+|---|---|
+| Fecha | 2026-11-13 |
+| Fase | ciclo-04 (HUD/progreso/coherencia) |
+| Capturas | 14 (shots/ciclo-04-hud/) |
+| Promedio | **pendiente (juez interrumpido: agotó turnos leyendo código; re-medir en ciclo 05)** |
+| Mínima | pendiente |
+| Verdicto | **pendiente (juez NO emitió veredicto; no se declara SORPRENDIDO)** |
+
+### Cambios acreditables (observados en capturas 09/09b/07/03c/02)
+
+- `09-research.png`: barra de progreso visible ("Investigando Motor de Combustión · 45s · 0%")
+  y `07-late-game.png`: barra en curso ("Investigando Motor de Combustión · 46%") con base propia en cuadro.
+- `09b-avance-era.png`: barra dorada de avance de era ("Avanzando a Era del Acero · 44%").
+- `03c-nodo-agotado.png`: nodo materiales 276 tras 20 s de recolección (era 410) + hint de selección.
+- `02-arranque.png`: top bar con reloj (0:01) y 6 chips iconizados, sin corte de línea.
+- `07-late-game.png`: 34/58 de población (tope respetado), TC propio y ejército propio en bloque.
+- `06b/06c/08` siguen sin interpenetración de vehículos por la separación por radio.
+
+### Pendientes / riesgos
+
+- El juez no produjo rúbrica; la comparación formal 10/10 queda para el próximo ciclo.
+- Topes del renderer 3D intactos: cámara cónica, HP sprites contra-escalados, niebla
+  festoneada, props planos. El renderer 2D isométrico (fase 4) sigue siendo el siguiente
+  bloque grande del plan (destraba art direction, densidad y combate legible).
+
+---
+
 ## Historial de ciclos
 
 | Fecha | Fase / feature | Shots | Puntajes | Veredicto | Cambios |
@@ -283,6 +322,7 @@ Promedio: (6.0+6.0+6.0+4.0+7.0+4.0+5.0+5.0+4.0+6.0)/10 = **5.30**
 | 2026-11-13 | ciclo-01 · pathfinding A*, colisiones, formaciones box/line/wedge, stances, attack-move, shift-queue | `shots/ciclo-01-pathfinding/` (7) | 4.00 (mín 2.0; pathfinding 2.5→6.0, HUD 5.0→6.0, combate 3.0→4.0, art 2.5→4.0) | NO (visual topado por renderer 3D; formaciones no acreditadas por captura) | A*+navgrid+followPath con slide/watchdog; stances + botones; formaciones y cola de waypoints |
 | 2026-11-13 | ciclo-02 · niebla 3 estados, barras por equipo, VFX de combate, capturas de formación/asedio | `shots/ciclo-02-fog-combate/` (10) | 4.75 (mín 2.5; niebla 2.0→6.0, IA 4.0→5.5, juice 2.0→4.5, eco 3.0→2.5) | NO (niebla y HUD funcionan; arte/combate topados por renderer 3D) | visión por equipo + nearestVisibleEnemy; overlay de niebla + minimapa enmascarado; HP por equipo al daño; tracer/impacto/muerte; escenarios 06b/06c/08 |
 | 2026-11-13 | ciclo-03 · economía visible, HP chicas, VFX con cráteres/despojos, era visual, barra de investigación | `shots/ciclo-03-economia/` (11) | 5.30 (mín 4.0; eco 2.5→6.0, combate 4.0→6.0, juice 4.5→6.0, edades 5.5→7.0) | NO (piezas correctas; HUD/población/encuadres a corregir) | cargo por recurso, nodos con cantidad, HP por equipo, pools muzzle/impact/cráter/humo/wreck, TC por era, barra de progreso, assignEconomy real |
+| 2026-11-13 | ciclo-04 · HUD con íconos/reloj, progreso de era/investigación visible, población legal, separación vehículos, escenarios 03c/09/09b | `shots/ciclo-04-hud/` (14) | pendiente (juez interrumpido; última medición 5.30) | NO declarado (juez no emitió veredicto) | chips con ícono + reloj, barra prog. investigación/era, ayuda oculta tras "?", spawn con tope, separation por radio vehículo |
 
 _Sin entradas todavía: el primer ciclo se registra después del baseline._
 
