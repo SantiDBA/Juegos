@@ -167,15 +167,19 @@ function unitRadius(utype: string): number {
   return 0.85
 }
 
-/** True when a unit is converging/holding a formation/home slot and not in active combat. */
+/** True when a unit is converging/holding a formation/home slot; keeps formation while fighting near its slot. */
 function isFormationSettling(gs: GameState, e: UnitEntity): boolean {
   if (!e.home) return false
   if (e.state !== 'move' && e.state !== 'attack') return false
+  const hd = dist(e.x, e.z, e.home.x, e.home.z)
   if (e.targetId) {
     const t = getEntity(gs, e.targetId)
-    if (t && !t.dead && t.team !== e.team && t.kind !== 'resource') return false
+    if (t && !t.dead && t.team !== e.team && t.kind !== 'resource') {
+      // allow dress-ranks/spacing discipline while engaging close to the assigned slot
+      return hd < FORMATION_SPACING * 1.6
+    }
   }
-  return dist(e.x, e.z, e.home.x, e.home.z) < FORMATION_SPACING * 1.2
+  return hd < FORMATION_SPACING * 1.35
 }
 
 /**
@@ -550,6 +554,18 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
         applyHit(gs, e, atkProfile, tgt)
         e.attackCd = def.attackCooldown
         if (tgt.dead && e.targetId === tgt.id) e.targetId = undefined
+      }
+      // dress ranks while holding fire: nudge toward formation slot without chasing away
+      if (e.home && e.stance !== 'aggressive') {
+        const hd = dist(e.x, e.z, e.home.x, e.home.z)
+        if (hd > 0.45 && hd < FORMATION_SPACING * 2.2) {
+          const step = Math.min(speed * dt * 0.35, hd - 0.35)
+          if (step > 0.001) {
+            const nx = e.x + ((e.home.x - e.x) / hd) * step
+            const nz = e.z + ((e.home.z - e.z) / hd) * step
+            if (!isHardBlocked(gs, nx, nz)) { e.x = nx; e.z = nz }
+          }
+        }
       }
       return
     }
