@@ -15,6 +15,7 @@ export type SimEvent =
   | { kind: 'train-complete'; team: 'player' | 'enemy'; unitType: string; x: number; z: number }
   | { kind: 'build-complete'; team: 'player' | 'enemy'; buildingType: string; x: number; z: number }
   | { kind: 'tech-complete'; team: 'player' | 'enemy'; techId: string }
+  | { kind: 'deposit'; team: 'player' | 'enemy'; dropoffId: number; x: number; z: number; amount: number; resource?: 'suministros' | 'materiales' | 'combustible' | 'minerales' }
 
 export function emit(gs: GameState, ev: SimEvent): void {
   gs.events.push(ev)

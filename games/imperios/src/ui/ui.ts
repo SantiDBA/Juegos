@@ -13,6 +13,45 @@ const STANCE_LABEL: Record<Stance, string> = {
 
 const STANCES: Stance[] = ['aggressive', 'defensive', 'standground', 'noattack']
 
+const UNIT_ICON: Record<string, string> = {
+  ingeniero: '👷',
+  milicia: '⚔️',
+  granadero: '🧨',
+  fusilero: '🔫',
+  francotirador: '🎯',
+  inf_mecanizada: '🪖',
+  blindado: '🚙',
+  canon: '💣',
+  tanque: '🚜',
+  cazacarros: '🛡️',
+  dron: '🚁',
+  tanque_autonomo: '🤖',
+  mlrs: '🚀',
+}
+
+const BUILDING_ICON: Record<string, string> = {
+  ayuntamiento: '🏛️',
+  vivienda: '🏠',
+  cuartel: '🏰',
+  almacen: '📦',
+  fabrica: '🏭',
+  torre: '🗼',
+}
+
+const RESOURCE_ICON: Record<ResourceKey, string> = {
+  suministros: '🌾',
+  materiales: '🪵',
+  combustible: '🛢️',
+  minerales: '💎',
+}
+
+const STANCE_ICON: Record<Stance, string> = {
+  aggressive: '⚔️',
+  defensive: '🛡️',
+  standground: '✋',
+  noattack: '🚫',
+}
+
 export interface UIRefs {
   root: HTMLElement
   resEls: Record<string, HTMLElement>
@@ -252,14 +291,16 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
   const sel = gs.selectedIds.map(id => getEntity(gs, id)).filter(Boolean) as any[]
   const p = gs.players.player
 
-  const addBtn = (label: string, sub: string, fn: () => void, disabled = false, opts?: { title?: string, active?: boolean, kind?: string }) => {
+  const addBtn = (label: string, sub: string, fn: () => void, disabled = false, opts?: { title?: string, active?: boolean, kind?: string, icon?: string }) => {
     const b = document.createElement('button')
     b.className = 'btn cmd-slot'
     if (opts?.active) b.classList.add('is-active')
     if (opts?.kind) b.classList.add(`cmd-${opts.kind}`)
+    if (opts?.icon) b.classList.add('has-icon')
     b.disabled = disabled
     if (opts?.title) b.title = opts.title
-    b.innerHTML = `<span class="cmd-name">${label}</span><small class="cmd-cost">${sub}</small>`
+    const iconHtml = opts?.icon ? `<span class="cmd-icon" aria-hidden="true">${opts.icon}</span>` : ''
+    b.innerHTML = `${iconHtml}<span class="cmd-name">${label}</span><small class="cmd-cost">${sub}</small>`
     b.onclick = fn
     acts.appendChild(b)
   }
@@ -272,17 +313,17 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
         const defU = UNIT_DEFS[ut]
         if (defU.era > p.era) continue
         const chk = canTrain(gs, 'player', ut)
-        addBtn(shortEntityLabel(defU.name), formatCost(defU.cost), () => onTrain(b.id, ut), !chk.ok, { title: `Entrenar ${defU.name}`, kind: 'train' })
+        addBtn(shortEntityLabel(defU.name), formatCost(defU.cost), () => onTrain(b.id, ut), !chk.ok, { title: `Entrenar ${defU.name}`, kind: 'train', icon: UNIT_ICON[ut] ?? '❔' })
       }
     }
     if (b.btype === 'ayuntamiento') {
       const next = ERAS[p.era]
-      if (next) addBtn('Avanzar', `${shortEntityLabel(next.name)} · ${formatCost(next.advanceCost)}`, onAdvance, !!p.advancing, { title: `Avanzar era: ${next.name} · ${formatCost(next.advanceCost)}`, kind: 'advance' })
-      else addBtn('Era máx.', 'IV alcanzada', () => {}, true, { title: 'Era máxima alcanzada', kind: 'advance' })
+      if (next) addBtn('Avanzar', `${shortEntityLabel(next.name)} · ${formatCost(next.advanceCost)}`, onAdvance, !!p.advancing, { title: `Avanzar era: ${next.name} · ${formatCost(next.advanceCost)}`, kind: 'advance', icon: '⏫' })
+      else addBtn('Era máx.', 'IV alcanzada', () => {}, true, { title: 'Era máxima alcanzada', kind: 'advance', icon: '🏁' })
       for (const t of TECHS) {
         if (p.researched.includes(t.id)) continue
         const chk = canResearch(gs, 'player', t.id)
-        addBtn(shortEntityLabel(t.name), formatCost(t.cost), () => onResearch(t.id), !chk.ok, { title: `Investigar ${t.name}: ${t.desc} · ${formatCost(t.cost)}`, kind: 'research' })
+        addBtn(shortEntityLabel(t.name), formatCost(t.cost), () => onResearch(t.id), !chk.ok, { title: `Investigar ${t.name}: ${t.desc} · ${formatCost(t.cost)}`, kind: 'research', icon: '🔬' })
       }
     }
   }
@@ -292,7 +333,7 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
     const defs: BuildingType[] = ['vivienda', 'cuartel', 'almacen', 'torre', 'fabrica']
     for (const bt of defs) {
       const d = BUILDING_DEFS[bt]
-      addBtn(shortEntityLabel(d.name), formatCost(d.cost), () => onBuild(bt), false, { title: `Construir ${d.name} · ${formatCost(d.cost)}`, kind: 'build' })
+      addBtn(shortEntityLabel(d.name), formatCost(d.cost), () => onBuild(bt), false, { title: `Construir ${d.name} · ${formatCost(d.cost)}`, kind: 'build', icon: BUILDING_ICON[bt] ?? '🏗️' })
     }
   }
 
@@ -301,7 +342,7 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
     const current: Stance = ownUnits.every((e: any) => e.stance === ownUnits[0].stance) ? ownUnits[0].stance : 'aggressive'
     for (const s of STANCES) {
       const active = s === current
-      addBtn(shortEntityLabel(STANCE_LABEL[s]), active ? 'Actual ●' : 'Postura', () => onStance(s), false, { title: `Postura: ${STANCE_LABEL[s]}`, active, kind: 'stance' })
+      addBtn(shortEntityLabel(STANCE_LABEL[s]), active ? 'Actual ●' : 'Postura', () => onStance(s), false, { title: `Postura: ${STANCE_LABEL[s]}`, active, kind: 'stance', icon: STANCE_ICON[s] ?? '•' })
     }
   }
 
@@ -345,12 +386,16 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
       }
       const stance = e.team === 'player' ? `<span class="sel-pill">Postura: ${STANCE_LABEL[e.stance as Stance]}</span>` : ''
       const econPill = econ ? `<span class="sel-pill subtle">${econ}</span>` : ''
+      const icon = UNIT_ICON[e.utype] ?? '❔'
       ui.selInfo.innerHTML = `
         <div class="sel-card sel-unit team-${e.team}">
           <div class="sel-head">
-            <div>
-              <div class="sel-title">${d.name}</div>
-              <div class="sel-sub">${teamLabel(e.team as Team)} · ${d.role === 'economy' ? 'Economía' : 'Militar'} · ${e.utype}</div>
+            <div class="sel-head-main">
+              <span class="sel-portrait" aria-hidden="true">${icon}</span>
+              <div>
+                <div class="sel-title">${d.name}</div>
+                <div class="sel-sub">${teamLabel(e.team as Team)} · ${d.role === 'economy' ? 'Economía' : 'Militar'} · ${e.utype}</div>
+              </div>
             </div>
             <div class="sel-hpnum">${Math.ceil(e.hp)}/${e.maxHp} HP</div>
           </div>
@@ -379,12 +424,16 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
       } else {
         extra = `<span class="sel-pill subtle">${d.produces && d.produces.length ? 'Listo para producir' : 'Sin cola'}</span>`
       }
+      const icon = BUILDING_ICON[e.btype] ?? '🏗️'
       ui.selInfo.innerHTML = `
         <div class="sel-card sel-building team-${e.team}">
           <div class="sel-head">
-            <div>
-              <div class="sel-title">${d.name}</div>
-              <div class="sel-sub">${teamLabel(e.team as Team)} · Edificio · ${status}</div>
+            <div class="sel-head-main">
+              <span class="sel-portrait" aria-hidden="true">${icon}</span>
+              <div>
+                <div class="sel-title">${d.name}</div>
+                <div class="sel-sub">${teamLabel(e.team as Team)} · Edificio · ${status}</div>
+              </div>
             </div>
             <div class="sel-hpnum">${Math.ceil(e.hp)}/${e.maxHp} HP</div>
           </div>
@@ -396,12 +445,16 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
       const remaining = Math.max(0, Math.ceil(e.amount))
       const max = typeof e.maxAmount === 'number' && e.maxAmount > 0 ? e.maxAmount : e.amount
       const pct = max > 0 ? clampPct((e.amount / max) * 100) : 0
+      const icon = RESOURCE_ICON[rk] ?? '⛏️'
       ui.selInfo.innerHTML = `
         <div class="sel-card sel-resource">
           <div class="sel-head">
-            <div>
-              <div class="sel-title">Nodo de ${RESOURCE_LABEL[rk]}</div>
-              <div class="sel-sub">Recurso natural · ${RESOURCE_LABEL[rk]}</div>
+            <div class="sel-head-main">
+              <span class="sel-portrait" aria-hidden="true">${icon}</span>
+              <div>
+                <div class="sel-title">Nodo de ${RESOURCE_LABEL[rk]}</div>
+                <div class="sel-sub">Recurso natural · ${RESOURCE_LABEL[rk]}</div>
+              </div>
             </div>
             <div class="sel-hpnum">${remaining} rest.</div>
           </div>
@@ -416,24 +469,27 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
   const chips = sel.slice(0, maxChips).map((e: any) => {
     if (e.kind === 'unit') {
       const d = UNIT_DEFS[e.utype]
+      const icon = UNIT_ICON[e.utype] ?? chipLetter(d.name)
       return `<div class="sel-chip team-${e.team}" title="${d.name} (${teamLabel(e.team as Team)}) ${Math.ceil(e.hp)}/${e.maxHp} HP">
-        <div class="sel-chip-top"><span class="sel-chip-letter">${chipLetter(d.name)}</span><span class="sel-chip-name">${shortEntityLabel(d.name)}</span></div>
+        <div class="sel-chip-top"><span class="sel-chip-icon" aria-hidden="true">${icon}</span><span class="sel-chip-name">${shortEntityLabel(d.name)}</span></div>
         ${miniHpBarHtml(e.hp, e.maxHp)}
         <div class="sel-chip-team">${teamLabel(e.team as Team)}</div>
       </div>`
     }
     if (e.kind === 'building') {
       const d = BUILDING_DEFS[e.btype]
+      const icon = BUILDING_ICON[e.btype] ?? chipLetter(d.name)
       return `<div class="sel-chip team-${e.team}" title="${d.name} (${teamLabel(e.team as Team)}) ${Math.ceil(e.hp)}/${e.maxHp} HP">
-        <div class="sel-chip-top"><span class="sel-chip-letter">${chipLetter(d.name)}</span><span class="sel-chip-name">${shortEntityLabel(d.name)}</span></div>
+        <div class="sel-chip-top"><span class="sel-chip-icon" aria-hidden="true">${icon}</span><span class="sel-chip-name">${shortEntityLabel(d.name)}</span></div>
         ${miniHpBarHtml(e.hp, e.maxHp)}
         <div class="sel-chip-team">${teamLabel(e.team as Team)}</div>
       </div>`
     }
     const rk = e.resource as ResourceKey
     const max = typeof e.maxAmount === 'number' && e.maxAmount > 0 ? e.maxAmount : e.amount
+    const icon = RESOURCE_ICON[rk] ?? chipLetter(RESOURCE_LABEL[rk])
     return `<div class="sel-chip team-neutral" title="Nodo de ${RESOURCE_LABEL[rk]} · ${Math.ceil(e.amount)} restante">
-      <div class="sel-chip-top"><span class="sel-chip-letter">${chipLetter(RESOURCE_LABEL[rk])}</span><span class="sel-chip-name">${shortEntityLabel(RESOURCE_LABEL[rk])}</span></div>
+      <div class="sel-chip-top"><span class="sel-chip-icon" aria-hidden="true">${icon}</span><span class="sel-chip-name">${shortEntityLabel(RESOURCE_LABEL[rk])}</span></div>
       ${miniHpBarHtml(e.amount, max)}
       <div class="sel-chip-team">Recurso</div>
     </div>`

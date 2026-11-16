@@ -353,6 +353,19 @@ function nearestBuildSite(gs: GameState, team: AnyEntity['team'], x: number, z: 
   return best
 }
 
+function dominantResource(carrying: Partial<Record<string, number>>): 'suministros' | 'materiales' | 'combustible' | 'minerales' | undefined {
+  let best: 'suministros' | 'materiales' | 'combustible' | 'minerales' | undefined
+  let bestV = -Infinity
+  for (const [k, v] of Object.entries(carrying)) {
+    const n = v as number
+    if (n > bestV) {
+      bestV = n
+      best = k as 'suministros' | 'materiales' | 'combustible' | 'minerales'
+    }
+  }
+  return best
+}
+
 /**
  * Engineer on build duty (state 'build'): walks to the closest unfinished site
  * and holds there, where stepBuildings credits it as a builder. Returns false
@@ -384,7 +397,10 @@ function stepEngineer(gs: GameState, e: UnitEntity, dt: number): void {
         moveTo(gs, e, drop.x, drop.z, speed, dt, approachRange(drop))
       } else {
         e.path = []
+        const amount = e.carryAmount
+        const resource = dominantResource(e.carrying)
         for (const [k, v] of Object.entries(e.carrying)) (gs.players[e.team].resources as any)[k] += v as number
+        emit(gs, { kind: 'deposit', team: e.team, dropoffId: drop.id, x: drop.x, z: drop.z, amount, resource })
         e.carrying = {}; e.carryAmount = 0; e.state = 'gather'
       }
       return
@@ -424,7 +440,10 @@ function stepEnemyEngineer(gs: GameState, e: UnitEntity, dt: number): void {
       if (d > approachRange(drop) + RANGE_EPS) moveTo(gs, e, drop.x, drop.z, speed, dt, approachRange(drop))
       else {
         e.path = []
+        const amount = e.carryAmount
+        const resource = dominantResource(e.carrying)
         for (const [k, v] of Object.entries(e.carrying)) (gs.players.enemy.resources as any)[k] += v as number
+        emit(gs, { kind: 'deposit', team: e.team, dropoffId: drop.id, x: drop.x, z: drop.z, amount, resource })
         e.carrying = {}; e.carryAmount = 0
       }
     }

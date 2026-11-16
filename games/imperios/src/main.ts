@@ -8,7 +8,7 @@ import { advance } from './sim/loop'
 import { forceVisionUpdate, isExplored, isVisible, revealAll } from './sim/vision'
 import {
   createRender, groundHeightAt, paintFog, removeEntityMesh, renderFrame, resize,
-  spawnDeathFx, spawnImpact, spawnMuzzleFlash, spawnTracer, syncEntityMesh, updateCamera,
+  spawnDeathFx, spawnDepositFx, spawnImpact, spawnMuzzleFlash, spawnTracer, syncEntityMesh, updateCamera,
 } from './render/scene'
 import type { EntityVisibility } from './render/scene'
 import { createUI, renderActions, showEnd, showToast, updateMinimap, updateSelectionInfo, updateTopBar } from './ui/ui'
@@ -419,24 +419,32 @@ function drainSimEvents(): void {
   const seen = (x: number, z: number): boolean => observer == null || isVisible(gs, observer, x, z)
 
   for (const ev of events) {
-    if (ev.kind === 'attack') {
-      if (!seen(ev.x, ev.z)) continue
-      const attacker = getEntity(gs, ev.from)
-      const target = getEntity(gs, ev.to)
-      const tx = ev.tx ?? (target ? target.x : ev.x)
-      const tz = ev.tz ?? (target ? target.z : ev.z)
+    const k = (ev as any).kind
+    if (k === 'attack') {
+      const atk = ev as any
+      if (!seen(atk.x, atk.z)) continue
+      const attacker = getEntity(gs, atk.from)
+      const target = getEntity(gs, atk.to)
+      const tx = atk.tx ?? (target ? target.x : atk.x)
+      const tz = atk.tz ?? (target ? target.z : atk.z)
       if (!seen(tx, tz)) continue
-      const from = new THREE.Vector3(ev.x, groundHeightAt(ev.x, ev.z) + 1.2, ev.z)
+      const from = new THREE.Vector3(atk.x, groundHeightAt(atk.x, atk.z) + 1.2, atk.z)
       const to = new THREE.Vector3(tx, groundHeightAt(tx, tz) + 1.0, tz)
       // muzzle flash at the shooter, then the streak it just fired
       spawnMuzzleFlash(rc, from.x, from.y, from.z)
-      spawnTracer(rc, from, to, tracerColor(attacker, ev.unitType))
-    } else if (ev.kind === 'damage') {
-      if (!seen(ev.x, ev.z)) continue
-      spawnImpact(rc, ev.x, groundHeightAt(ev.x, ev.z) + 1.0, ev.z)
-    } else if (ev.kind === 'death') {
-      if (!seen(ev.x, ev.z)) continue
-      spawnDeathFx(rc, ev.x, ev.z, ev.entity, ev.team)
+      spawnTracer(rc, from, to, tracerColor(attacker, atk.unitType))
+    } else if (k === 'damage') {
+      const dmg = ev as any
+      if (!seen(dmg.x, dmg.z)) continue
+      spawnImpact(rc, dmg.x, groundHeightAt(dmg.x, dmg.z) + 1.0, dmg.z)
+    } else if (k === 'death') {
+      const death = ev as any
+      if (!seen(death.x, death.z)) continue
+      spawnDeathFx(rc, death.x, death.z, death.entity, death.team)
+    } else if (k === 'deposit') {
+      const dep = ev as any
+      if (!seen(dep.x, dep.z)) continue
+      spawnDepositFx(rc, dep.x, dep.z, dep.team, dep.resource)
     }
   }
 }

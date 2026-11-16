@@ -208,14 +208,30 @@ const SCENARIOS = [
   },
   {
     id: '03-economia',
-    title: 'Economía real: 8 ingenieros trabajando nodo→depósito sin give()',
+    title: 'Economía real: ingenieros recolectando, con carga y volviendo a depositar',
     js: `(() => {
       const g = window.__imperios
-      g.camera(-42, 4, 70)
       const assigned = g.assignEconomy(8)
-      return 'ok assigned=' + assigned
+      g.skip(12)   // caminar al nodo y comenzar recolección
+      g.skip(12)   // completar carga y retornar/procesar entregas al depósito
+      const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
+      let tc = null, sx = 0, sz = 0, sn = 0, cx = 0, cz = 0, cn = 0
+      for (const e of iter) {
+        if (!e || e.dead) continue
+        if (e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') tc = e
+        if (e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero') {
+          sx += e.x; sz += e.z; sn++
+          if ((e.carryAmount || 0) > 0.5) { cx += e.x; cz += e.z; cn++ }
+        }
+      }
+      const ax = cn > 0 ? cx / cn : (sn ? sx / sn : -46)
+      const az = cn > 0 ? cz / cn : (sn ? sz / sn : 2)
+      const tx = tc ? tc.x : -55, tz = tc ? tc.z : 0
+      // encuadre entre depósito y flujo activo para ver nodo→carga→depósito
+      g.camera((tx + ax) / 2, (tz + az) / 2, 58)
+      return 'ok assigned=' + assigned + ' carrying=' + cn
     })()`,
-    settleMs: 6000, // dejar correr la economía real: caminar, recolectar y volver
+    settleMs: 1800, // tiempo real para capturar movimiento/deposito y VFX en curso
   },
   {
     id: '03b-nodos',
@@ -326,29 +342,51 @@ const SCENARIOS = [
   },
   {
     id: '07-late-game',
-    title: 'Late game: era 4, bloques propios de infantería y blindados vs enemigo compuesto',
+    title: 'Late game: era 4, base enemiga desarrollada y oleada compuesta avanzando al choque',
     js: `(() => {
       const g = window.__imperios
-      g.give(3500)
-      // housing so the army fits the population cap (TC +8, cada vivienda +10)
+      g.give(4000)
+      g.setEra(4)
+      // base propia (población y soporte)
       g.build('player', 'vivienda', -46, -8, true)
       g.build('player', 'vivienda', -46, 8, true)
       g.build('player', 'vivienda', -46, -16, true)
-      g.build('player', 'vivienda', -46, 16, true)
-      g.build('player', 'fabrica', -46, -22, true)
-      g.setEra(4)
-      // frame the player's town hall with its army, enemy closing in
-      g.camera(-46, 4, 68)
-      g.spawn('player', 'milicia', 12, -40, -2)
-      g.spawn('player', 'granadero', 6, -40, 3)
-      g.spawn('player', 'tanque', 6, -40, 8)
-      g.spawn('player', 'mlrs', 3, -40, 13)
-      g.spawn('enemy', 'milicia', 10, -22, 4)
-      g.spawn('enemy', 'tanque', 4, -22, 10)
-      g.skip(8)
+      g.build('player', 'cuartel', -52, -14, true)
+      g.build('player', 'fabrica', -46, 16, true)
+      // base enemiga desarrollada (viviendas, cuartel, almacén, fábrica, torres)
+      g.build('enemy', 'vivienda', 46, 10, true)
+      g.build('enemy', 'vivienda', 46, -10, true)
+      g.build('enemy', 'cuartel', 50, 16, true)
+      g.build('enemy', 'almacen', 50, -14, true)
+      g.build('enemy', 'fabrica', 60, 12, true)
+      g.build('enemy', 'torre', 44, 0, true)
+      g.build('enemy', 'torre', 44, 18, true)
+      // ejército propio
+      g.spawn('player', 'milicia', 10, -38, -2)
+      g.spawn('player', 'fusilero', 6, -38, 4)
+      g.spawn('player', 'tanque', 5, -38, 10)
+      g.spawn('player', 'canon', 2, -40, 15)
+      // oleada enemiga clara y reconocible avanzando al frente (infantería + blindados + artillería)
+      const wave = []
+      wave.push(...g.spawn('enemy', 'milicia', 10, -14, -2))
+      wave.push(...g.spawn('enemy', 'fusilero', 6, -12, 4))
+      wave.push(...g.spawn('enemy', 'tanque', 5, -10, 10))
+      wave.push(...g.spawn('enemy', 'canon', 2, -8, 15))
+      g.moveFormation(wave, -34, 6, 'line')
+      g.reveal('player')
+      g.camera(-26, 6, 74)
+      g.skip(6)
+      // recentrar en el choque/base+ejércitos con acción visible
+      let cx = 0, cz = 0, n = 0
+      for (const e of g.state.entities.values()) {
+        if (e.dead || e.kind !== 'unit') continue
+        if (e.x < -45 || e.x > -5 || Math.abs(e.z - 6) > 28) continue
+        cx += e.x; cz += e.z; n++
+      }
+      if (n > 0) g.camera(cx / n, cz / n, 70)
       return 'ok'
     })()`,
-    settleMs: 1000,
+    settleMs: 1200,
   },
   // --- ciclo 02: niebla / formaciones / asedio -----------------------------
   {
@@ -381,27 +419,45 @@ const SCENARIOS = [
   },
   {
     id: '08-asedio',
-    title: 'Asedio: tanques, milicias y cañones propios contra la base enemiga',
+    title: 'Asedio real: base enemiga defendida con defensores y cruce de fuego activo',
     js: `(() => {
       const g = window.__imperios
-      g.build('enemy', 'torre', 50, -6, true)
+      g.setEra(4)
+      // base enemiga más desarrollada y defendida
+      g.build('enemy', 'vivienda', 58, 10, true)
+      g.build('enemy', 'vivienda', 58, -10, true)
       g.build('enemy', 'cuartel', 48, 18, true)
-      g.spawn('player', 'tanque', 4, 44, 0)
-      g.spawn('player', 'milicia', 6, 43, 6)
-      g.spawn('player', 'canon', 2, 42, -4)
-      g.skip(3)
-      g.fog()
+      g.build('enemy', 'almacen', 52, 14, true)
+      g.build('enemy', 'fabrica', 60, -14, true)
+      g.build('enemy', 'torre', 50, -6, true)
+      g.build('enemy', 'torre', 50, 8, true)
+      g.build('enemy', 'torre', 46, 2, true)
+      // defensores y presión/contraataque breve
+      g.spawn('enemy', 'milicia', 8, 51, 2)
+      g.spawn('enemy', 'fusilero', 5, 52, -4)
+      g.spawn('enemy', 'tanque', 2, 54, 7)
+      const counter = g.spawn('enemy', 'milicia', 4, 48, 0)
+      g.moveFormation(counter, 44, 0, 'line')
+      // fuerza atacante con presión sostenida
+      g.spawn('player', 'tanque', 4, 40, 0)
+      g.spawn('player', 'milicia', 8, 39, 6)
+      g.spawn('player', 'canon', 3, 37, -4)
+      g.spawn('player', 'fusilero', 4, 38, 10)
+      g.reveal('player')
+      g.skip(4)
+      // centrar en el asedio/combate activo (ambos bandos)
       let cx = 0, cz = 0, n = 0
       for (const e of g.state.entities.values()) {
-        if (e.dead || e.kind !== 'unit' || e.team !== 'player') continue
-        if (e.x < 32 || e.x > 56 || Math.abs(e.z) > 20) continue
+        if (e.dead || e.kind !== 'unit') continue
+        if (e.x < 34 || e.x > 56 || e.z < -16 || e.z > 20) continue
         cx += e.x; cz += e.z; n++
       }
-      if (n > 0) g.camera(cx / n, cz / n, 56)
-      else g.camera(48, 0, 56)
+      if (n > 0) g.camera(cx / n, cz / n, 54)
+      else g.camera(47, 2, 54)
+      g.fog()
       return 'ok'
     })()`,
-    settleMs: 1400,
+    settleMs: 1600,
   },
 ]
 
