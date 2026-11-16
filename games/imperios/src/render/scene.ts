@@ -77,11 +77,11 @@ interface FxItem {
 const FOG_TEX = 360
 
 /** Hard cap on simultaneous VFX so a big battle cannot tank the frame. */
-const FX_MAX = 200
+const FX_MAX = 240
 
 /**
  * Per-kind live caps. Everything shares FX_MAX as a global ceiling; the small
- * numbers are the ones that matter, because craters/wrecks are persistent
+ * numbers are the ones that matter, because craters/wrecks/rubble are persistent
  * props and would otherwise pile up forever in a long match.
  */
 const FX_LIVE_CAP: Record<FxKind, number> = {
@@ -91,18 +91,18 @@ const FX_LIVE_CAP: Record<FxKind, number> = {
   puff: FX_MAX,
   muzzle: 40, // judge-visible muzzle flashes: pooled at 40
   spark: 150,
-  decal: 72, // craters + unit stains
-  wreck: 40,
-  rubble: 40,
+  decal: 140, // craters + unit stains + brief deposit halos
+  wreck: 80,
+  rubble: 80,
 }
 
 /** Lifetime of a crater, and how long it holds full opacity before fading. */
-const CRATER_LIFE = 8
-const CRATER_HOLD = 6.4
-const WRECK_LIFE = 12
-const WRECK_HOLD = 10
-const RUBBLE_LIFE = 12
-const RUBBLE_HOLD = 10
+const CRATER_LIFE = 20
+const CRATER_HOLD = 16
+const WRECK_LIFE = 24
+const WRECK_HOLD = 20
+const RUBBLE_LIFE = 24
+const RUBBLE_HOLD = 20
 /** Wounded buildings cough smoke at this interval (presentation only). */
 const DAMAGE_SMOKE_INTERVAL = 0.5
 
@@ -138,32 +138,59 @@ export function terrainHeight(x: number, z: number): number {
 
 /** Deterministic ambient decoration (bushes/pebbles/tracks), render-only. */
 function addDensityProps(scene: THREE.Scene): void {
-  // Low-poly bushes / shrubs
+  // Low-poly bushes / shrubs (scattered + deterministic forest clusters), render-only.
   const bushGeo = new THREE.IcosahedronGeometry(0.55, 0)
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x3f6a35, roughness: 0.95, metalness: 0.0, flatShading: true })
-  const bushCount = 500
+  const bushCount = 900
   const bushes = new THREE.InstancedMesh(bushGeo, bushMat, bushCount)
   const d = new THREE.Object3D()
   const c = new THREE.Color()
   let bi = 0
-  for (let i = 0; i < 2000 && bi < bushCount; i++) {
+  const baseClear = (x: number, z: number) => Math.hypot(x + 55, z) < 16 || Math.hypot(x - 55, z) < 16
+  for (let i = 0; i < 3600 && bi < bushCount; i++) {
     const h = hash2(i * 0.73 + 10.1, i * 1.91 + 3.7)
     const h2 = hash2(i * 1.37 + 2.3, i * 0.61 + 8.4)
     const x = (h - 0.5) * MAP_SIZE * 0.96
     const z = (h2 - 0.5) * MAP_SIZE * 0.96
     // keep base centers and immediate fronts readable
-    if (Math.hypot(x + 55, z) < 16 || Math.hypot(x - 55, z) < 16) continue
-    if (hash2(x * 0.21 + 5.3, z * 0.19 - 2.7) < 0.45) continue
+    if (baseClear(x, z)) continue
+    if (hash2(x * 0.21 + 5.3, z * 0.19 - 2.7) < 0.38) continue
     const y = terrainHeight(x, z)
     d.position.set(x, y + 0.04, z)
     d.rotation.set(0, hash2(i + 7.1, i * 3.1) * Math.PI * 2, 0)
-    const s = 0.45 + hash2(i * 2.2, i + 0.4) * 0.75
-    d.scale.set(s * 1.1, s * 0.8, s)
+    const s = 0.45 + hash2(i * 2.2, i + 0.4) * 0.8
+    d.scale.set(s * 1.1, s * 0.82, s)
     d.updateMatrix()
     bushes.setMatrixAt(bi, d.matrix)
-    c.setHSL(0.26 + hash2(i, i * 0.7) * 0.08, 0.45 + hash2(i * 0.3, i) * 0.2, 0.22 + hash2(i * 0.9, i) * 0.12)
+    c.setHSL(0.25 + hash2(i, i * 0.7) * 0.09, 0.45 + hash2(i * 0.3, i) * 0.2, 0.21 + hash2(i * 0.9, i) * 0.13)
     bushes.setColorAt(bi, c)
     bi++
+  }
+  // Thematic forest/bush clusters (deterministic), away from base centers.
+  const clusters: Array<[number, number, number]> = [
+    [-22, -20, 11], [-32, 24, 9], [24, -22, 11], [30, 22, 9], [-8, 12, 8], [10, -10, 8], [-40, -6, 7], [38, 8, 7],
+  ]
+  for (let ci = 0; ci < clusters.length && bi < bushCount; ci++) {
+    const [cx, cz, n] = clusters[ci]
+    if (baseClear(cx, cz)) continue
+    for (let j = 0; j < n && bi < bushCount; j++) {
+      const a = hash2(ci * 9.7 + j * 1.3, j * 4.1 + 2.2) * Math.PI * 2
+      const r = 0.8 + hash2(j * 2.6 + ci, ci * 3.4 + j) * 4.2
+      const x = cx + Math.cos(a) * r
+      const z = cz + Math.sin(a) * r
+      if (baseClear(x, z) || Math.abs(x) > MAP_SIZE * 0.47 || Math.abs(z) > MAP_SIZE * 0.47) continue
+      const y = terrainHeight(x, z)
+      const k = 5000 + ci * 100 + j
+      d.position.set(x, y + 0.04, z)
+      d.rotation.set(0, hash2(k + 1.1, k * 2.7) * Math.PI * 2, 0)
+      const s = 0.55 + hash2(k * 2.2, k + 0.4) * 0.95
+      d.scale.set(s * 1.15, s * 0.85, s)
+      d.updateMatrix()
+      bushes.setMatrixAt(bi, d.matrix)
+      c.setHSL(0.27 + hash2(k, k * 0.7) * 0.06, 0.5 + hash2(k * 0.3, k) * 0.18, 0.19 + hash2(k * 0.9, k) * 0.1)
+      bushes.setColorAt(bi, c)
+      bi++
+    }
   }
   bushes.count = bi
   bushes.instanceMatrix.needsUpdate = true
@@ -174,24 +201,24 @@ function addDensityProps(scene: THREE.Scene): void {
   // Extra small stones / pebbles
   const pebGeo = new THREE.DodecahedronGeometry(0.22, 0)
   const pebMat = new THREE.MeshStandardMaterial({ color: 0x7a7a72, roughness: 0.98, metalness: 0.02, flatShading: true })
-  const pebCount = 220
+  const pebCount = 420
   const pebs = new THREE.InstancedMesh(pebGeo, pebMat, pebCount)
   let pi = 0
-  for (let i = 0; i < 1000 && pi < pebCount; i++) {
+  for (let i = 0; i < 1800 && pi < pebCount; i++) {
     const h = hash2(i * 0.91 + 40.1, i * 1.23 + 13.7)
     const h2 = hash2(i * 1.71 + 22.3, i * 0.47 + 18.4)
     const x = (h - 0.5) * MAP_SIZE * 0.94
     const z = (h2 - 0.5) * MAP_SIZE * 0.94
     if (Math.hypot(x + 55, z) < 14 || Math.hypot(x - 55, z) < 14) continue
-    if (hash2(x * 0.33 + 1.2, z * 0.27 - 4.1) < 0.55) continue
+    if (hash2(x * 0.33 + 1.2, z * 0.27 - 4.1) < 0.45) continue
     const y = terrainHeight(x, z)
     d.position.set(x, y, z)
     d.rotation.set(hash2(i + 1.3, i) * Math.PI, hash2(i, i * 2.0) * Math.PI * 2, 0)
-    const s = 0.4 + hash2(i * 3.2, i + 0.8) * 0.9
+    const s = 0.38 + hash2(i * 3.2, i + 0.8) * 1.0
     d.scale.setScalar(s)
     d.updateMatrix()
     pebs.setMatrixAt(pi, d.matrix)
-    c.setHSL(0.08, 0.05 + hash2(i, i * 0.2) * 0.08, 0.35 + hash2(i * 0.4, i) * 0.18)
+    c.setHSL(0.08, 0.05 + hash2(i, i * 0.2) * 0.08, 0.34 + hash2(i * 0.4, i) * 0.2)
     pebs.setColorAt(pi, c)
     pi++
   }
@@ -202,20 +229,22 @@ function addDensityProps(scene: THREE.Scene): void {
   pebs.receiveShadow = true
   scene.add(pebs)
 
-  // Subtle track decals near base -> node routes (render-only)
+  // Track/worn-path decals near base -> node routes (render-only), denser for readability.
   const trackMat = new THREE.MeshBasicMaterial({
     color: 0x6b5a3a, transparent: true, opacity: 0.22, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1.5, polygonOffsetUnits: -1.5,
   })
   const paths: Array<[number, number, number, number]> = [
     [-50, 2, -38, -16], [-50, 4, -34, 16], [-52, -2, -24, -22], [-52, 0, -24, 18],
+    [-46, 0, -30, 0], [-48, -6, -36, -10], [-48, 8, -36, 12],
     [50, -2, 38, 16], [50, -4, 34, -16], [52, 2, 24, 22], [52, 0, 24, -18],
+    [46, 0, 30, 0], [48, 6, 36, 10], [48, -8, 36, -12],
   ]
   for (const [x1, z1, x2, z2] of paths) {
     const dx = x2 - x1, dz = z2 - z1
     const len = Math.hypot(dx, dz)
     if (len < 1) continue
-    const geo = new THREE.PlaneGeometry(1.9, len)
+    const geo = new THREE.PlaneGeometry(2.1, len)
     const mesh = new THREE.Mesh(geo, trackMat)
     const mx = (x1 + x2) / 2, mz = (z1 + z2) / 2
     mesh.position.set(mx, terrainHeight(mx, mz) + 0.06, mz)
@@ -223,6 +252,35 @@ function addDensityProps(scene: THREE.Scene): void {
     mesh.rotation.z = -Math.atan2(dx, dz)
     mesh.renderOrder = 1
     scene.add(mesh)
+  }
+
+  // Simple deterministic fence segments near base outskirts (render-only), clear of base centers.
+  const fenceMat = new THREE.MeshStandardMaterial({ color: 0x7a6246, roughness: 0.9, metalness: 0.02 })
+  const fenceSegs: Array<[number, number, number, number]> = [
+    [-42, -10, -42, 10], [-44, -12, -38, -12], [-44, 12, -38, 12],
+    [42, -10, 42, 10], [44, -12, 38, -12], [44, 12, 38, 12],
+  ]
+  for (const [x1, z1, x2, z2] of fenceSegs) {
+    const dx = x2 - x1, dz = z2 - z1
+    const len = Math.hypot(dx, dz)
+    if (len < 0.5) continue
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, len), fenceMat)
+    const mx = (x1 + x2) / 2, mz = (z1 + z2) / 2
+    rail.position.set(mx, terrainHeight(mx, mz) + 0.38, mz)
+    rail.rotation.y = Math.atan2(dx, dz)
+    rail.castShadow = true
+    rail.receiveShadow = true
+    scene.add(rail)
+    const posts = Math.max(2, Math.floor(len / 3))
+    for (let p = 0; p <= posts; p++) {
+      const t = p / posts
+      const px = x1 + dx * t, pz = z1 + dz * t
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, 0.16), fenceMat)
+      post.position.set(px, terrainHeight(px, pz) + 0.28, pz)
+      post.castShadow = true
+      post.receiveShadow = true
+      scene.add(post)
+    }
   }
 }
 
@@ -527,28 +585,36 @@ function paintFogPixels(image: ImageData, grid: Uint8Array | null): void {
     for (let px = 0; px < W; px++) {
       const gx = px * scale + scale * 0.5
       const gy = py * scale + scale * 0.5
-      // bilinear sample of the 90x90 vision grid
+      // bilinear sample of RGBA fog states over the 90x90 vision grid
       const x0 = Math.floor(gx - 0.5), y0 = Math.floor(gy - 0.5)
       const fx = Math.min(1, Math.max(0, gx - 0.5 - x0)), fy = Math.min(1, Math.max(0, gy - 0.5 - y0))
-      const a = visAlpha(grid, x0, y0), b = visAlpha(grid, x0 + 1, y0)
-      const c = visAlpha(grid, x0, y0 + 1), d = visAlpha(grid, x0 + 1, y0 + 1)
-      const top = a + (b - a) * fx, bot = c + (d - c) * fx
-      const alpha = top + (bot - top) * fy
+      const c00 = visFog(grid, x0, y0), c10 = visFog(grid, x0 + 1, y0)
+      const c01 = visFog(grid, x0, y0 + 1), c11 = visFog(grid, x0 + 1, y0 + 1)
+      const topR = c00[0] + (c10[0] - c00[0]) * fx
+      const topG = c00[1] + (c10[1] - c00[1]) * fx
+      const topB = c00[2] + (c10[2] - c00[2]) * fx
+      const topA = c00[3] + (c10[3] - c00[3]) * fx
+      const botR = c01[0] + (c11[0] - c01[0]) * fx
+      const botG = c01[1] + (c11[1] - c01[1]) * fx
+      const botB = c01[2] + (c11[2] - c01[2]) * fx
+      const botA = c01[3] + (c11[3] - c01[3]) * fx
       const o = (py * W + px) * 4
-      data[o] = 0
-      data[o + 1] = 0
-      data[o + 2] = 0
-      data[o + 3] = Math.round(alpha)
+      data[o] = Math.round(topR + (botR - topR) * fy)
+      data[o + 1] = Math.round(topG + (botG - topG) * fy)
+      data[o + 2] = Math.round(topB + (botB - topB) * fy)
+      data[o + 3] = Math.round(topA + (botA - topA) * fy)
     }
   }
 }
 
-function visAlpha(grid: Uint8Array | null, cx: number, cy: number): number {
-  if (!grid) return 255
-  if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) return 255
+function visFog(grid: Uint8Array | null, cx: number, cy: number): [number, number, number, number] {
+  // visible (v>=2): clear; explored (v==1): cool dim penumbra; unseen/outside: near-opaque black
+  if (!grid) return [0, 0, 0, 252]
+  if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) return [0, 0, 0, 252]
   const v = grid[cy * GRID + cx]
-  // 0 = never seen (opaque), 1 = explored/remembered (dark penumbra), 2 = visible (clear)
-  return v >= 2 ? 0 : v === 1 ? 140 : 255
+  if (v >= 2) return [0, 0, 0, 0]
+  if (v === 1) return [18, 28, 46, 90]
+  return [0, 0, 0, 252]
 }
 
 export function updateCamera(rc: RenderContext): void {
@@ -1656,34 +1722,34 @@ export function spawnMuzzleFlash(rc: RenderContext, x: number, y: number, z: num
 
 /**
  * Impact: hot flash + shockwave ring + 6-8 sparks, and a crater decal that
- * stays on the ground for 8 s. Craters are capped so a long siege cannot grow
- * the scene without bound.
+ * stays on the ground long enough for stills. Craters are capped so a long siege
+ * cannot grow the scene without bound.
  */
 export function spawnImpact(rc: RenderContext, x: number, y: number, z: number): void {
   const flash = acquireFx(rc, 'flash')
   if (flash) {
     flash.position.set(x, y, z)
-    flash.scale.setScalar(0.85)
+    flash.scale.setScalar(1.0)
     const m = flash.material as THREE.MeshBasicMaterial
     m.color.setHex(0xffb347)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'flash', mesh: flash, t: 0, life: 1.25,
+      kind: 'flash', mesh: flash, t: 0, life: 1.4,
       pos: flash.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.85, s1: 3.4, o0: 1.0, hold: 0.6,
+      s0: 1.0, s1: 3.8, o0: 1.0, hold: 0.65,
     })
   }
   const ring = acquireFx(rc, 'ring')
   if (ring) {
-    ring.position.set(x, y - 0.75, z)
-    ring.scale.setScalar(0.85)
+    ring.position.set(x, groundHeightAt(x, z) + 0.08, z)
+    ring.scale.setScalar(1.0)
     const m = ring.material as THREE.MeshBasicMaterial
     m.color.setHex(0xffd9a0)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'ring', mesh: ring, t: 0, life: 1.45,
+      kind: 'ring', mesh: ring, t: 0, life: 1.6,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.85, s1: 5.2, o0: 1.0, hold: 0.7,
+      s0: 1.0, s1: 5.8, o0: 1.0, hold: 0.75,
     })
   }
 
@@ -1694,8 +1760,8 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     const mesh = acquireFx(rc, 'spark')
     if (!mesh) break
     const ang = (i / sparks) * Math.PI * 2 + (x + z) * 0.9
-    const spread = 3.2 + (i % 3) * 1.2
-    const size = 0.075 + ((i % 2) * 0.04)
+    const spread = 3.4 + (i % 3) * 1.3
+    const size = 0.08 + ((i % 2) * 0.04)
     mesh.position.set(x, y, z)
     mesh.rotation.set(0, ang, 0)
     mesh.scale.setScalar(size)
@@ -1703,27 +1769,27 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(i % 2 === 0 ? 0xffd06a : 0xfff3c4)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'spark', mesh, t: 0, life: 0.65,
+      kind: 'spark', mesh, t: 0, life: 0.7,
       pos: mesh.position.clone(),
-      vel: new THREE.Vector3(Math.cos(ang) * spread, 4.0 + (i % 2) * 1.4, Math.sin(ang) * spread),
+      vel: new THREE.Vector3(Math.cos(ang) * spread, 4.2 + (i % 2) * 1.5, Math.sin(ang) * spread),
       s0: size, s1: size, o0: 1.0,
     })
   }
 
-  // Crater decal: dark scorch on the terrain, holds 6.4 s then dissolves.
+  // Crater decal: large, dark, high-contrast scorch that persists for stills.
   if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
   const crater = acquireFx(rc, 'decal')
   if (crater) {
-    const rad = 0.85 + seed * 0.55
+    const rad = 1.35 + seed * 0.75
     crater.position.set(x, groundHeightAt(x, z) + 0.07, z)
     crater.scale.set(rad, 1, rad)
     const m = crater.material as THREE.MeshBasicMaterial
-    m.color.setHex(seed > 0.5 ? 0x100c08 : 0x17110b)
-    m.opacity = 0.4
+    m.color.setHex(seed > 0.5 ? 0x090603 : 0x120c07)
+    m.opacity = 0.62
     rc.fxItems.push({
       kind: 'decal', mesh: crater, t: 0, life: CRATER_LIFE,
       pos: crater.position.clone(), vel: new THREE.Vector3(),
-      s0: 1, s1: 1, o0: 0.4, hold: CRATER_HOLD,
+      s0: 1, s1: 1, o0: 0.62, hold: CRATER_HOLD,
     })
   }
 }
@@ -1760,41 +1826,41 @@ export function spawnDeathFx(
 ): void {
   const y = groundHeightAt(x, z)
   // smoke first: this is the part that reads instantly as "something died"
-  const puffs = entity === 'building' ? 9 : 5
+  const puffs = entity === 'building' ? 10 : 6
   for (let i = 0; i < puffs; i++) {
     const mesh = acquireFx(rc, 'puff')
     if (!mesh) break
     // deterministic spread from the index: no RNG in the render path
     const ang = (i / puffs) * Math.PI * 2 + (x + z) * 0.37
-    const rad = 0.25 + (i % 3) * 0.32
-    const scale = entity === 'building' ? 2.8 : 1.15
-    mesh.position.set(x + Math.cos(ang) * rad, y + 0.45 + (i % 2) * 0.4, z + Math.sin(ang) * rad)
-    mesh.scale.setScalar(0.4 * scale)
+    const rad = 0.25 + (i % 3) * 0.34
+    const scale = entity === 'building' ? 3.1 : 1.35
+    mesh.position.set(x + Math.cos(ang) * rad, y + 0.5 + (i % 2) * 0.45, z + Math.sin(ang) * rad)
+    mesh.scale.setScalar(0.42 * scale)
     const m = mesh.material as THREE.MeshBasicMaterial
-    m.color.setHex(i % 2 === 0 ? 0x2b2b2b : 0x4a4640)
-    m.opacity = 0.78
+    m.color.setHex(i % 2 === 0 ? 0x232323 : 0x403a34)
+    m.opacity = 0.82
     rc.fxItems.push({
-      kind: 'puff', mesh, t: 0, life: entity === 'building' ? 4.5 : 0.8,
+      kind: 'puff', mesh, t: 0, life: entity === 'building' ? 5.0 : 1.1,
       pos: mesh.position.clone(),
-      vel: new THREE.Vector3(Math.cos(ang) * 1.0, 1.9 + (i % 3) * 0.45, Math.sin(ang) * 1.0),
-      s0: 0.4 * scale, s1: 1.3 * scale, o0: 0.78,
+      vel: new THREE.Vector3(Math.cos(ang) * 1.1, 2.0 + (i % 3) * 0.5, Math.sin(ang) * 1.1),
+      s0: 0.42 * scale, s1: 1.45 * scale, o0: 0.82,
     })
   }
 
   const seed = hash2(x * 0.83, z * 0.41)
   if (entity === 'building') {
     if (rc.fxLive.rubble >= FX_LIVE_CAP.rubble) evictOldest(rc, 'rubble')
-    const chunks = 3 + Math.floor(seed * 2) // 3-4
+    const chunks = 4 + Math.floor(seed * 3) // 4-6, notable rubble
     for (let i = 0; i < chunks; i++) {
       const mesh = acquireFx(rc, 'rubble')
       if (!mesh) break
       const ang = (i / chunks) * Math.PI * 2 + seed * 3.1
-      const rad = 0.7 + (i % 2) * 0.9
-      mesh.position.set(x + Math.cos(ang) * rad, y + 0.24, z + Math.sin(ang) * rad)
-      mesh.rotation.set(0.25 * (i % 2), ang, 0.18 * (i % 2))
-      mesh.scale.set(1.05 + (i % 3) * 0.4, 0.4 + (i % 2) * 0.25, 0.95 + (i % 2) * 0.45)
+      const rad = 0.75 + (i % 3) * 0.75
+      mesh.position.set(x + Math.cos(ang) * rad, y + 0.26, z + Math.sin(ang) * rad)
+      mesh.rotation.set(0.28 * (i % 2), ang, 0.2 * ((i + 1) % 2))
+      mesh.scale.set(1.25 + (i % 3) * 0.5, 0.5 + (i % 2) * 0.3, 1.15 + (i % 2) * 0.55)
       const m = mesh.material as THREE.MeshStandardMaterial
-      m.color.setHex(i % 2 === 0 ? 0x4a4640 : 0x5c584f)
+      m.color.setHex(i % 3 === 0 ? 0x3f3b36 : i % 3 === 1 ? 0x555148 : 0x4a4640)
       m.opacity = 1
       rc.fxItems.push({
         kind: 'rubble', mesh, t: 0, life: RUBBLE_LIFE,
@@ -1803,31 +1869,32 @@ export function spawnDeathFx(
       })
     }
   } else {
-    // dark/reddish ground stain so fallen units remain readable in stills
+    // large, dark, high-contrast ground stain so fallen units remain readable in stills
     if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
     const stain = acquireFx(rc, 'decal')
     if (stain) {
-      const rad = 0.55 + seed * 0.35
+      const rad = 0.9 + seed * 0.55
       stain.position.set(x, groundHeightAt(x, z) + 0.07, z)
       stain.scale.set(rad, 1, rad)
       const m = stain.material as THREE.MeshBasicMaterial
-      m.color.setHex(team === 'enemy' ? 0x3a1414 : 0x1e1418)
-      m.opacity = 0.42
+      m.color.setHex(team === 'enemy' ? 0x2a0b0b : 0x140b10)
+      m.opacity = 0.62
       rc.fxItems.push({
         kind: 'decal', mesh: stain, t: 0, life: WRECK_LIFE,
         pos: stain.position.clone(), vel: new THREE.Vector3(),
-        s0: 1, s1: 1, o0: 0.42, hold: WRECK_HOLD,
+        s0: 1, s1: 1, o0: 0.62, hold: WRECK_HOLD,
       })
     }
 
+    // larger, more contrasted wreck silhouette (persistent)
     if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
     const mesh = acquireFx(rc, 'wreck')
     if (mesh) {
-      mesh.position.set(x, y + 0.18, z)
-      mesh.rotation.set(0.2, seed * Math.PI * 2, 0.14)
-      mesh.scale.set(0.75, 0.32, 1.25)
+      mesh.position.set(x, y + 0.2, z)
+      mesh.rotation.set(0.22, seed * Math.PI * 2, 0.16)
+      mesh.scale.set(1.05, 0.42, 1.7)
       const m = mesh.material as THREE.MeshStandardMaterial
-      m.color.setHex(new THREE.Color(TEAM_COLORS[team]).multiplyScalar(0.5).getHex())
+      m.color.setHex(new THREE.Color(TEAM_COLORS[team]).multiplyScalar(0.38).getHex())
       m.opacity = 1
       rc.fxItems.push({
         kind: 'wreck', mesh, t: 0, life: WRECK_LIFE,
@@ -1838,7 +1905,7 @@ export function spawnDeathFx(
   }
 }
 
-/** Readable VFX for a resource delivery at a drop-off. */
+/** Readable VFX for a resource delivery at a drop-off (unmistakable in stills). */
 export function spawnDepositFx(
   rc: RenderContext,
   x: number,
@@ -1853,65 +1920,99 @@ export function spawnDepositFx(
   const pz = z + oz
   const color = (resource && CARRY_COLORS[resource] != null) ? CARRY_COLORS[resource] : TEAM_COLORS[team]
 
+  // Brief bright ground halo/decal at the delivery point.
+  if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
+  const halo = acquireFx(rc, 'decal')
+  if (halo) {
+    const rad = 1.25
+    halo.position.set(px, groundHeightAt(px, pz) + 0.075, pz)
+    halo.scale.set(rad, 1, rad)
+    const m = halo.material as THREE.MeshBasicMaterial
+    m.color.setHex(color)
+    m.opacity = 0.38
+    rc.fxItems.push({
+      kind: 'decal', mesh: halo, t: 0, life: 2.1,
+      pos: halo.position.clone(), vel: new THREE.Vector3(),
+      s0: 1, s1: 1, o0: 0.38, hold: 0.9,
+    })
+  }
+
+  // Large, bright expanding ground ring.
   const ring = acquireFx(rc, 'ring')
   if (ring) {
     ring.position.set(px, y + 0.05, pz)
-    ring.scale.setScalar(0.55)
+    ring.scale.setScalar(0.7)
     const m = ring.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
-    m.opacity = 0.95
+    m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'ring', mesh: ring, t: 0, life: 1.05,
+      kind: 'ring', mesh: ring, t: 0, life: 1.8,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.55, s1: 3.8, o0: 0.95, hold: 0.45,
+      s0: 0.7, s1: 5.8, o0: 1.0, hold: 0.7,
     })
   }
 
+  // Tall ascending column / pulse.
   const puff = acquireFx(rc, 'puff')
   if (puff) {
     puff.position.set(px, y, pz)
-    puff.scale.setScalar(0.45)
+    puff.scale.setScalar(0.7)
     const m = puff.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
-    m.opacity = 0.75
+    m.opacity = 0.85
     rc.fxItems.push({
-      kind: 'puff', mesh: puff, t: 0, life: 1.0,
-      pos: puff.position.clone(), vel: new THREE.Vector3(0, 2.5, 0),
-      s0: 0.45, s1: 1.45, o0: 0.75, hold: 0.2,
+      kind: 'puff', mesh: puff, t: 0, life: 1.7,
+      pos: puff.position.clone(), vel: new THREE.Vector3(0, 5.2, 0),
+      s0: 0.7, s1: 2.6, o0: 0.85, hold: 0.35,
     })
   }
 
+  // Strong central flash / burst.
   const flash = acquireFx(rc, 'flash')
   if (flash) {
-    flash.position.set(px, y + 0.25, pz)
-    flash.scale.setScalar(0.35)
+    flash.position.set(px, y + 0.35, pz)
+    flash.scale.setScalar(0.65)
     const m = flash.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
-    m.opacity = 0.9
+    m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'flash', mesh: flash, t: 0, life: 0.95,
+      kind: 'flash', mesh: flash, t: 0, life: 1.45,
       pos: flash.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.35, s1: 1.7, o0: 0.9, hold: 0.25,
+      s0: 0.65, s1: 3.2, o0: 1.0, hold: 0.5,
+    })
+  }
+  const core = acquireFx(rc, 'flash')
+  if (core) {
+    core.position.set(px, y + 0.55, pz)
+    core.scale.setScalar(0.4)
+    const m = core.material as THREE.MeshBasicMaterial
+    m.color.setHex(0xfff6d8)
+    m.opacity = 0.95
+    rc.fxItems.push({
+      kind: 'flash', mesh: core, t: 0, life: 1.1,
+      pos: core.position.clone(), vel: new THREE.Vector3(0, 1.2, 0),
+      s0: 0.4, s1: 1.6, o0: 0.95, hold: 0.35,
     })
   }
 
+  // Extra sparks for an unmistakable delivery pop.
   const seed = hash2(x * 0.4, z * 0.8)
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 8; i++) {
     const mesh = acquireFx(rc, 'spark')
     if (!mesh) break
-    const ang = (i / 4) * Math.PI * 2 + seed * Math.PI * 2
-    const size = 0.06 + (i % 2) * 0.02
-    mesh.position.set(px, y + 0.2, pz)
+    const ang = (i / 8) * Math.PI * 2 + seed * Math.PI * 2
+    const size = 0.07 + (i % 3) * 0.025
+    mesh.position.set(px, y + 0.25, pz)
     mesh.rotation.set(0, ang, 0)
     mesh.scale.setScalar(size)
     const m = mesh.material as THREE.MeshBasicMaterial
-    m.color.setHex(color)
-    m.opacity = 0.95
+    m.color.setHex(i % 2 === 0 ? color : 0xfff3c4)
+    m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'spark', mesh, t: 0, life: 0.7,
+      kind: 'spark', mesh, t: 0, life: 1.0,
       pos: mesh.position.clone(),
-      vel: new THREE.Vector3(Math.cos(ang) * 1.7, 2.9 + (i % 2) * 0.8, Math.sin(ang) * 1.7),
-      s0: size, s1: size, o0: 0.95,
+      vel: new THREE.Vector3(Math.cos(ang) * 2.6, 4.2 + (i % 3) * 1.0, Math.sin(ang) * 2.6),
+      s0: size, s1: size, o0: 1.0,
     })
   }
 }

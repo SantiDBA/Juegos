@@ -1,7 +1,7 @@
 import { BUILDING_DEFS, ERAS, TECHS, TILE, UNIT_DEFS } from '../core/config'
 import { computeDamage, UNIT_COMBAT, type AttackProfile, type DefenseProfile } from '../core/combat'
 import { dist, moveToward } from '../core/utils'
-import { applyTech, buildingsOfTeam, findNearestDropoff, getEntity, recomputePop, spawnUnit, unitsOfTeam, type GameState } from './state'
+import { applyTech, buildingsOfTeam, findNearestDropoff, FORMATION_SPACING, getEntity, recomputePop, spawnUnit, unitsOfTeam, type GameState } from './state'
 import { emit } from './events'
 import { stepAI } from './ai'
 import { nearestVisibleEnemy, stepVision } from './vision'
@@ -13,6 +13,8 @@ const MAX_EVENTS = 512
 
 /** Waypoint arrival radius, in world units. */
 const ARRIVE = 0.35
+/** Distance considered "arrived and anchored" when converging to a formation/home slot. */
+const HOME_SETTLE = 0.5
 /** Gatherers stand this close to the node they are working. */
 const GATHER_RANGE = 2.6
 /**
@@ -165,6 +167,33 @@ function unitRadius(utype: string): number {
   return 0.85
 }
 
+/** True when a unit is converging/holding a formation/home slot and not in active combat. */
+function isFormationSettling(gs: GameState, e: UnitEntity): boolean {
+  if (!e.home) return false
+  if (e.state !== 'move' && e.state !== 'attack') return false
+  if (e.targetId) {
+    const t = getEntity(gs, e.targetId)
+    if (t && !t.dead && t.team !== e.team && t.kind !== 'resource') return false
+  }
+  return dist(e.x, e.z, e.home.x, e.home.z) < FORMATION_SPACING * 1.2
+}
+
+/**
+ * Removes most of the displacement component that would move a settling unit away
+ * from its home slot, so separation can nudge overlap without dissolving rows/columns.
+ */
+function attenuateAwayFromHome(e: UnitEntity, dx: number, dz: number): { dx: number; dz: number } {
+  if (!e.home) return { dx, dz }
+  const ax = e.x - e.home.x
+  const az = e.z - e.home.z
+  const a2 = ax * ax + az * az
+  if (a2 < 1e-6) return { dx, dz }
+  const dot = (dx * ax + dz * az) / a2
+  if (dot <= 0) return { dx, dz }
+  const keepAway = 0.2
+  return { dx: dx - ax * dot * (1 - keepAway), dz: dz - az * dot * (1 - keepAway) }
+}
+
 function stepUnits(gs: GameState, dt: number): void {
   // separation pass (simple)
   const units = unitsOfTeam(gs, 'player').concat(unitsOfTeam(gs, 'enemy'))
@@ -181,10 +210,21 @@ function stepUnits(gs: GameState, dt: number): void {
         const aHolds = a.stance === 'standground'
         const bHolds = b.stance === 'standground'
         if (aHolds && bHolds) continue
-        const aPush = bHolds ? push * 2 : aHolds ? 0 : push
-        const bPush = aHolds ? push * 2 : bHolds ? 0 : push
-        a.x -= (dx / d) * aPush; a.z -= (dz / d) * aPush
-        b.x += (dx / d) * bPush; b.z += (dz / d) * bPush
+        let aPush = bHolds ? push * 2 : aHolds ? 0 : push
+        let bPush = aHolds ? push * 2 : bHolds ? 0 : push
+
+        const aForm = aPush > 0 && isFormationSettling(gs, a)
+        const bForm = bPush > 0 && isFormationSettling(gs, b)
+        // pairs settling into formation slots need weaker mutual separation to hold rows/columns
+        if (aForm && bForm) { aPush *= 0.35; bPush *= 0.35 }
+
+        let adx = -(dx / d) * aPush, adz = -(dz / d) * aPush
+        let bdx = (dx / d) * bPush, bdz = (dz / d) * bPush
+        if (aForm) ({ dx: adx, dz: adz } = attenuateAwayFromHome(a, adx, adz))
+        if (bForm) ({ dx: bdx, dz: bdz } = attenuateAwayFromHome(b, bdx, bdz))
+
+        a.x += adx; a.z += adz
+        b.x += bdx; b.z += bdz
       }
     }
   }
@@ -244,16 +284,30 @@ function acquireRadius(e: UnitEntity): number {
  * Consumes e.path waypoints with axis sliding: if the next step lands on a
  * blocked tile the unit tries X and then Z instead of stopping dead.
  * Returns true while waypoints remain; a unit left without a path goes idle
- * (or flips to the other end of its patrol).
+ * (or flips to the other end of its patrol). Move/attack orders with a home
+ * slot converge to home after the route ends instead of idling off-slot.
  */
 export function followPath(gs: GameState, e: UnitEntity, speed: number, dt: number): boolean {
   for (let guard = 0; guard < 8; guard++) {
     if (e.path.length === 0) {
-      if (!e.patrol || !advancePatrol(gs, e) || e.path.length === 0) {
+      if (e.patrol && advancePatrol(gs, e) && e.path.length > 0) {
+        // follow the new patrol leg
+      } else if (e.home && !e.patrol && (e.state === 'move' || e.state === 'attack') &&
+                 dist(e.x, e.z, e.home.x, e.home.z) > HOME_SETTLE) {
+        const hd = dist(e.x, e.z, e.home.x, e.home.z)
+        const stepLen = Math.min(speed * dt, hd)
+        const nx = e.x + ((e.home.x - e.x) / hd) * stepLen
+        const nz = e.z + ((e.home.z - e.z) / hd) * stepLen
+        if (!isHardBlocked(gs, nx, nz)) { e.x = nx; e.z = nz }
+        else if (!isHardBlocked(gs, nx, e.z)) e.x = nx
+        else if (!isHardBlocked(gs, e.x, nz)) e.z = nz
+        return true
+      } else {
         e.state = 'idle'
         return false
       }
     }
+    if (e.path.length === 0) continue
     const wp = e.path[0]
     const d = dist(e.x, e.z, wp.x, wp.z)
     if (d <= ARRIVE) { e.path.shift(); e.wpRef = undefined; continue }
@@ -263,11 +317,16 @@ export function followPath(gs: GameState, e: UnitEntity, speed: number, dt: numb
     if (e.wpRef !== wp) { e.wpRef = wp; e.wpBest = undefined; e.stuckT = 0 }
     if (d < (e.wpBest ?? Infinity) - 0.1) { e.wpBest = d; e.stuckT = 0 }
     else if ((e.stuckT = (e.stuckT ?? 0) + dt) > (e.path.length > 1 ? STUCK_SKIP : STUCK_ARRIVE)) {
-      e.stuckT = 0; e.wpRef = undefined
-      if (e.path.length > 1 || d < 3) {
-        e.path.shift()
-        if (e.path.length === 0) { e.state = 'idle'; return false }
-        continue
+      const isHomeSlot = e.path.length <= 1 && e.home != null && dist(wp.x, wp.z, e.home.x, e.home.z) < 1.5
+      if (isHomeSlot && d < 3) {
+        e.stuckT = 0
+      } else {
+        e.stuckT = 0; e.wpRef = undefined
+        if (e.path.length > 1 || d < 3) {
+          e.path.shift()
+          if (e.path.length === 0) { e.state = 'idle'; return false }
+          continue
+        }
       }
     }
     const stepLen = Math.min(speed * dt, d)
@@ -323,12 +382,15 @@ function rangeTo(x: number, z: number, t: AnyEntity): number {
  * when it is close (so gathering/building approach stays frame-tight).
  */
 function moveTo(gs: GameState, e: UnitEntity, tx: number, tz: number, speed: number, dt: number, stopDist = 0): void {
-  const d = dist(e.x, e.z, tx, tz)
+  const homeTarget = e.home != null && Math.abs(tx - e.home.x) < 0.05 && Math.abs(tz - e.home.z) < 0.05
+  const goalX = homeTarget ? e.home!.x : tx
+  const goalZ = homeTarget ? e.home!.z : tz
+  const d = dist(e.x, e.z, goalX, goalZ)
   if (d <= stopDist + RANGE_EPS) { e.path = []; return }
   if (d > stopDist + DIRECT_RANGE) {
     const last = e.path.length > 0 ? e.path[e.path.length - 1] : null
-    if (!last || dist(last.x, last.z, tx, tz) > TILE * 1.5) {
-      e.path = findPath(gs, e.x, e.z, tx, tz)
+    if (!last || dist(last.x, last.z, goalX, goalZ) > TILE * 1.5) {
+      e.path = findPath(gs, e.x, e.z, goalX, goalZ)
       e.repathT = 0
     }
     followPath(gs, e, speed, dt)
@@ -336,7 +398,7 @@ function moveTo(gs: GameState, e: UnitEntity, tx: number, tz: number, speed: num
   }
   e.path = []
   const sp = Math.min(speed, (d - stopDist) / Math.max(dt, 1e-6))
-  const p = moveToward(e.x, e.z, tx, tz, sp, dt)
+  const p = moveToward(e.x, e.z, goalX, goalZ, sp, dt)
   // never walk into a building while closing in
   if (!isHardBlocked(gs, p.x, p.z)) { e.x = p.x; e.z = p.z }
 }

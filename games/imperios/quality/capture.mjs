@@ -212,11 +212,17 @@ const SCENARIOS = [
     js: `(() => {
       const g = window.__imperios
       const assigned = g.assignEconomy(8)
-      g.skip(12)   // caminar al nodo y comenzar recolección
-      g.skip(12)   // completar carga y retornar/procesar entregas al depósito
-      const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
+      g.skip(12)   // llegar al nodo y recolectar
+      g.skip(8)    // cargar y comenzar retorno al depósito
+      const getIter = () => typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
+      const countCarrying = () => {
+        let n = 0
+        for (const e of getIter()) if (e && !e.dead && e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && (e.carryAmount || 0) > 0.5) n++
+        return n
+      }
+      for (let i = 0; i < 4 && countCarrying() < 3; i++) g.skip(2)
       let tc = null, sx = 0, sz = 0, sn = 0, cx = 0, cz = 0, cn = 0
-      for (const e of iter) {
+      for (const e of getIter()) {
         if (!e || e.dead) continue
         if (e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') tc = e
         if (e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero') {
@@ -227,11 +233,11 @@ const SCENARIOS = [
       const ax = cn > 0 ? cx / cn : (sn ? sx / sn : -46)
       const az = cn > 0 ? cz / cn : (sn ? sz / sn : 2)
       const tx = tc ? tc.x : -55, tz = tc ? tc.z : 0
-      // encuadre entre depósito y flujo activo para ver nodo→carga→depósito
-      g.camera((tx + ax) / 2, (tz + az) / 2, 58)
+      // encuadre zona TC+dropoff con ingenieros volviendo con carga
+      g.camera(tx * 0.6 + ax * 0.4, tz * 0.6 + az * 0.4, 54)
       return 'ok assigned=' + assigned + ' carrying=' + cn
     })()`,
-    settleMs: 1800, // tiempo real para capturar movimiento/deposito y VFX en curso
+    settleMs: 2200, // tiempo real para ver tránsito/carga y FX de depósito
   },
   {
     id: '03b-nodos',
@@ -331,7 +337,7 @@ const SCENARIOS = [
   {
     id: '05-fog',
     title: 'Niebla / exploración en era 3',
-    js: `(() => { const g = window.__imperios; g.setEra(3); g.camera(-48, 2); g.skip(2); g.fog(); return 'ok' })()`,
+    js: `(() => { const g = window.__imperios; g.setEra(3); g.camera(-42, 6, 68); g.skip(2); g.fog(); return 'ok' })()`,
     settleMs: SETTLE_MS,
   },
   {
@@ -413,9 +419,11 @@ const SCENARIOS = [
       const g = window.__imperios
       const squad = (g.state.selectedIds || []).slice()
       const n = g.moveFormation(squad, -36, 12, 'wedge')
+      g.skip(6)              // avanzar hasta llegar y asentarse en formación
+      g.camera(-36, 12, 50)  // reencuadre al destino/formación
       return n >= 6 ? 'ok' : 'moved:' + n
     })()`,
-    settleMs: 1500,
+    settleMs: 2400,
   },
   {
     id: '08-asedio',

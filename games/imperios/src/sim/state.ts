@@ -10,7 +10,7 @@ import type { SimEvent } from './events'
 export type Formation = 'line' | 'box' | 'wedge'
 
 /** World-space gap between two units in a formation slot. */
-const FORMATION_SPACING = 1.6
+export const FORMATION_SPACING = 2.05
 
 export interface PlayerState {
   team: Team

@@ -532,10 +532,10 @@ export function updateMinimap(ui: UIRefs, gs: GameState, camX?: number, camZ?: n
       const cx = Math.min(gw - 1, Math.floor((px / w) * gw))
       const v = observer ? visionAtCell(gs, observer, cx, cz) : VIS_VISIBLE
       const o = (py * w + px) * 4
-      // 0 = unexplored (near black), 1 = explored (dark green), 2 = visible
-      if (v === VIS_UNKNOWN) { data[o] = 3; data[o+1] = 5; data[o+2] = 6 }
-      else if (v === VIS_EXPLORED) { data[o] = 20; data[o+1] = 28; data[o+2] = 20 }
-      else { data[o] = 56; data[o+1] = 78; data[o+2] = 44 }
+      // 0 = unexplored (near black), 1 = explored (cold blue-gray haze), 2 = visible (lit terrain)
+      if (v === VIS_UNKNOWN) { data[o] = 2; data[o+1] = 4; data[o+2] = 8 }
+      else if (v === VIS_EXPLORED) { data[o] = 38; data[o+1] = 48; data[o+2] = 62 }
+      else { data[o] = 78; data[o+1] = 104; data[o+2] = 62 }
       data[o + 3] = 255
     }
   }
