@@ -455,8 +455,8 @@ function visAlpha(grid: Uint8Array | null, cx: number, cy: number): number {
   if (!grid) return 255
   if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) return 255
   const v = grid[cy * GRID + cx]
-  // 0 = never seen, 1 = remembered, 2 = visible
-  return v >= 2 ? 0 : v === 1 ? 150 : 255
+  // 0 = never seen (opaque), 1 = explored/remembered (dark penumbra), 2 = visible (clear)
+  return v >= 2 ? 0 : v === 1 ? 185 : 255
 }
 
 export function updateCamera(rc: RenderContext): void {
@@ -1488,28 +1488,28 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   const muzzle = acquireFx(rc, 'flash')
   if (muzzle) {
     muzzle.position.copy(from)
-    muzzle.scale.setScalar(0.28)
+    muzzle.scale.setScalar(0.42)
     const mm = muzzle.material as THREE.MeshBasicMaterial
     mm.color.setHex(color)
-    mm.opacity = 0.9
+    mm.opacity = 0.95
     rc.fxItems.push({
-      kind: 'flash', mesh: muzzle, t: 0, life: 0.11,
+      kind: 'flash', mesh: muzzle, t: 0, life: 0.9,
       pos: muzzle.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.28, s1: 0.7, o0: 0.9,
+      s0: 0.42, s1: 0.95, o0: 0.95, hold: 0.45,
     })
   }
   const mesh = acquireFx(rc, 'beam')
   if (!mesh) return
   mesh.position.lerpVectors(from, to, 0.5)
   mesh.lookAt(to) // geometry runs along +Z, so this aims the streak
-  mesh.scale.set(0.115, 0.115, dist)
+  mesh.scale.set(0.17, 0.17, dist)
   const m = mesh.material as THREE.MeshBasicMaterial
   m.color.setHex(color)
-  m.opacity = 0.95
+  m.opacity = 1.0
   rc.fxItems.push({
-    kind: 'beam', mesh, t: 0, life: 0.24,
+    kind: 'beam', mesh, t: 0, life: 1.4,
     pos: mesh.position.clone(), vel: new THREE.Vector3(),
-    s0: 1, s1: 1, o0: 0.95,
+    s0: 1, s1: 1, o0: 1.0, hold: 0.9,
   })
 }
 
@@ -1522,14 +1522,14 @@ export function spawnMuzzleFlash(rc: RenderContext, x: number, y: number, z: num
   if (!mesh) return
   mesh.position.set(x, y, z)
   mesh.quaternion.copy(rc.camera.quaternion) // billboard, no per-frame lookAt
-  mesh.scale.setScalar(0.3)
+  mesh.scale.setScalar(0.55)
   const m = mesh.material as THREE.MeshBasicMaterial
   m.color.setHex(0xfff0c6)
-  m.opacity = 0.95
+  m.opacity = 0.98
   rc.fxItems.push({
-    kind: 'muzzle', mesh, t: 0, life: 0.08,
+    kind: 'muzzle', mesh, t: 0, life: 0.9,
     pos: mesh.position.clone(), vel: new THREE.Vector3(),
-    s0: 0.3, s1: 1.25, o0: 0.95,
+    s0: 0.55, s1: 1.6, o0: 0.98, hold: 0.4,
   })
 }
 
@@ -1542,27 +1542,27 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
   const flash = acquireFx(rc, 'flash')
   if (flash) {
     flash.position.set(x, y, z)
-    flash.scale.setScalar(0.45)
+    flash.scale.setScalar(0.6)
     const m = flash.material as THREE.MeshBasicMaterial
     m.color.setHex(0xffb347)
-    m.opacity = 0.95
+    m.opacity = 0.98
     rc.fxItems.push({
-      kind: 'flash', mesh: flash, t: 0, life: 0.3,
+      kind: 'flash', mesh: flash, t: 0, life: 1.1,
       pos: flash.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.45, s1: 2.0, o0: 0.95,
+      s0: 0.6, s1: 2.6, o0: 0.98, hold: 0.55,
     })
   }
   const ring = acquireFx(rc, 'ring')
   if (ring) {
     ring.position.set(x, y - 0.75, z)
-    ring.scale.setScalar(0.5)
+    ring.scale.setScalar(0.6)
     const m = ring.material as THREE.MeshBasicMaterial
     m.color.setHex(0xffd9a0)
-    m.opacity = 0.8
+    m.opacity = 0.9
     rc.fxItems.push({
-      kind: 'ring', mesh: ring, t: 0, life: 0.46,
+      kind: 'ring', mesh: ring, t: 0, life: 1.3,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.5, s1: 3.4, o0: 0.85,
+      s0: 0.6, s1: 4.0, o0: 0.9, hold: 0.6,
     })
   }
 
@@ -1582,7 +1582,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(i % 2 === 0 ? 0xffd06a : 0xfff3c4)
     m.opacity = 0.95
     rc.fxItems.push({
-      kind: 'spark', mesh, t: 0, life: 0.35,
+      kind: 'spark', mesh, t: 0, life: 0.55,
       pos: mesh.position.clone(),
       vel: new THREE.Vector3(Math.cos(ang) * spread, 3.2 + (i % 2) * 1.1, Math.sin(ang) * spread),
       s0: size, s1: size, o0: 0.95,
@@ -1790,7 +1790,7 @@ export function updateFx(rc: RenderContext, dt: number): void {
     } else if (it.kind === 'beam') {
       m.opacity = (1 - k) * it.o0
       // the streak thins out as it fades, reading like a tracer round
-      it.mesh.scale.x = it.mesh.scale.y = 0.115 * (1 - 0.6 * k)
+      it.mesh.scale.x = it.mesh.scale.y = 0.17 * (1 - 0.35 * k)
     } else if (it.kind === 'spark') {
       // ballistic arc, solved analytically so no per-particle state is needed
       it.mesh.position.copy(it.pos).addScaledVector(it.vel, it.t)
