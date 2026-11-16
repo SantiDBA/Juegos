@@ -334,15 +334,44 @@ late game encuadrando TC propio + viviendas + fábrica + 34/58 población legal.
 | 2026-11-13 | ciclo-04 · HUD con íconos/reloj, progreso de era/investigación visible, población legal, separación vehículos, escenarios 03c/09/09b | `shots/ciclo-04-hud/` (14) | 5.30 (mín 4.0; HUD 7.0, eco 6.0, tech 6.0, IA 6.0; path/densidad 4.0) | NO (juez ciego; retrato/cola de producción y densidad sin resolver) | chips con ícono + reloj, barra prog. investigación/era, ayuda oculta tras "?", spawn con tope, separation por radio vehículo |
 | 2026-11-13 | ciclo-05 · niebla suavizada (bilinear) y mundo más poblado (más nodos/anillos) | `shots/ciclo-05-niebla/` (14) | 4.30 (mín 2.0; niebla 5.0, HUD 6.0, path 5.0, contenido 5.0, IA 5.0; eco 4.0, tech 4.0, art 4.0, combate 3.0, juice 2.0) | NO (borde fog mejoró, pero combate/juice/economía visibles y progresión siguen pobres) | fog 360×360 bilineal con alpha interpolada; más clusters de recursos en dos anillos cerca de bases y mapa |
 | 2026-11-13 | ciclo-06 · niebla explorada más oscura + VFX persistentes/visibles en stills (trazadoras, fogonazos, impactos) | `shots/ciclo-06-juice-fog/` (14) | 4.70 (mín 3.5; niebla 6.5, HUD 5.5, tech 5.5, path 5.0, contenido 4.5, eco 4.0, combate 4.0, art 4.0, IA 4.0, juice 3.5) | NO (3 estados de fog más legibles; combate/economía/HUD/densidad/arte aún débiles) | explorado alpha 185; beams/muzzle/flash/ring con hold+lifetime y mayor tamaño/opacidad para capturas |
+| 2026-11-13 | ciclo-07 · HUD/selección tipo AoE2, economía visible (carga/nodos/depósito), niebla más contrastada, mapa y capturas de combate ajustadas | `shots/ciclo-07-hud-economia/` (14) | 5.30 (mín 4.0; niebla 7.0, HUD 6.5, eco 6.0, tech 6.0, path 5.0, contenido 5.0, combate 4.5, IA 4.5, juice 4.5, art 4.0) | NO (HUD y economía mucho más legibles; combate/arte/densidad/IA siguen lejos de AoE2) | command card en slots + selección con HP/barras/chips multi; cargo de ingeniero escalado, labels de nodo siempre visibles, indicador dropoff; fog explorado alpha 140; más nodos cerca de bases; escenarios 04/08 con choque más activo |
 
-### Brechas elegidas para el ciclo 07 (juez ciclo 06)
-1. **Juice de combate ilegible en stills** — trazadoras/impactos/fogonazos aún poco contundentes en `04-combate`/`08-asedio`.
-2. **Economía sin ciclo visible** — falta ver carga/transporte/entrega y flujo nodo→depósito.
-3. **HUD/command card sin jerarquía AoE2** — íconos/costos/colas/estados poco legibles en `06-ui`.
-4. **Dirección de arte plana** — tope del renderer 3D actual (fase 4 pendiente).
-5. **Densidad/composición de mapa pobre** — clusters y señalética insuficientes.
-6. **IA sin intención observable** — base/composición/presión enemiga poco claras.
-7. **Progresión de eras poco expresiva** — salto visual/funcional limitado entre edades.
+### Juez ciego · ciclo-07-hud-economia (evidencia sobre capturas)
+
+| # | Dimensión | Puntaje | Evidencia |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | 03-economia/03b-nodos/03c-nodo-agotado: ingenieros junto a nodos con **cajas de carga coloreadas** visibles, **etiquetas de cantidad** sobre nodos siempre presentes y decrecientes (remanente legible), anillo/indicador de depósito en edificios dropoff cerca de TC; se intuye flujo nodo→trabajo/deposito, pero falta ver entrega/descarga animada inequívoca en un mismo still. |
+| 2 | Combate / counters / proyectiles | 4.5 | 04-combate/08-asedio/07-late-game: HP bars verdes/rojas y **trazadoras/ráfagas e impactos/chispas** visibles en choques, pero masas aún algo apelotonadas, sin proyectiles por tipo/counters claramente legibles ni bajas/cadáveres contundentes. |
+| 3 | Niebla / exploración | 7.0 | 05-fog/02-arranque: tres estados distinguibles (negro no visto, **penumbra gris** explorado, área visible iluminada) con borde suave; minimapa refleja ocultamiento/visión; buena legibilidad táctica básica. |
+| 4 | Pathfinding / formaciones | 5.0 | 06b-unidades/06c-formacion/04-combate: selección de 6 milicias ordenadas y grupo en **formación en cuña** visible en 06c, pero en combate (04/08) se pierde el frente limpio y hay amontonamiento. |
+| 5 | Tech tree / edades | 6.0 | 09-research/09b-avance-era/02-arranque/07-late-game: barra/progreso de **investigación** y **avance de era** con nombre y tiempo/% visible, badge de era cambia (Autónoma en late game), pero el salto visual de edificios/unidades entre eras sigue limitado. |
+| 6 | Contenido y densidad | 5.0 | 02-arranque/03-economia/03b-nodos/07-late-game: más **clusters de recursos** cerca de las bases que antes y algo más de ocupación, pero terreno/bioma plano y repetitivo, pocos props/variación ambiental. |
+| 7 | IA legítima | 4.5 | 04-combate/07-late-game/08-asedio: enemigo con unidades/estructuras presentes y combatiendo, pero base/composición/intención estratégica poco legible en capturas. |
+| 8 | HUD / UX AoE2 | 6.5 | 06-ui/06b-unidades/09-research/09b-avance-era/03-economia: **command card en grilla de slots** con acciones/costos, **panel de selección** jerárquico con barra de HP prominente y estado/cola, **multi-selección en chips** con mini-HP (06b), topbar con recursos/era/población/reloj y minimapa enmarcado; aún sin iconografía rica/retratos AoE2 completos. |
+| 9 | Art direction / diorama isométrico | 4.0 | 01-menu/02-arranque/07-late-game: cámara/escala comprensibles pero estética 3D genérica, materiales planos y poca identidad de diorama; **topado por renderer 3D actual (fase 4 2D isométrico pendiente)**. |
+| 10 | Audio / juice | 4.5 | 04-combate/08-asedio/07-late-game: flashes, trazadoras e impactos/anillos visibles en stills y cráteres/feedback parcial, pero falta peso sistemático (humo/polvo/muertes claras) y audio no observable. |
+
+**Promedio:** 5.30 · **Mínima:** 4.0 · **Dimensiones < 7:** 8 · **Veredicto:** SORPRENDIDO: NO
+
+### Top 7 brechas (ciclo 07)
+1. **Combate aún ilegible** (2, 04-combate/08-asedio) — impactos/counters/bajas no se leen de un vistazo.
+2. **Economía sin entrega visible** (1, 03-economia/03c) — falta ver descarga en depósito y ciclo completo claro.
+3. **Arte/renderer topado** (9, 02/07) — sin 2D isométrico/sprites no hay diorama ni siluetas AoE2.
+4. **Densidad/biomas pobres** (6, 02/03b) — mapa plano y repetitivo.
+5. **IA sin intención legible** (7, 07/08) — falta base/composición/plan visible.
+6. **Formaciones se rompen en combate** (4, 04/06c) — frente/espaciado no se sostiene.
+7. **Progresión de era poco expresiva** (5, 09/07) — cambios visuales/tecnológicos limitados.
+
+### 5 cambios para el ciclo 08
+1. **Combate legible en stills**: proyectiles/trazadoras más gruesas y contrastadas por tipo, flash de disparo + impacto + sangre/chispa y cadáver/resto visible en `04-combate`/`08-asedio` (mueve 2,10).
+2. **Ciclo económico explícito**: mostrar animación/estado de descarga en depósito y carga claramente llena/vacía en tránsito en `03-economia/03c` (mueve 1).
+3. **Densidad y composición de mapa**: clusters más ricos, variación de props/vegetación y mejor lectura de zonas en `02-arranque/03b` (mueve 6,9 dentro del tope 3D).
+4. **HUD/command card más icónica**: iconos/retratos más grandes, estados/colas y costos más claros en `06-ui/06b/09` (mueve 8).
+5. **IA/intención visible**: base enemiga más desarrollada y composición/oleadas reconocibles en `07-late-game/08-asedio` (mueve 7).
+
+### Brechas elegidas para el ciclo 08 (siguiente)
+Priorizar 1-5 arriba; mantener trabajo hacia **fase 4 (renderer 2D isométrico)** como desbloqueo de 9/6/2.
+
 
 ---
 
