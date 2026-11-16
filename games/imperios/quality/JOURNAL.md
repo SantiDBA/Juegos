@@ -337,6 +337,7 @@ late game encuadrando TC propio + viviendas + fábrica + 34/58 población legal.
 | 2026-11-13 | ciclo-07 · HUD/selección tipo AoE2, economía visible (carga/nodos/depósito), niebla más contrastada, mapa y capturas de combate ajustadas | `shots/ciclo-07-hud-economia/` (14) | 5.30 (mín 4.0; niebla 7.0, HUD 6.5, eco 6.0, tech 6.0, path 5.0, contenido 5.0, combate 4.5, IA 4.5, juice 4.5, art 4.0) | NO (HUD y economía mucho más legibles; combate/arte/densidad/IA siguen lejos de AoE2) | command card en slots + selección con HP/barras/chips multi; cargo de ingeniero escalado, labels de nodo siempre visibles, indicador dropoff; fog explorado alpha 140; más nodos cerca de bases; escenarios 04/08 con choque más activo |
 | 2026-11-13 | ciclo-08 · evento/VFX de depósito, combate/huella más legible, props de densidad, HUD icónica y escenas IA/asedio reforzadas | `shots/ciclo-08-deposito-combate/` (14) | 4.20 (mín 3.0; niebla 5.0, tech 5.0, IA 5.0, HUD 5.0, eco 4.0, combate 4.0, densidad 4.0, juice 4.0, path 3.0, art 3.0) | NO (señales de depósito/impacto aisladas; juez ve ciclo económico no cerrado, combate sin consecuencias claras, formaciones débiles y arte/topes 3D) | evento deposit + spawnDepositFx; trazadoras/muzzle/impactos/sparks/deaths más notorios y persistentes; arbustos/piedras/huellas decorativas; iconos en command card/selección; 03-economía y 07/08 con retorno/entrega y base+oleada/asedio activos |
 | 2026-11-13 | ciclo-09 · formaciones con spacing/anclaje, fog 3 estados nítida, depósito/combate más legibles y props/capturas ajustadas | `shots/ciclo-09-formacion-fog-claridad/` (14) | 4.90 (mín 4.0; niebla 6.0, HUD 6.0, combate 5.0, path 5.0, tech 5.0, densidad 5.0, IA 5.0, eco 4.0, art 4.0, juice 4.0) | NO (fog/UI/formación mejoran; economía no inequívoca, combate sin bajas/huellas claras y arte 3D tope fase 4) | FORMATION_SPACING 2.05 + llegada/anclaje y separación atenuada cerca de home; fog RGBA bilineal (visible claro, explorado penumbra fría, no visto negro); spawnDepositFx y cráteres/manchas/wreck/rubble más grandes/persistentes; más props/caminos; minimapa y capturas 03/05/06c ajustadas |
+| 2026-11-13 | ciclo-10 · carga/dropoff y depósito más visibles, huellas de combate persistentes, disciplina en contacto, detalles de era y props temáticos | `shots/ciclo-10-economia-bajas-eras/` (14) | 4.40 (mín 3.0; niebla 5.0, path 5.0, tech 5.0, HUD 5.0, art 5.0, eco 4.0, combate 4.0, densidad 4.0, IA 4.0, juice 3.0) | NO (juez no ve cambios inequívocos en stills: carga/entrega, bajas/huellas y salto de era poco legibles; arte 3D tope fase 4) | cargo+marker alto y pulso en ingenieros; dropoff con aro/beacon; depósito/cráteres/manchas/wreck/rubble/scorch más grandes y persistentes (caps/vidas); dress-ranks y settling en combate; adornos por era en edificios; arboledas/cercas/campos decorativos |
 
 ### Juez ciego · ciclo-07-hud-economia (evidencia sobre capturas)
 
@@ -437,8 +438,41 @@ late game encuadrando TC propio + viviendas + fábrica + 34/58 población legal.
 4. **Identidad visual por era**: siluetas/conjuntos de edificios y unidades claramente distintos entre arranque y late game (comparación `02-arranque` vs `07-late-game`/`09b-avance-era`) dentro del tope 3D (mueve 5,9).
 5. **Mapa con clusters temáticos legibles**: bosques densos, caminos base-recursos, grupos de props y variación de terreno manteniendo pasillos jugables en `02-arranque/03b-nodos` (mueve 6,9).
 
-### Brechas elegidas para el ciclo 10 (siguiente)
-Priorizar 1-5 arriba; **fase 4 (renderer 2D isométrico)** sigue siendo el desbloqueo crítico para 9/2/6/4 y el techo AoE2 (criterio: SORPRENDIDO SÍ, promedio ≥ 8.5, ninguna dim < 7).
+### Juez ciego · ciclo-10-economia-bajas-eras (2026-11-13)
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 4.0 | 03-economia/03b-nodos/03c-nodo-agotado: trabajadores y nodos/depósitos visibles, pero sin caja/marca de carga, color por recurso ni pulso inequívoco a distancia; entrega sin aro/beacon destacado en dropoff ni ciclo de acarreo claramente legible. 02-arranque: economía inicial sin ciclo obvio. |
+| 2 | Combate / counters / proyectiles | 4.0 | 04-combate/08-asedio/07-late-game: choques con disparos y algo de humo/fogonazos, pero sin proyectiles con trayectoria/impacto claros, counters por tipo ni bajas con lectura fuerte; 06b-unidades sin estados de daño diferenciados en combate. |
+| 3 | Niebla / exploración | 5.0 | 05-fog: masa no explorada y área visible con minimapa coherente; transición funcional pero genérica 3D, sin memoria explorada rica ni bordes con carácter AoE2. 02-arranque: borde visible sin tensión de descubrimiento marcada. |
+| 4 | Pathfinding / formaciones | 5.0 | 06c-formacion: grupo con orientación/separación aproximadas pero sin filas/frente rígidos ni disciplina evidente cerca del slot; 04-combate/07-late-game: en contacto se leen como agrupaciones más que bloques formados. |
+| 5 | Tech tree / edades | 5.0 | 09-research/09b-avance-era: indicios de investigación/avance en UI; 02-arranque vs 07-late-game: unidades/estructuras más avanzadas, pero salto de siluetas/materiales/detalles por era (vivienda/cuartel/almacén/fábrica/torre) no contundente a simple vista. |
+| 6 | Contenido y densidad | 4.0 | 02-arranque/03b-nodos/05-fog: árboles, rocas y parches de recursos, pero abundan claros vacíos y repetición; props temáticos no conforman trama densa ni identidad de zonas. |
+| 7 | IA legítima | 4.0 | 04-combate/07-late-game/08-asedio: fuerzas enemigas y enfrentamientos, pero sin base enemiga desarrollada con economía/defensa clara ni composición/plan de presión evidentes. |
+| 8 | HUD / UX AoE2 | 5.0 | 03-economia/06-ui/09-research: recursos/población, minimapa y paneles presentes; command card, retrato, costos, colas y jerarquía básicos y lejos de AoE2. 01-menu funcional sin identidad de diorama. |
+| 9 | Art direction / diorama isométrico | 5.0 | 01-menu/02-arranque/07-late-game: cámara/escala 3D consistentes, pero materiales simples, iluminación/plástica genérica y paleta poco unificada; siluetas y sensación de miniatura no alcanzan AoE2. **Tope renderer 3D actual (fase 4 2D isométrico pendiente).** |
+| 10 | Audio / juice | 3.0 | 04-combate/08-asedio/07-late-game: algunos fogonazos/humo aislados, pero sin cadáveres, manchas, cráteres, wreck/rubble/escombros ni huellas persistentes de edificios destruidos claramente visibles. |
+
+**Promedio:** 4.40 · **Mínima:** 3.0 · **Dimensiones < 7:** 10 · **Veredicto:** SORPRENDIDO: NO
+
+### Top 7 brechas (ciclo 10)
+1. **Economía sin feedback inequívoco de carga/entrega** (1, 03-economia/03b/03c) — no se lee quién transporta qué, cuánto ni dónde entrega; dropoff/deposito poco reconocible.
+2. **Batalla sin huella persistente legible** (2,10, 04-combate/07-late-game/08-asedio) — faltan cadáveres, cráteres, manchas y escombros/huella de destrucción duraderos y claros.
+3. **Formaciones sin disciplina de frente/filas** (4, 06c-formacion/04-combate) — no se sostienen alineación, filas y frente en contacto.
+4. **Progresión de eras poco distinguible** (5,9, 02-arranque/07-late-game/09b-avance-era) — salto de siluetas/materiales/detalles por era no se siente.
+5. **Mapa temático poco denso y vacío** (6, 02-arranque/03b-nodos/05-fog) — props/clusters sin trama densa ni identidad de zonas.
+6. **IA oponente sin intención legible** (7, 04-combate/07-late-game/08-asedio) — sin base/composición/plan de presión creíbles.
+7. **HUD/UX insuficiente para decisiones RTS** (8, 03-economia/06-ui/09-research) — command card, selección y jerarquía lejos del estándar AoE2.
+
+### 5 cambios para el ciclo 11
+1. **Carga y entrega imposibles de confundir**: marcador de recurso muy grande/sobresaliente en ingenieros con carga y beacon/anillo de depósito + FX de entrega de larga duración y alto contraste en `03-economia/03b/03c` (mueve 1,10).
+2. **Secuelas de combate persistentes e inequívocas**: cadáveres/wreck, manchas, cráteres y escombros/footprint de edificios destruidos grandes, contrastados y duraderos visibles en `04-combate/07-late-game/08-asedio` (mueve 2,10).
+3. **Disciplina de formación sostenida**: filas/columnas alineadas, frente y separación uniformes al asentarse y mayor conservación al combatir en `06c-formacion`/combates (mueve 4).
+4. **Identidad visual por era evidente**: cambios de silueta/material/detalle claramente reconocibles entre arranque y late game en edificios/unidades clave (comparar `02-arranque` vs `07-late-game/09b-avance-era`) dentro del tope 3D (mueve 5,9).
+5. **Mapa con identidad temática y densidad legible**: clusters de bosque/campos/cercas/caminos y zonas diferenciadas sin tapar juego en `02-arranque/03b-nodos/05-fog` (mueve 6).
+
+### Brechas elegidas para el ciclo 11 (siguiente)
+Priorizar 1-5 arriba; **fase 4 (renderer 2D isométrico)** sigue siendo el desbloqueo crítico para 9/2/6/4/1 y el techo AoE2 (criterio: SORPRENDIDO SÍ, promedio ≥ 8.5, ninguna dim < 7).
 
 
 ---
