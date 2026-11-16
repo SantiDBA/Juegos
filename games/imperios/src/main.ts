@@ -42,21 +42,35 @@ function setupWorld(): void {
   spawnUnit(gs, 'enemy', 'ingeniero', 46, -10)
   spawnUnit(gs, 'enemy', 'ingeniero', 50, -10)
 
-  // resources clusters near both sides and center, two rings so the start
-  // location never opens on empty ground (AoE2 base layout feel)
+  // resources clusters near both sides and center: split into denser patches
+  // around each base (arranque/economia más legibles) sin aumentar totales.
   const nodes: Array<[any, any, number, number, number]> = [
-    ['granja','suministros', -42, -16, 500], ['granja','suministros', -36, -22, 500],
-    ['bosque','materiales', -34, 16, 450], ['bosque','materiales', -28, 22, 450],
-    ['bosque','materiales', -44, 24, 450],
-    ['petroleo','combustible', -16, -30, 500], ['mina','minerales', -12, 28, 500],
-    ['granja','suministros', -20, -38, 500],
-    ['granja','suministros', 40, 18, 500], ['granja','suministros', 36, 23, 500],
-    ['bosque','materiales', 32, -17, 450], ['bosque','materiales', 27, -22, 450],
-    ['bosque','materiales', 45, -24, 450],
-    ['petroleo','combustible', 16, 30, 500], ['mina','minerales', 12, -28, 500],
-    ['granja','suministros', 20, 37, 500],
-    ['bosque','materiales', 0, 0, 400], ['granja','suministros', 4, -6, 400],
-    ['mina','minerales', -8, -44, 500], ['petroleo','combustible', 8, 44, 500],
+    // Base jugador (cluster cercano, visible en arranque/economía)
+    ['granja', 'suministros', -43, -17, 250], ['granja', 'suministros', -40, -14, 250],
+    ['granja', 'suministros', -37, -19, 250], ['granja', 'suministros', -34, -22, 250],
+    ['bosque', 'materiales', -36, 13, 225], ['bosque', 'materiales', -31, 16, 225],
+    ['bosque', 'materiales', -28, 20, 225], ['bosque', 'materiales', -41, 20, 225],
+    ['bosque', 'materiales', -37, 24, 225], ['bosque', 'materiales', -33, 22, 225],
+    ['mina', 'minerales', -23, 18, 150], ['petroleo', 'combustible', -23, -22, 150],
+    // Jugador medio/lejos (cantidades reducidas para balancear el split cercano)
+    ['granja', 'suministros', -20, -38, 500],
+    ['petroleo', 'combustible', -16, -30, 350], ['mina', 'minerales', -12, 28, 350],
+
+    // Base enemiga (espejo)
+    ['granja', 'suministros', 43, 17, 250], ['granja', 'suministros', 40, 14, 250],
+    ['granja', 'suministros', 37, 19, 250], ['granja', 'suministros', 34, 22, 250],
+    ['bosque', 'materiales', 36, -13, 225], ['bosque', 'materiales', 31, -16, 225],
+    ['bosque', 'materiales', 28, -20, 225], ['bosque', 'materiales', 41, -20, 225],
+    ['bosque', 'materiales', 37, -24, 225], ['bosque', 'materiales', 33, -22, 225],
+    ['mina', 'minerales', 23, -18, 150], ['petroleo', 'combustible', 23, 22, 150],
+    // Enemigo medio/lejos
+    ['granja', 'suministros', 20, 37, 500],
+    ['petroleo', 'combustible', 16, 30, 350], ['mina', 'minerales', 12, -28, 350],
+
+    // Centro / disputado
+    ['bosque', 'materiales', -2, 2, 200], ['bosque', 'materiales', 2, -2, 200],
+    ['granja', 'suministros', 4, -6, 200], ['granja', 'suministros', -4, 6, 200],
+    ['mina', 'minerales', -8, -44, 500], ['petroleo', 'combustible', 8, 44, 500],
   ]
   for (const [rt, rk, x, z, amt] of nodes) spawnResource(gs, rt, rk, x, z, amt)
 

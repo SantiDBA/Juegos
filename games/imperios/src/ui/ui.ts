@@ -36,22 +36,20 @@ export function createUI(root: HTMLElement): UIRefs {
   root.innerHTML = `
     <div class="topbar">
       <div class="era-badge" id="era">Era del Vapor</div>
-      <div class="res" title="Suministros"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#d7e07a" d="M8 1.5c-2.6 2-4 4.4-4 7 0 2.8 1.7 5 4 5s4-2.2 4-5c0-2.6-1.4-5-4-7z"/></svg><b id="r-suministros">0</b></div>
-      <div class="res" title="Materiales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c08a4a" d="M2 14V7l6-4 6 4v7h-4V9H6v5z"/></svg><b id="r-materiales">0</b></div>
-      <div class="res" title="Combustible"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#e0734a" d="M9.5 1.5s-4 4.8-4 8a4 4 0 0 0 8 0c0-1.4-.6-2.7-1.5-4-.9 1-1.7 1.2-2.5 1.2.7-1.8.7-3.7 0-5.2z"/></svg><b id="r-combustible">0</b></div>
-      <div class="res" title="Minerales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c8d2dc" d="M8 1.5 13 6.5 8 14.5 3 6.5z"/></svg><b id="r-minerales">0</b></div>
-      <div class="res" title="Población"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#9fd0ff" d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM3 13c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5z"/></svg><b id="pop">0/0</b></div>
-      <div class="res" title="Tiempo de partida"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#98a6bd" d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2v5l3 2" stroke="#98a6bd" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg><b id="clock">0:00</b></div>
+      <div class="res res-chip" title="Suministros"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#d7e07a" d="M8 1.5c-2.6 2-4 4.4-4 7 0 2.8 1.7 5 4 5s4-2.2 4-5c0-2.6-1.4-5-4-7z"/></svg><b id="r-suministros">0</b></div>
+      <div class="res res-chip" title="Materiales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c08a4a" d="M2 14V7l6-4 6 4v7h-4V9H6v5z"/></svg><b id="r-materiales">0</b></div>
+      <div class="res res-chip" title="Combustible"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#e0734a" d="M9.5 1.5s-4 4.8-4 8a4 4 0 0 0 8 0c0-1.4-.6-2.7-1.5-4-.9 1-1.7 1.2-2.5 1.2.7-1.8.7-3.7 0-5.2z"/></svg><b id="r-combustible">0</b></div>
+      <div class="res res-chip" title="Minerales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c8d2dc" d="M8 1.5 13 6.5 8 14.5 3 6.5z"/></svg><b id="r-minerales">0</b></div>
+      <div class="res res-chip res-chip-pop" title="Población"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#9fd0ff" d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM3 13c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5z"/></svg><b id="pop">0/0</b></div>
+      <div class="res res-chip res-chip-clock" title="Tiempo de partida"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#98a6bd" d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2v5l3 2" stroke="#98a6bd" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg><b id="clock">0:00</b></div>
     </div>
     <div class="prog-wrap" id="prog"><div class="prod-bar"><div class="prod-bar-fill" id="prog-fill"></div></div><div class="prog-label" id="prog-label"></div></div>
     <div class="leftpanel">
       <h3>Acciones</h3>
-      <div id="actions" class="actions"></div>
-      <div style="margin-top:8px;color:#98a6bd;font-size:11px;line-height:1.4">
-        Seleccioná un Ayuntamiento o Cuartel para producir. Seleccioná un Ingeniero y usá los botones de construcción.
-      </div>
+      <div id="actions" class="actions command-card"></div>
+      <div class="left-hint">Seleccioná un Ayuntamiento o Cuartel para producir. Seleccioná un Ingeniero y usá los botones de construcción.</div>
     </div>
-    <div class="bottombar"><div id="selection-info">Sin selección. Clic izq: seleccionar · Clic der: mover/recolectar/atacar.</div></div>
+    <div class="bottombar"><div id="selection-info" class="selection-info">Sin selección. Clic izq: seleccionar · Clic der: mover/recolectar/atacar.</div></div>
     <div class="minimap-wrap"><canvas id="minimap" width="220" height="220"></canvas></div>
     <button class="help-toggle" id="help-toggle" title="Controles" aria-label="Controles">?</button>
     <div class="help-panel hidden" id="help-panel">
@@ -140,6 +138,46 @@ export function createUI(root: HTMLElement): UIRefs {
   }
 }
 
+function clampPct(v: number): number {
+  return Math.max(0, Math.min(100, v))
+}
+
+function shortEntityLabel(name: string): string {
+  const clean = name.replace(/^Investigación:\s*/i, '').replace(/^Avance:\s*/i, '').trim()
+  if (clean.length <= 11) return clean
+  const parts = clean.split(/\s+/)
+  if (parts.length >= 2) {
+    const compact = `${parts[0]} ${parts[1][0]}.`
+    if (compact.length <= 12) return compact
+  }
+  return clean.slice(0, 10) + '…'
+}
+
+function teamLabel(team: Team): string {
+  return team === 'player' ? 'Aliado' : 'Enemigo'
+}
+
+function hpFillClass(pct: number): string {
+  if (pct <= 25) return 'is-low'
+  if (pct <= 55) return 'is-mid'
+  return 'is-high'
+}
+
+function hpBarHtml(hp: number, maxHp: number, cls = ''): string {
+  const pct = maxHp > 0 ? clampPct((hp / maxHp) * 100) : 0
+  return `<div class="hp-bar ${cls}"><div class="hp-bar-fill ${hpFillClass(pct)}" style="width:${pct.toFixed(1)}%"></div></div>`
+}
+
+function miniHpBarHtml(hp: number, maxHp: number): string {
+  const pct = maxHp > 0 ? clampPct((hp / maxHp) * 100) : 0
+  return `<div class="mini-hp"><div class="mini-hp-fill ${hpFillClass(pct)}" style="width:${pct.toFixed(1)}%"></div></div>`
+}
+
+function chipLetter(label: string): string {
+  const m = label.match(/[A-Za-zÁÉÍÓÚÜÑ0-9]/)
+  return (m ? m[0] : '?').toUpperCase()
+}
+
 /**
  * Research / era progress strip. AoE2 tells you what is being researched and
  * how long is left in the top bar; the bar under it answers "how far along".
@@ -214,11 +252,14 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
   const sel = gs.selectedIds.map(id => getEntity(gs, id)).filter(Boolean) as any[]
   const p = gs.players.player
 
-  const addBtn = (label: string, sub: string, fn: () => void, disabled = false) => {
+  const addBtn = (label: string, sub: string, fn: () => void, disabled = false, opts?: { title?: string, active?: boolean, kind?: string }) => {
     const b = document.createElement('button')
-    b.className = 'btn'
+    b.className = 'btn cmd-slot'
+    if (opts?.active) b.classList.add('is-active')
+    if (opts?.kind) b.classList.add(`cmd-${opts.kind}`)
     b.disabled = disabled
-    b.innerHTML = `${label}<small>${sub}</small>`
+    if (opts?.title) b.title = opts.title
+    b.innerHTML = `<span class="cmd-name">${label}</span><small class="cmd-cost">${sub}</small>`
     b.onclick = fn
     acts.appendChild(b)
   }
@@ -231,17 +272,17 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
         const defU = UNIT_DEFS[ut]
         if (defU.era > p.era) continue
         const chk = canTrain(gs, 'player', ut)
-        addBtn(defU.name, formatCost(defU.cost), () => onTrain(b.id, ut), !chk.ok)
+        addBtn(shortEntityLabel(defU.name), formatCost(defU.cost), () => onTrain(b.id, ut), !chk.ok, { title: `Entrenar ${defU.name}`, kind: 'train' })
       }
     }
     if (b.btype === 'ayuntamiento') {
       const next = ERAS[p.era]
-      if (next) addBtn(`Avanzar era`, `${next.name} · ${formatCost(next.advanceCost)}`, onAdvance, !!p.advancing)
-      else addBtn('Era máxima', 'IV alcanzada', () => {}, true)
+      if (next) addBtn('Avanzar', `${shortEntityLabel(next.name)} · ${formatCost(next.advanceCost)}`, onAdvance, !!p.advancing, { title: `Avanzar era: ${next.name} · ${formatCost(next.advanceCost)}`, kind: 'advance' })
+      else addBtn('Era máx.', 'IV alcanzada', () => {}, true, { title: 'Era máxima alcanzada', kind: 'advance' })
       for (const t of TECHS) {
         if (p.researched.includes(t.id)) continue
         const chk = canResearch(gs, 'player', t.id)
-        addBtn(`Investigar ${t.name}`, `${t.desc} · ${formatCost(t.cost)}`, () => onResearch(t.id), !chk.ok)
+        addBtn(shortEntityLabel(t.name), formatCost(t.cost), () => onResearch(t.id), !chk.ok, { title: `Investigar ${t.name}: ${t.desc} · ${formatCost(t.cost)}`, kind: 'research' })
       }
     }
   }
@@ -251,7 +292,7 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
     const defs: BuildingType[] = ['vivienda', 'cuartel', 'almacen', 'torre', 'fabrica']
     for (const bt of defs) {
       const d = BUILDING_DEFS[bt]
-      addBtn(`Construir ${d.name}`, formatCost(d.cost), () => onBuild(bt))
+      addBtn(shortEntityLabel(d.name), formatCost(d.cost), () => onBuild(bt), false, { title: `Construir ${d.name} · ${formatCost(d.cost)}`, kind: 'build' })
     }
   }
 
@@ -259,13 +300,14 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
   if (ownUnits.length > 0 && onStance) {
     const current: Stance = ownUnits.every((e: any) => e.stance === ownUnits[0].stance) ? ownUnits[0].stance : 'aggressive'
     for (const s of STANCES) {
-      addBtn(`${STANCE_LABEL[s]}${s === current ? ' ●' : ''}`, 'Postura de combate', () => onStance(s))
+      const active = s === current
+      addBtn(shortEntityLabel(STANCE_LABEL[s]), active ? 'Actual ●' : 'Postura', () => onStance(s), false, { title: `Postura: ${STANCE_LABEL[s]}`, active, kind: 'stance' })
     }
   }
 
   if (acts.children.length === 0) {
     const span = document.createElement('div')
-    span.style.color = '#98a6bd'; span.style.fontSize = '12px'
+    span.className = 'actions-empty'
     span.textContent = 'Seleccioná unidades o edificios para ver acciones.'
     acts.appendChild(span)
   }
@@ -273,7 +315,11 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
 
 export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
   const sel = gs.selectedIds.map(id => getEntity(gs, id)).filter(Boolean) as any[]
-  if (sel.length === 0) { ui.selInfo.textContent = 'Sin selección. Clic izq: seleccionar · Clic der: mover/recolectar/atacar.'; return }
+  if (sel.length === 0) {
+    ui.selInfo.innerHTML = '<span class="sel-empty">Sin selección. Clic izq: seleccionar · Clic der: mover/recolectar/atacar.</span>'
+    return
+  }
+
   if (sel.length === 1) {
     const e = sel[0]
     if (e.kind === 'unit') {
@@ -286,39 +332,119 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
         if (e.gatherTargetId != null) {
           const node = getEntity(gs, e.gatherTargetId)
           const resName = node && node.kind === 'resource' ? RESOURCE_LABEL[node.resource] : 'recurso'
-          econ = ` · Recolectando ${resName} a ${rate.toFixed(1)}/s · Carga ${load}`
+          econ = `Recolectando ${resName} a ${rate.toFixed(1)}/s · Carga ${load}`
         } else if (e.carryAmount > 0) {
-          econ = ` · Volviendo a depositar · Carga ${load}`
+          econ = `Volviendo a depositar · Carga ${load}`
         } else if (e.state === 'build') {
-          econ = ' · Construyendo'
+          econ = 'Construyendo'
+        } else {
+          econ = 'Disponible para recolectar y construir'
         }
+      } else {
+        econ = d.role === 'economy' ? 'Recolecta y construye' : 'Unidad militar'
       }
-      ui.selInfo.innerHTML = `<b>${d.name}</b> (${e.team === 'player' ? 'Aliado' : 'Enemigo'}) — Vida ${Math.ceil(e.hp)}/${e.maxHp} · ${d.role === 'economy' ? 'Recolecta y construye' : 'Unidad militar'}${econ}${e.team === 'player' ? ` · Postura: ${STANCE_LABEL[e.stance as Stance]}` : ''}`
+      const stance = e.team === 'player' ? `<span class="sel-pill">Postura: ${STANCE_LABEL[e.stance as Stance]}</span>` : ''
+      const econPill = econ ? `<span class="sel-pill subtle">${econ}</span>` : ''
+      ui.selInfo.innerHTML = `
+        <div class="sel-card sel-unit team-${e.team}">
+          <div class="sel-head">
+            <div>
+              <div class="sel-title">${d.name}</div>
+              <div class="sel-sub">${teamLabel(e.team as Team)} · ${d.role === 'economy' ? 'Economía' : 'Militar'} · ${e.utype}</div>
+            </div>
+            <div class="sel-hpnum">${Math.ceil(e.hp)}/${e.maxHp} HP</div>
+          </div>
+          ${hpBarHtml(e.hp, e.maxHp, 'hp-prominent')}
+          <div class="sel-meta">${econPill}${stance}</div>
+        </div>`
     } else if (e.kind === 'building') {
       const d = BUILDING_DEFS[e.btype]
-      let info = `<b>${d.name}</b> (${e.team === 'player' ? 'Aliado' : 'Enemigo'}) — Vida ${Math.ceil(e.hp)}/${e.maxHp}`
-      let bar = ''
+      let status = e.built ? 'Operativo' : `Construyendo ${Math.max(0, Math.min(100, Math.floor(e.buildProgress * 100)))}%`
+      let extra = ''
+      let bars = hpBarHtml(e.hp, e.maxHp, 'hp-prominent')
       if (!e.built) {
         const pct = Math.max(0, Math.min(100, Math.floor(e.buildProgress * 100)))
-        info += ` · Construyendo ${pct}%`
-        bar = `<div class="prod-bar"><div class="prod-bar-fill build" style="width:${pct}%"></div></div>`
+        status = `Construyendo ${pct}%`
+        bars += `<div class="prod-bar sel-prod"><div class="prod-bar-fill build" style="width:${pct}%"></div></div>`
+        extra = `<span class="sel-pill subtle">Progreso de obra</span>`
       } else if (e.queue.length > 0) {
         const job = e.queue[0]
         const pct = Math.max(0, Math.min(100, ((job.total - job.remaining) / job.total) * 100))
         const secs = Math.max(0, Math.ceil(job.remaining))
         const unitName = UNIT_DEFS[job.type]?.name ?? job.type
-        const extra = e.queue.length > 1 ? ` · +${e.queue.length - 1} en cola` : ''
-        info += ` · Entrenando <b>${unitName}</b>: ${Math.floor(pct)}% (${secs}s)${extra}`
-        bar = `<div class="prod-bar"><div class="prod-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>`
+        const more = e.queue.length - 1
+        status = `Entrenando ${unitName} · ${Math.floor(pct)}% (${secs}s)`
+        bars += `<div class="prod-bar sel-prod"><div class="prod-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>`
+        extra = `<span class="sel-pill subtle">Cola actual: ${unitName}${more > 0 ? ` · +${more} en cola` : ''}</span>`
+      } else {
+        extra = `<span class="sel-pill subtle">${d.produces && d.produces.length ? 'Listo para producir' : 'Sin cola'}</span>`
       }
-      ui.selInfo.innerHTML = `<div>${info}</div>${bar}`
+      ui.selInfo.innerHTML = `
+        <div class="sel-card sel-building team-${e.team}">
+          <div class="sel-head">
+            <div>
+              <div class="sel-title">${d.name}</div>
+              <div class="sel-sub">${teamLabel(e.team as Team)} · Edificio · ${status}</div>
+            </div>
+            <div class="sel-hpnum">${Math.ceil(e.hp)}/${e.maxHp} HP</div>
+          </div>
+          ${bars}
+          <div class="sel-meta">${extra}</div>
+        </div>`
     } else {
       const rk = e.resource as ResourceKey
-      ui.selInfo.innerHTML = `<b>Nodo de ${RESOURCE_LABEL[rk]}</b> — Restante ${Math.ceil(e.amount)}`
+      const remaining = Math.max(0, Math.ceil(e.amount))
+      const max = typeof e.maxAmount === 'number' && e.maxAmount > 0 ? e.maxAmount : e.amount
+      const pct = max > 0 ? clampPct((e.amount / max) * 100) : 0
+      ui.selInfo.innerHTML = `
+        <div class="sel-card sel-resource">
+          <div class="sel-head">
+            <div>
+              <div class="sel-title">Nodo de ${RESOURCE_LABEL[rk]}</div>
+              <div class="sel-sub">Recurso natural · ${RESOURCE_LABEL[rk]}</div>
+            </div>
+            <div class="sel-hpnum">${remaining} rest.</div>
+          </div>
+          ${hpBarHtml(e.amount, max, 'hp-prominent resource')}
+          <div class="sel-meta"><span class="sel-pill subtle">Restante ${remaining} · ${Math.floor(pct)}%</span></div>
+        </div>`
     }
-  } else {
-    ui.selInfo.innerHTML = `<b>${sel.length} unidades/entidades seleccionadas</b>`
+    return
   }
+
+  const maxChips = 24
+  const chips = sel.slice(0, maxChips).map((e: any) => {
+    if (e.kind === 'unit') {
+      const d = UNIT_DEFS[e.utype]
+      return `<div class="sel-chip team-${e.team}" title="${d.name} (${teamLabel(e.team as Team)}) ${Math.ceil(e.hp)}/${e.maxHp} HP">
+        <div class="sel-chip-top"><span class="sel-chip-letter">${chipLetter(d.name)}</span><span class="sel-chip-name">${shortEntityLabel(d.name)}</span></div>
+        ${miniHpBarHtml(e.hp, e.maxHp)}
+        <div class="sel-chip-team">${teamLabel(e.team as Team)}</div>
+      </div>`
+    }
+    if (e.kind === 'building') {
+      const d = BUILDING_DEFS[e.btype]
+      return `<div class="sel-chip team-${e.team}" title="${d.name} (${teamLabel(e.team as Team)}) ${Math.ceil(e.hp)}/${e.maxHp} HP">
+        <div class="sel-chip-top"><span class="sel-chip-letter">${chipLetter(d.name)}</span><span class="sel-chip-name">${shortEntityLabel(d.name)}</span></div>
+        ${miniHpBarHtml(e.hp, e.maxHp)}
+        <div class="sel-chip-team">${teamLabel(e.team as Team)}</div>
+      </div>`
+    }
+    const rk = e.resource as ResourceKey
+    const max = typeof e.maxAmount === 'number' && e.maxAmount > 0 ? e.maxAmount : e.amount
+    return `<div class="sel-chip team-neutral" title="Nodo de ${RESOURCE_LABEL[rk]} · ${Math.ceil(e.amount)} restante">
+      <div class="sel-chip-top"><span class="sel-chip-letter">${chipLetter(RESOURCE_LABEL[rk])}</span><span class="sel-chip-name">${shortEntityLabel(RESOURCE_LABEL[rk])}</span></div>
+      ${miniHpBarHtml(e.amount, max)}
+      <div class="sel-chip-team">Recurso</div>
+    </div>`
+  }).join('')
+  const more = sel.length - maxChips
+  ui.selInfo.innerHTML = `
+    <div class="sel-card sel-multi">
+      <div class="sel-head"><div><div class="sel-title">${sel.length} entidades seleccionadas</div><div class="sel-sub">Resumen rápido de la selección</div></div>${more > 0 ? `<div class="sel-hpnum">+${more} más</div>` : ''}</div>
+      <div class="sel-chip-grid">${chips}</div>
+      ${more > 0 ? `<div class="sel-more">+${more} más</div>` : ''}
+    </div>`
 }
 
 export function showToast(ui: UIRefs, msg: string): void {
@@ -351,9 +477,9 @@ export function updateMinimap(ui: UIRefs, gs: GameState, camX?: number, camZ?: n
       const v = observer ? visionAtCell(gs, observer, cx, cz) : VIS_VISIBLE
       const o = (py * w + px) * 4
       // 0 = unexplored (near black), 1 = explored (dark green), 2 = visible
-      if (v === VIS_UNKNOWN) { data[o] = 6; data[o+1] = 8; data[o+2] = 7 }
-      else if (v === VIS_EXPLORED) { data[o] = 24; data[o+1] = 33; data[o+2] = 22 }
-      else { data[o] = 42; data[o+1] = 59; data[o+2] = 36 }
+      if (v === VIS_UNKNOWN) { data[o] = 3; data[o+1] = 5; data[o+2] = 6 }
+      else if (v === VIS_EXPLORED) { data[o] = 20; data[o+1] = 28; data[o+2] = 20 }
+      else { data[o] = 56; data[o+1] = 78; data[o+2] = 44 }
       data[o + 3] = 255
     }
   }

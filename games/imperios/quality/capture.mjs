@@ -294,24 +294,23 @@ const SCENARIOS = [
     title: 'Combate: choque de milicias + línea de fusileros enemigos a distancia',
     js: `(() => {
       const g = window.__imperios
-      g.spawn('player', 'milicia', 10, -38, 26)
-      g.spawn('player', 'fusilero', 4, -40, 32)
-      g.spawn('enemy', 'milicia', 8, -29, 26)
-      g.spawn('enemy', 'fusilero', 6, -27, 22)
-      g.skip(4)
-      // centrar en el choque real: con la niebla, un encuadre fijo deja el
-      // combate pegado al HUD inferior
+      g.spawn('player', 'milicia', 12, -35, 25)
+      g.spawn('player', 'fusilero', 5, -37, 29)
+      g.spawn('enemy', 'milicia', 10, -31, 25)
+      g.spawn('enemy', 'fusilero', 7, -29, 29)
+      g.skip(1.5)
+      // centrar en el choque real en pleno intercambio (trazadoras/impactos visibles)
       let cx = 0, cz = 0, n = 0
       for (const e of g.state.entities.values()) {
         if (e.dead || e.kind !== 'unit') continue
         if (e.utype !== 'milicia' && e.utype !== 'fusilero') continue
-        if (Math.abs(e.x + 34) > 22 || Math.abs(e.z - 25) > 22) continue
+        if (Math.abs(e.x + 33) > 18 || Math.abs(e.z - 27) > 18) continue
         cx += e.x; cz += e.z; n++
       }
-      if (n > 0) g.camera(cx / n, cz / n, 54)
+      if (n > 0) g.camera(cx / n, cz / n, 50)
       return 'ok'
     })()`,
-    settleMs: 1000, // 1 s real: el render necesita drenar proyectiles/muertes
+    settleMs: 1400, // tiempo real para drenar VFX del intercambio
   },
   {
     id: '05-fog',
@@ -385,17 +384,24 @@ const SCENARIOS = [
     title: 'Asedio: tanques, milicias y cañones propios contra la base enemiga',
     js: `(() => {
       const g = window.__imperios
-      g.camera(52, 0)
       g.build('enemy', 'torre', 50, -6, true)
       g.build('enemy', 'cuartel', 48, 18, true)
-      g.spawn('player', 'tanque', 4, 40, 0)
-      g.spawn('player', 'milicia', 6, 38, 6)
-      g.spawn('player', 'canon', 2, 36, -4)
-      g.skip(6)
+      g.spawn('player', 'tanque', 4, 44, 0)
+      g.spawn('player', 'milicia', 6, 43, 6)
+      g.spawn('player', 'canon', 2, 42, -4)
+      g.skip(3)
       g.fog()
+      let cx = 0, cz = 0, n = 0
+      for (const e of g.state.entities.values()) {
+        if (e.dead || e.kind !== 'unit' || e.team !== 'player') continue
+        if (e.x < 32 || e.x > 56 || Math.abs(e.z) > 20) continue
+        cx += e.x; cz += e.z; n++
+      }
+      if (n > 0) g.camera(cx / n, cz / n, 56)
+      else g.camera(48, 0, 56)
       return 'ok'
     })()`,
-    settleMs: 1200,
+    settleMs: 1400,
   },
 ]
 

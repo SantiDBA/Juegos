@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
-import { BUILDING_DEFS, GRID, MAP_SIZE, TEAM_COLORS } from '../core/config'
+import { BUILDING_DEFS, GRID, MAP_SIZE, TEAM_COLORS, UNIT_DEFS } from '../core/config'
 import type { AnyEntity, BuildingEntity, ResourceEntity, ResourceKey, Team, UnitEntity } from '../core/types'
 
 /** How the observer perceives an entity under the fog of war. */
@@ -456,7 +456,7 @@ function visAlpha(grid: Uint8Array | null, cx: number, cy: number): number {
   if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) return 255
   const v = grid[cy * GRID + cx]
   // 0 = never seen (opaque), 1 = explored/remembered (dark penumbra), 2 = visible (clear)
-  return v >= 2 ? 0 : v === 1 ? 185 : 255
+  return v >= 2 ? 0 : v === 1 ? 140 : 255
 }
 
 export function updateCamera(rc: RenderContext): void {
@@ -601,10 +601,10 @@ export function updateHpSprite(sp: THREE.Sprite, ratio: number, team: Team = 'pl
 const NODE_LABEL_W = 192
 const NODE_LABEL_H = 72
 /** World size of a node label; the node itself shrinks as it depletes. */
-const NODE_LABEL_SCALE_W = 2.4
-const NODE_LABEL_SCALE_H = 0.9
+const NODE_LABEL_SCALE_W = 3.1
+const NODE_LABEL_SCALE_H = 1.1
 /** World height of the label above the node's base. */
-const NODE_LABEL_Y = 3.1
+const NODE_LABEL_Y = 3.5
 
 /** Builds the reusable canvas sprite used for on-world numbers. */
 function makeLabelSprite(): THREE.Sprite {
@@ -643,7 +643,7 @@ export function updateNodeLabel(sp: THREE.Sprite, amount: number): void {
   const tex = anySp._tex as THREE.CanvasTexture
   const w = NODE_LABEL_W, h = NODE_LABEL_H
   ctx.clearRect(0, 0, w, h)
-  ctx.font = 'bold 42px ui-sans-serif, system-ui, -apple-system, sans-serif'
+  ctx.font = 'bold 50px ui-sans-serif, system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   const textW = Math.min(w - 8, Math.max(64, ctx.measureText(text).width + 40))
@@ -729,11 +729,11 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     // Visible load: a small crate over the shoulders that only appears while the
     // engineer is carrying something, tinted by the resource it gathered.
     const cargo = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34, 0.3, 0.3),
-      new THREE.MeshStandardMaterial({ color: 0xc9e06b, emissive: 0xc9e06b, emissiveIntensity: 0.12, roughness: 0.75, metalness: 0.08 }),
+      new THREE.BoxGeometry(0.52, 0.44, 0.44),
+      new THREE.MeshStandardMaterial({ color: 0xc9e06b, emissive: 0xc9e06b, emissiveIntensity: 0.4, roughness: 0.75, metalness: 0.08 }),
     )
     cargo.name = 'cargo'
-    cargo.position.set(0, 1.34, -0.1)
+    cargo.position.set(0, 1.48, 0.02)
     cargo.castShadow = true
     cargo.visible = false
     cargo.userData.baseY = cargo.position.y
@@ -1042,6 +1042,18 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.12, side: THREE.DoubleSide }))
     flag.position.set(-0.22, 5.85, -0.5); g.add(flag)
   }
+  if (BUILDING_DEFS[b.btype]?.dropoff) {
+    const r = Math.max(sz.x, sz.z) * 0.38
+    const drop = new THREE.Mesh(
+      new THREE.RingGeometry(r * 0.72, r, 28),
+      new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }),
+    )
+    drop.rotation.x = -Math.PI / 2
+    drop.position.y = 0.07
+    drop.name = 'dropoff'
+    drop.visible = false
+    g.add(drop)
+  }
   const sel = new THREE.Mesh(new THREE.RingGeometry(Math.max(sz.x,sz.z)*0.58, Math.max(sz.x,sz.z)*0.66, 32), new THREE.MeshBasicMaterial({ color: teamC, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }))
   sel.rotation.x = -Math.PI / 2; sel.position.y = 0.05; sel.name = 'sel'; sel.visible = false; g.add(sel)
   g.userData.kind = 'building'
@@ -1252,6 +1264,7 @@ function applyGhost(rc: RenderContext, obj: THREE.Object3D, ghost: boolean): voi
   obj.traverse((c) => {
     const mesh = c as THREE.Mesh
     if (!mesh.isMesh) return
+    if (mesh.name === 'dropoff') return
     const ud = mesh.userData
     if (ghost) {
       if (!ud.origMaterial) {
@@ -1339,6 +1352,15 @@ export function syncEntityMesh(
         obj.traverse((c) => { if ((c as THREE.Mesh).isMesh) { const m = (c as THREE.Mesh).material as THREE.MeshStandardMaterial; if (m && m.opacity !== undefined && m.transparent && (m as any).emissiveIntensity === undefined) { m.opacity = 1; m.transparent = false } } })
       }
     }
+    const dropoff = obj.getObjectByName('dropoff') as THREE.Mesh | undefined
+    if (dropoff) {
+      const showDrop = b.built && !ghosted
+      dropoff.visible = showDrop
+      if (showDrop) {
+        const m = dropoff.material as THREE.MeshBasicMaterial
+        m.opacity = 0.42 + 0.18 * (0.5 + 0.5 * Math.sin(rc.clock.elapsedTime * 2.4))
+      }
+    }
     // Wounded buildings smoke from the roof: the fog of war only reveals what
     // the observer can see, so a ghost (remembered) building never smokes.
     if (b.built && !ghosted && b.hp < b.maxHp * 0.5) {
@@ -1358,9 +1380,9 @@ export function syncEntityMesh(
     obj.scale.setScalar(0.6 + 0.4 * ratio)
     const pump = obj.getObjectByName('pump')
     if (pump) pump.rotation.z = Math.sin(rc.clock.elapsedTime * 2.2) * 0.18
-    // Remaining amount, drawn only while the node is selected. The label
-    // counter-scales the node's shrink-to-depletion factor so the digits keep
-    // the same size on screen until the node is gone.
+    // Remaining amount, shown while the node still has resource (not only when
+    // selected). The label counter-scales the node's shrink-to-depletion factor
+    // so the digits keep the same size on screen until the node is gone.
     let label = obj.userData.nodeLabel as THREE.Sprite | undefined
     if (!label) {
       label = makeLabelSprite()
@@ -1368,8 +1390,8 @@ export function syncEntityMesh(
       obj.userData.nodeLabel = label
       obj.userData.labelAmount = -1
     }
-    label.visible = r.selected
-    if (r.selected) {
+    label.visible = r.amount > 0
+    if (label.visible) {
       const s = Math.abs(obj.scale.x) || 1
       label.scale.set(NODE_LABEL_SCALE_W / s, NODE_LABEL_SCALE_H / s, 1)
       label.position.set(0, NODE_LABEL_Y / s, 0)
@@ -1438,6 +1460,8 @@ function syncCargo(u: UnitEntity, obj: THREE.Object3D, moving: boolean, t: numbe
   const carrying = u.carryAmount > 0.001
   cargo.visible = carrying
   if (!carrying) return
+  const fill = Math.min(1, u.carryAmount / (UNIT_DEFS[u.utype]?.carry ?? 20))
+  cargo.scale.setScalar(0.75 + 0.45 * fill)
   const key = dominantCarry(u.carrying)
   if (cargo.userData.resKey !== key) {
     cargo.userData.resKey = key
@@ -1447,7 +1471,11 @@ function syncCargo(u: UnitEntity, obj: THREE.Object3D, moving: boolean, t: numbe
       m.emissive.setHex(CARRY_COLORS[key])
     }
   }
-  const baseY = (cargo.userData.baseY as number | undefined) ?? 1.34
+  const m = (cargo as THREE.Mesh).material as THREE.MeshStandardMaterial
+  if (m && (m as any).isMeshStandardMaterial) {
+    m.emissiveIntensity = 0.35 + 0.3 * fill
+  }
+  const baseY = (cargo.userData.baseY as number | undefined) ?? 1.48
   const sway = moving ? Math.sin(t * 9 + u.id) : 0
   cargo.rotation.z = sway * 0.16
   cargo.position.x = sway * 0.05
