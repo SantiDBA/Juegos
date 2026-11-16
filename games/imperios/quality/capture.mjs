@@ -220,24 +220,31 @@ const SCENARIOS = [
         for (const e of getIter()) if (e && !e.dead && e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && (e.carryAmount || 0) > 0.5) n++
         return n
       }
-      for (let i = 0; i < 4 && countCarrying() < 3; i++) g.skip(2)
-      let tc = null, sx = 0, sz = 0, sn = 0, cx = 0, cz = 0, cn = 0
+      for (let i = 0; i < 5 && countCarrying() < 3; i++) g.skip(2)
+      let tc = null
+      const carrying = []
       for (const e of getIter()) {
         if (!e || e.dead) continue
         if (e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') tc = e
-        if (e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero') {
-          sx += e.x; sz += e.z; sn++
-          if ((e.carryAmount || 0) > 0.5) { cx += e.x; cz += e.z; cn++ }
-        }
+        if (e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && (e.carryAmount || 0) > 0.5) carrying.push(e)
       }
-      const ax = cn > 0 ? cx / cn : (sn ? sx / sn : -46)
-      const az = cn > 0 ? cz / cn : (sn ? sz / sn : 2)
+      // encuadre cerrado sobre dropoff e ingenieros con carga (lectura inequívoca)
+      let cx = 0, cz = 0
+      if (carrying.length > 0) {
+        carrying.sort((a, b) => (a.carryAmount || 0) < (b.carryAmount || 0) ? 1 : -1)
+        const pick = carrying.slice(0, 4)
+        for (const e of pick) { cx += e.x; cz += e.z }
+        cx /= pick.length; cz /= pick.length
+        g.select(pick.map(e => e.id))
+      } else {
+        cx = -46; cz = 2
+      }
       const tx = tc ? tc.x : -55, tz = tc ? tc.z : 0
-      // encuadre zona TC+dropoff con ingenieros volviendo con carga
-      g.camera(tx * 0.6 + ax * 0.4, tz * 0.6 + az * 0.4, 54)
-      return 'ok assigned=' + assigned + ' carrying=' + cn
+      g.camera(tx * 0.55 + cx * 0.45, tz * 0.55 + cz * 0.45, 40)
+      g.state.status = 'paused' // congelar para que la carga y el dropoff sean legibles en el still
+      return 'ok assigned=' + assigned + ' carrying=' + carrying.length
     })()`,
-    settleMs: 2200, // tiempo real para ver tránsito/carga y FX de depósito
+    settleMs: 900,
   },
   {
     id: '03b-nodos',
@@ -421,9 +428,10 @@ const SCENARIOS = [
       const n = g.moveFormation(squad, -36, 12, 'wedge')
       g.skip(6)              // avanzar hasta llegar y asentarse en formación
       g.camera(-36, 12, 50)  // reencuadre al destino/formación
+      g.state.status = 'paused'
       return n >= 6 ? 'ok' : 'moved:' + n
     })()`,
-    settleMs: 2400,
+    settleMs: 900,
   },
   {
     id: '08-asedio',
