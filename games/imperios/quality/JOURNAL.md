@@ -842,6 +842,64 @@ pero economía, combate fino, IA y acabado de diorama siguen por debajo de AoE2 
 
 ---
 
+# Juez ciego · ciclo-19-combate-impacto-ia · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-19-combate-impacto-ia/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** impactos **nítidos** (un destello
+corto + chispas + mancha de terreno; se quitaron el flash central, el doble anillo y el
+polvo), y sobre todo se corrigió que los *muzzles*/destellos de disparo duraban **6-9 s**,
+por lo que decenas de quads crema se acumulaban en una mancha blanca sobre la melé; ahora
+son efímeros (0.12-0.14 s de hold). También se acortó el halo/anillo de depósito y se afinó
+el escenario de combate (líneas a distancia más atrás para trazas largas; menos unidades
+cuerpo a cuerpo) y el encuadre de late-game hacia la base enemiga. El *hit-flash* por
+unidad se probó y se retiró: en melés grandes muchas unidades encendidas se leían como un
+blob blanco.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC, viviendas, caminos, granjas con trigo y etiquetas pequeñas ("70"/"170"), cluster de ingenieros. Persiste un halo claro sobre el TC (acumulación de FX de base) que resta contraste; sin lectura de carga por unidad. |
+| 2 | Combate / counters / proyectiles | 6.0 | `08-asedio.png`: trazadoras y destellos de impacto cruzando el frente hacia los edificios, con manchas de terreno y bajas; `04-combate.png`: bandos separados por color (azul vs rojo) y contacto. La melé grande sigue leyéndose como aglomeración. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: oscuro no explorado, memoria en penumbra y terreno visible nítido; minimapa coherente; transición más simple que AoE2. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con orientación y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada al 39% con "28s restantes", doble lectura y "Produce: Ingeniero". |
+| 6 | Contenido y densidad | 6.5 | `07-late-game.png`: mapa poblado con base propia, tropas, recursos y etiquetas sobrias; persisten zonas abiertas. |
+| 7 | IA legítima | 5.5 | `07-late-game.png`/`08-asedio.png`: hay tropas rojas dispersas y humo de combate, pero **no se distingue** una base enemiga con producción/defensas en el encuadre. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card a 2 columnas legible, posturas sin truncar, panel de selección con contexto; nombres de tech largos aún abreviados y ayuda recortada. |
+| 9 | Art direction / diorama isométrico | 6.0 | `02-arranque.png`/`07-late-game.png`: cámara y paleta coherentes; materiales/luz más simples que AoE2 DE. |
+| 10 | Audio / juice | 5.5 | `08-asedio.png`: impactos con destello, chispas y manchas; `04-combate.png`: la melé no muestra feedback de golpe por unidad. Sin audio observable. |
+
+**Promedio:** 6.20 · **Mínima:** 5.5 · **Dimensiones < 7:** 9
+
+**Veredicto — SORPRENDIDO: NO**
+Se corrigió la acumulación de destellos y los impactos quedan más nítidos, pero la melé
+sigue sin leerse por unidad, la IA no muestra base y el acabado de diorama sigue por debajo
+de AoE2 DE.
+
+## Top 7 brechas
+1. Melé grande ilegible: unidades se aglomeran y sin feedback de golpe por unidad — `04-combate.png` — no se sigue el combate.
+2. IA: base enemiga con producción/defensas no visible en el encuadre — `07-late-game.png` — el rival no se lee como oponente.
+3. Halo/acumulación de FX claros sobre la base propia — `03-economia.png`, `08-asedio.png` — resta contraste.
+4. Economía sin lectura de carga/ruta por unidad — `03-economia.png` — base poco "viva".
+5. HUD: nombres de tech abreviados y ayuda recortada — `06-ui.png` — acabado.
+6. Densidad irregular y terreno plano — `02-arranque.png` — menos habitado que AoE2.
+7. Materiales/luz de prototipo (techo del renderer 3D) — `02-arranque.png` — lejos del diorama AoE2 DE.
+
+## 5 cambios para el próximo ciclo
+1. Legibilidad de melé: separar siluetas y feedback de golpe por unidad sin wash — Dim 2,10.
+2. IA visible: encuadrar/simular una base enemiga con producción y defensas — Dim 7.
+3. Quitar la acumulación de FX claros sobre la base propia — Dim 1,9.
+4. HUD: nombres de tech completos (o tooltip) y ayuda sin recorte — Dim 8.
+5. Densidad/variación temática en vacíos — Dim 6.
+
+## Riesgos / notas
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+- El "glow" es persistente a los ajustes (se bajó bloom, se acortaron flashes y halos). Parte puede ser interpretación del lector sobre terreno fuertemente soleado; conviene medirlo con capturas comparadas antes de seguir persiguiéndolo.
+- Los escenarios 04/07 cambiaron de composición respecto de ciclos previos (medición no estrictamente comparable).
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
