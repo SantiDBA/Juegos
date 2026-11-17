@@ -1117,6 +1117,58 @@ legible la base enemiga. Promedio sin moverse (~6.25).
 
 ---
 
+# Juez ciego · ciclo-24-terreno-detalle · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-24-terreno-detalle/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** se agregó una **textura de detalle
+procedural al terreno** (canvas tileable, multiplicada sobre los colores por vértice) para que
+el suelo deje de leerse como "pintura plana" — el defecto de material más citado. Ajustada en
+contraste para verse tanto en arranque como en zoom de economía.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC y viviendas, granjas con hileras y trigo, rocas y árboles; el suelo ahora muestra moteado. Ingenieros se leen como grupo; caminos tenues. |
+| 2 | Combate / counters / proyectiles | 6.0 | `08-asedio.png`: melé con destellos de impacto; trazadoras tenues y sin feedback por unidad. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: desconocido oscuro, memoria en penumbra, visible nítido; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: árboles, rocas, arbustos, cajas y suelo moteado; aun así el lector estima ~20-30 % de la densidad de AoE2. |
+| 7 | IA legítima | 5.5 | `07-late-game.png`: sólo puntos rojos dispersos; base enemiga con producción/defensas no legible. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible, posturas sin truncar; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 6.0 | `02-arranque.png`/`03-economia.png`: el suelo ya no es plano (moteado visible), pero material/iluminación siguen por debajo de AoE2 DE (sin blending de terreno ni relieve). |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello; sin feedback por unidad. Sin audio. |
+
+**Promedio:** 6.25 · **Mínima:** 5.5 · **Dimensiones < 7:** 9
+
+**Veredicto — SORPRENDIDO: NO**
+La textura de terreno quita el look de "pintura plana", pero no mueve el promedio: combate,
+base enemiga y acabado de diorama siguen lejos de AoE2 DE.
+
+## Top 7 brechas
+1. Base enemiga ilegible — `07-late-game.png` — dim 7.
+2. Combate sin lectura por unidad ni trazadoras claras — `04/08` — dim 2,10.
+3. Material/iluminación sin blending ni relieve (aunque el suelo ya tiene detalle) — dim 9.
+4. Economía sin lectura de carga/ruta por unidad — dim 1.
+5. Densidad aún muy por debajo de AoE2 — dim 6.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Fase 4 (ortográfica) no viable sin trabajo de renderer — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Base enemiga legible (huella clara + encuadre como sujeto) — Dim 7.
+2. Combate legible por unidad + trazadoras — Dim 2,10.
+3. Norte: blending de terreno / relieve / AO para el diorama — Dim 9.
+4. Densidad/variación — Dim 6.
+5. HUD sin abreviaturas/recortes — Dim 8.
+
+## Riesgos / notas
+- **24 ciclos, promedio 6.20-6.40 sin tendencia** (los últimos 6 ciclos: 6.20, 6.25×5). El loop está en rendimiento decreciente; el techo es estructural. Sigue vigente la recomendación de pausar o redefinir la vara.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+- La textura de terreno se multiplica sobre vertex colors: si en el futuro se agregan biomas, revisar que el detalle no "ensucie" paletas específicas.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
