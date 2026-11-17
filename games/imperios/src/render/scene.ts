@@ -141,13 +141,13 @@ function addDensityProps(scene: THREE.Scene): void {
   // Low-poly bushes / shrubs (scattered + deterministic forest clusters), render-only.
   const bushGeo = new THREE.IcosahedronGeometry(0.55, 0)
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x3f6a35, roughness: 0.95, metalness: 0.0, flatShading: true })
-  const bushCount = 1400
+  const bushCount = 1800
   const bushes = new THREE.InstancedMesh(bushGeo, bushMat, bushCount)
   const d = new THREE.Object3D()
   const c = new THREE.Color()
   let bi = 0
   const baseClear = (x: number, z: number) => Math.hypot(x + 55, z) < 16 || Math.hypot(x - 55, z) < 16
-  for (let i = 0; i < 5600 && bi < bushCount; i++) {
+  for (let i = 0; i < 7200 && bi < bushCount; i++) {
     const h = hash2(i * 0.73 + 10.1, i * 1.91 + 3.7)
     const h2 = hash2(i * 1.37 + 2.3, i * 0.61 + 8.4)
     const x = (h - 0.5) * MAP_SIZE * 0.96
@@ -175,6 +175,9 @@ function addDensityProps(scene: THREE.Scene): void {
     [-14, 28, 12], [14, -28, 12], [-6, -12, 12], [6, 12, 12], [-26, -10, 12], [26, 10, 12],
     // extra center/node-adjacent scrub for denser readable map
     [-16, 6, 14], [16, -6, 14], [-10, 18, 12], [10, -18, 12], [-20, 30, 12], [20, -30, 12], [-8, -18, 12], [8, 18, 12],
+    // arranque (player base outskirts) and near player resource nodes
+    [-42, -12, 14], [-34, -24, 14], [-30, 12, 16], [-26, 24, 14], [-44, 18, 12], [-18, -34, 14], [-46, -14, 12], [-40, 10, 12],
+    [-28, -14, 12], [-22, 14, 12], [-14, -22, 12], [-32, -28, 10], [-24, -8, 12], [-10, 26, 10],
   ]
   for (let ci = 0; ci < clusters.length && bi < bushCount; ci++) {
     const [cx, cz, n] = clusters[ci]
@@ -207,16 +210,16 @@ function addDensityProps(scene: THREE.Scene): void {
   // Extra small stones / pebbles
   const pebGeo = new THREE.DodecahedronGeometry(0.22, 0)
   const pebMat = new THREE.MeshStandardMaterial({ color: 0x7a7a72, roughness: 0.98, metalness: 0.02, flatShading: true })
-  const pebCount = 420
+  const pebCount = 560
   const pebs = new THREE.InstancedMesh(pebGeo, pebMat, pebCount)
   let pi = 0
-  for (let i = 0; i < 1800 && pi < pebCount; i++) {
+  for (let i = 0; i < 2400 && pi < pebCount; i++) {
     const h = hash2(i * 0.91 + 40.1, i * 1.23 + 13.7)
     const h2 = hash2(i * 1.71 + 22.3, i * 0.47 + 18.4)
     const x = (h - 0.5) * MAP_SIZE * 0.94
     const z = (h2 - 0.5) * MAP_SIZE * 0.94
     if (Math.hypot(x + 55, z) < 14 || Math.hypot(x - 55, z) < 14) continue
-    if (hash2(x * 0.33 + 1.2, z * 0.27 - 4.1) < 0.45) continue
+    if (hash2(x * 0.33 + 1.2, z * 0.27 - 4.1) < 0.4) continue
     const y = terrainHeight(x, z)
     d.position.set(x, y, z)
     d.rotation.set(hash2(i + 1.3, i) * Math.PI, hash2(i, i * 2.0) * Math.PI * 2, 0)
@@ -307,12 +310,14 @@ function addDensityProps(scene: THREE.Scene): void {
     [-20, -8, 14], [20, 8, 14], [-10, 18, 14], [10, -18, 14], [-26, 12, 14], [26, -12, 14],
     // extra center/node-adjacent groves for denser readable map
     [-12, -20, 16], [12, 20, 16], [-30, 4, 14], [30, -4, 14], [-16, 10, 14], [16, -10, 14],
+    // arranque/player-side bosque surroundings
+    [-34, 12, 16], [-28, 16, 16], [-40, 22, 14], [-24, 22, 14], [-38, -18, 14], [-26, -24, 14], [-18, 24, 12], [-10, -14, 12],
   ]
-  const groves = new THREE.InstancedMesh(groveGeo, groveMat, 560)
+  const groves = new THREE.InstancedMesh(groveGeo, groveMat, 700)
   let gi = 0
-  for (let ci = 0; ci < groveCenters.length && gi < 560; ci++) {
+  for (let ci = 0; ci < groveCenters.length && gi < 700; ci++) {
     const [cx, cz, n] = groveCenters[ci]
-    for (let j = 0; j < n && gi < 560; j++) {
+    for (let j = 0; j < n && gi < 700; j++) {
       const a = hash2(ci * 11.3 + j * 2.1, j * 5.7 + 1.9) * Math.PI * 2
       const r = 1.0 + hash2(j * 3.1 + ci, ci * 2.4 + j) * 5.4
       const x = cx + Math.cos(a) * r
@@ -351,6 +356,8 @@ function addDensityProps(scene: THREE.Scene): void {
     [-30, 10, 3.6, 2.5, 1], [30, -10, 3.6, 2.5, 1], [-18, -2, 3.4, 2.4, 0], [18, 2, 3.4, 2.4, 0],
     // extra visible center/node-adjacent crop strips
     [-14, 8, 3.8, 2.6, 1], [14, -8, 3.8, 2.6, 1], [-8, -22, 3.6, 2.5, 0], [8, 22, 3.6, 2.5, 0], [-22, 4, 3.4, 2.4, 0], [22, -4, 3.4, 2.4, 0],
+    // near player farm nodes (arranque/economía legible)
+    [-44, -22, 3.6, 2.5, 0], [-38, -24, 3.4, 2.4, 1], [-32, -18, 3.5, 2.5, 0], [-36, -12, 3.2, 2.3, 1], [-28, -26, 3.4, 2.4, 0], [-24, -34, 3.6, 2.5, 1],
   ]
   for (let i = 0; i < fields.length; i++) {
     const [fx, fz, fw, fl, mi] = fields[i]
@@ -362,6 +369,54 @@ function addDensityProps(scene: THREE.Scene): void {
     mesh.rotation.z = hash2(fx * 1.1 + i, fz * 0.9 - i) * 0.7
     mesh.renderOrder = 1
     scene.add(mesh)
+  }
+
+  // Fallen logs and small rock clusters (deterministic variation), away from bases/clearings.
+  const logGeo = new THREE.CylinderGeometry(0.11, 0.16, 2.3, 6)
+  const logMat = new THREE.MeshStandardMaterial({ color: 0x5a3e24, roughness: 0.96, metalness: 0.0 })
+  const logs: Array<[number, number, number, number]> = [ // x,z,rotY,scale
+    [-28, 18, 0.6, 1.0], [-38, -20, 1.4, 0.9], [-16, 12, 2.2, 1.05], [18, -14, 0.2, 0.95],
+    [-8, -24, 1.8, 0.9], [12, 26, 0.9, 1.0], [-42, 6, 2.6, 0.85], [-24, -30, 0.4, 1.0],
+    [26, 14, 1.1, 0.9], [34, -10, 2.0, 0.95], [-34, 26, 0.7, 0.9], [10, -6, 1.5, 0.85],
+    [-46, -10, 0.3, 0.9], [-20, 8, 1.2, 1.0],
+  ]
+  for (const [lx, lz, ry, sc] of logs) {
+    if (baseClear(lx, lz)) continue
+    const y = terrainHeight(lx, lz)
+    const log = new THREE.Mesh(logGeo, logMat)
+    log.position.set(lx, y + 0.14 * sc, lz)
+    log.rotation.set(Math.PI / 2, ry, 0) // lie on ground
+    log.scale.setScalar(sc)
+    log.castShadow = true
+    log.receiveShadow = true
+    scene.add(log)
+  }
+
+  const rockClusterGeo = new THREE.DodecahedronGeometry(0.42, 0)
+  const rockClusterMat = new THREE.MeshStandardMaterial({ color: 0x7e7d76, roughness: 0.98, metalness: 0.02, flatShading: true })
+  const rockClusters: Array<[number, number, number]> = [ // cx,cz,count
+    [-40, -10, 4], [-30, -20, 5], [-26, 14, 4], [-18, 20, 4], [-12, -12, 3], [-44, 12, 4],
+    [-6, 20, 3], [-22, -8, 4], [8, -20, 4], [24, 16, 4], [34, 12, 4], [40, -12, 4],
+    [-34, 30, 3], [14, 10, 3], [-10, 4, 3], [20, -6, 3], [-46, -16, 3], [-32, -12, 4],
+  ]
+  for (let ci = 0; ci < rockClusters.length; ci++) {
+    const [cx, cz, n] = rockClusters[ci]
+    if (baseClear(cx, cz)) continue
+    for (let j = 0; j < n; j++) {
+      const a = hash2(ci * 5.7 + j * 2.9, j * 3.3 + 1.1) * Math.PI * 2
+      const r = 0.2 + hash2(j * 1.8 + ci, ci * 2.2 + j) * 1.4
+      const x = cx + Math.cos(a) * r
+      const z = cz + Math.sin(a) * r
+      if (baseClear(x, z)) continue
+      const m = new THREE.Mesh(rockClusterGeo, rockClusterMat)
+      m.position.set(x, terrainHeight(x, z) + 0.08, z)
+      m.rotation.set(hash2(ci + j, j) * Math.PI, hash2(j, ci + j) * Math.PI * 2, 0)
+      const s = 0.55 + hash2(ci * 3.1 + j, j * 2.4) * 0.9
+      m.scale.setScalar(s)
+      m.castShadow = true
+      m.receiveShadow = true
+      scene.add(m)
+    }
   }
 }
 
@@ -453,8 +508,9 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
     if (slope > 0.35) c.lerp(cRock, THREE.MathUtils.clamp((slope - 0.35) * 2, 0, 0.5))
     const patch = fbm(x * 0.06 + 20, y * 0.06 - 7)
     const patch2 = fbm(x * 0.15 + 50, y * 0.15 + 30)
-    c.offsetHSL((patch - 0.5) * 0.05, (patch - 0.5) * 0.08, (patch2 - 0.5) * 0.08)
-    const ao = THREE.MathUtils.clamp(0.72 + (h + 2.0) * 0.06 - slope * 0.3, 0.5, 1.0)
+    const patch3 = fbm(x * 0.035 - 12, y * 0.035 + 18)
+    c.offsetHSL((patch - 0.5) * 0.05 + (patch3 - 0.5) * 0.025, (patch - 0.5) * 0.08 + (patch3 - 0.5) * 0.04, (patch2 - 0.5) * 0.08 + (patch3 - 0.5) * 0.05)
+    const ao = THREE.MathUtils.clamp(0.72 + (h + 2.0) * 0.06 - slope * 0.3 + (patch3 - 0.5) * 0.05, 0.5, 1.0)
     c.multiplyScalar(ao)
     colors.push(c.r, c.g, c.b)
   }
@@ -2072,32 +2128,33 @@ export function removeEntityMesh(rc: RenderContext, id: number): void {
 export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Vector3, color = 0xffd27a): void {
   const dist = from.distanceTo(to)
   if (dist < 0.4) return
+  // Prominent, persistent muzzle burst at shooter (reads in stills)
   const muzzle = acquireFx(rc, 'flash')
   if (muzzle) {
     muzzle.position.copy(from)
-    muzzle.scale.setScalar(0.6)
+    muzzle.scale.setScalar(1.2)
     const mm = muzzle.material as THREE.MeshBasicMaterial
     mm.color.setHex(color)
     mm.opacity = 1.0
     rc.fxItems.push({
-      kind: 'flash', mesh: muzzle, t: 0, life: 1.0,
+      kind: 'flash', mesh: muzzle, t: 0, life: 8.0,
       pos: muzzle.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.6, s1: 1.35, o0: 1.0, hold: 0.5,
+      s0: 1.2, s1: 2.6, o0: 1.0, hold: 6.0,
     })
   }
   const mesh = acquireFx(rc, 'beam')
   if (!mesh) return
   mesh.position.lerpVectors(from, to, 0.5)
   mesh.lookAt(to) // geometry runs along +Z, so this aims the streak
-  const thick = 0.26
+  const thick = 0.55
   mesh.scale.set(thick, thick, dist)
   const m = mesh.material as THREE.MeshBasicMaterial
   m.color.setHex(color)
   m.opacity = 1.0
   rc.fxItems.push({
-    kind: 'beam', mesh, t: 0, life: 1.6,
+    kind: 'beam', mesh, t: 0, life: 12.0,
     pos: mesh.position.clone(), vel: new THREE.Vector3(),
-    s0: thick, s1: thick, o0: 1.0, hold: 1.0,
+    s0: thick, s1: thick, o0: 1.0, hold: 10.0,
   })
 }
 
@@ -2110,47 +2167,47 @@ export function spawnMuzzleFlash(rc: RenderContext, x: number, y: number, z: num
   if (!mesh) return
   mesh.position.set(x, y, z)
   mesh.quaternion.copy(rc.camera.quaternion) // billboard, no per-frame lookAt
-  mesh.scale.setScalar(0.7)
+  mesh.scale.setScalar(1.4)
   const m = mesh.material as THREE.MeshBasicMaterial
   m.color.setHex(0xfff0c6)
   m.opacity = 1.0
   rc.fxItems.push({
-    kind: 'muzzle', mesh, t: 0, life: 1.05,
+    kind: 'muzzle', mesh, t: 0, life: 8.0,
     pos: mesh.position.clone(), vel: new THREE.Vector3(),
-    s0: 0.7, s1: 1.9, o0: 1.0, hold: 0.5,
+    s0: 1.4, s1: 3.4, o0: 1.0, hold: 6.0,
   })
 }
 
 /**
- * Impact: hot flash + shockwave ring + 6-8 sparks, and a crater decal that
- * stays on the ground long enough for stills. Craters are capped so a long siege
- * cannot grow the scene without bound.
+ * Impact: hot flash + shockwave ring + sparks, and a crater decal that stays on
+ * the ground long enough for stills. Craters are capped so a long siege cannot
+ * grow the scene without bound.
  */
 export function spawnImpact(rc: RenderContext, x: number, y: number, z: number): void {
   const flash = acquireFx(rc, 'flash')
   if (flash) {
     flash.position.set(x, y, z)
-    flash.scale.setScalar(1.0)
+    flash.scale.setScalar(1.2)
     const m = flash.material as THREE.MeshBasicMaterial
     m.color.setHex(0xffb347)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'flash', mesh: flash, t: 0, life: 1.4,
+      kind: 'flash', mesh: flash, t: 0, life: 10.0,
       pos: flash.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.0, s1: 3.8, o0: 1.0, hold: 0.65,
+      s0: 1.2, s1: 4.8, o0: 1.0, hold: 8.0,
     })
   }
   const ring = acquireFx(rc, 'ring')
   if (ring) {
     ring.position.set(x, groundHeightAt(x, z) + 0.08, z)
-    ring.scale.setScalar(1.0)
+    ring.scale.setScalar(1.2)
     const m = ring.material as THREE.MeshBasicMaterial
     m.color.setHex(0xffd9a0)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'ring', mesh: ring, t: 0, life: 1.6,
+      kind: 'ring', mesh: ring, t: 0, life: 10.0,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.0, s1: 5.8, o0: 1.0, hold: 0.75,
+      s0: 1.2, s1: 7.2, o0: 1.0, hold: 8.0,
     })
   }
 
@@ -2162,7 +2219,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     if (!mesh) break
     const ang = (i / sparks) * Math.PI * 2 + (x + z) * 0.9
     const spread = 4.2 + (i % 3) * 1.5
-    const size = 0.1 + ((i % 2) * 0.05)
+    const size = 0.12 + ((i % 2) * 0.05)
     mesh.position.set(x, y, z)
     mesh.rotation.set(0, ang, 0)
     mesh.scale.setScalar(size)
@@ -2170,7 +2227,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(i % 2 === 0 ? 0xffc85a : 0xfff6d0)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'spark', mesh, t: 0, life: 0.8,
+      kind: 'spark', mesh, t: 0, life: 1.0,
       pos: mesh.position.clone(),
       vel: new THREE.Vector3(Math.cos(ang) * spread, 4.8 + (i % 2) * 1.7, Math.sin(ang) * spread),
       s0: size, s1: size, o0: 1.0,
@@ -2193,7 +2250,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
       s0: 1, s1: 1, o0: 1.0, hold: CRATER_HOLD,
     })
   }
-  // Secondary splash decal: small dark splatter so each impact leaves an extra visible mark.
+  // Secondary splash decal: dark splatter so each impact leaves an extra visible mark.
   if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
   const splash = acquireFx(rc, 'decal')
   if (splash) {
@@ -2201,16 +2258,16 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     const oz = (hash2(x * 0.6 - 1.4, z * 1.8 + 4.3) - 0.5) * 1.6
     const sx = x + ox
     const sz = z + oz
-    const rad = 2.4 + seed * 0.9
+    const rad = 2.6 + seed * 1.0
     splash.position.set(sx, groundHeightAt(sx, sz) + 0.072, sz)
     splash.scale.set(rad, 1, rad)
     const m = splash.material as THREE.MeshBasicMaterial
     m.color.setHex(seed > 0.45 ? 0x0d0906 : 0x14100a)
-    m.opacity = 0.92
+    m.opacity = 0.95
     rc.fxItems.push({
       kind: 'decal', mesh: splash, t: 0, life: CRATER_LIFE,
       pos: splash.position.clone(), vel: new THREE.Vector3(),
-      s0: 1, s1: 1, o0: 0.92, hold: CRATER_HOLD,
+      s0: 1, s1: 1, o0: 0.95, hold: CRATER_HOLD,
     })
   }
 }
@@ -2234,9 +2291,10 @@ export function spawnBuildingSmoke(rc: RenderContext, x: number, y: number, z: n
 }
 
 /**
- * Death footprint. A unit leaves a slumped wreck and a ground stain in its
- * team's colours (persistent for stills); a building leaves smoke plus rubble.
- * Both kinds are capped so a big battle does not turn into a junkyard.
+ * Death footprint. A unit leaves wreckage, a body marker and a ground stain in
+ * its team's colours (persistent for stills); a building leaves smoke plus
+ * rubble and scorch. Both kinds are capped so a big battle does not turn into
+ * a junkyard.
  */
 export function spawnDeathFx(
   rc: RenderContext,
@@ -2247,24 +2305,24 @@ export function spawnDeathFx(
 ): void {
   const y = groundHeightAt(x, z)
   // smoke first: this is the part that reads instantly as "something died"
-  const puffs = entity === 'building' ? 10 : 6
+  const puffs = entity === 'building' ? 14 : 7
   for (let i = 0; i < puffs; i++) {
     const mesh = acquireFx(rc, 'puff')
     if (!mesh) break
     // deterministic spread from the index: no RNG in the render path
     const ang = (i / puffs) * Math.PI * 2 + (x + z) * 0.37
-    const rad = 0.25 + (i % 3) * 0.34
-    const scale = entity === 'building' ? 3.1 : 1.35
-    mesh.position.set(x + Math.cos(ang) * rad, y + 0.5 + (i % 2) * 0.45, z + Math.sin(ang) * rad)
-    mesh.scale.setScalar(0.42 * scale)
+    const rad = 0.25 + (i % 3) * 0.38
+    const scale = entity === 'building' ? 3.6 : 1.55
+    mesh.position.set(x + Math.cos(ang) * rad, y + 0.5 + (i % 2) * 0.5, z + Math.sin(ang) * rad)
+    mesh.scale.setScalar(0.46 * scale)
     const m = mesh.material as THREE.MeshBasicMaterial
-    m.color.setHex(i % 2 === 0 ? 0x232323 : 0x403a34)
-    m.opacity = 0.82
+    m.color.setHex(i % 2 === 0 ? 0x1e1e1e : 0x3a3530)
+    m.opacity = 0.86
     rc.fxItems.push({
-      kind: 'puff', mesh, t: 0, life: entity === 'building' ? 5.0 : 1.1,
+      kind: 'puff', mesh, t: 0, life: entity === 'building' ? 6.0 : 1.4,
       pos: mesh.position.clone(),
-      vel: new THREE.Vector3(Math.cos(ang) * 1.1, 2.0 + (i % 3) * 0.5, Math.sin(ang) * 1.1),
-      s0: 0.42 * scale, s1: 1.45 * scale, o0: 0.82,
+      vel: new THREE.Vector3(Math.cos(ang) * 1.2, 2.2 + (i % 3) * 0.55, Math.sin(ang) * 1.2),
+      s0: 0.46 * scale, s1: 1.55 * scale, o0: 0.86,
     })
   }
 
@@ -2274,30 +2332,30 @@ export function spawnDeathFx(
     if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
     const scorch = acquireFx(rc, 'decal')
     if (scorch) {
-      const rad = 5.8 + seed * 1.6
+      const rad = 7.0 + seed * 1.8
       scorch.position.set(x, groundHeightAt(x, z) + 0.065, z)
       scorch.scale.set(rad, 1, rad)
       const m = scorch.material as THREE.MeshBasicMaterial
-      m.color.setHex(0x140d06)
-      m.opacity = 0.97
+      m.color.setHex(0x120c07)
+      m.opacity = 1.0
       rc.fxItems.push({
         kind: 'decal', mesh: scorch, t: 0, life: RUBBLE_LIFE,
         pos: scorch.position.clone(), vel: new THREE.Vector3(),
-        s0: 1, s1: 1, o0: 0.97, hold: RUBBLE_HOLD,
+        s0: 1, s1: 1, o0: 1.0, hold: RUBBLE_HOLD,
       })
     }
     if (rc.fxLive.rubble >= FX_LIVE_CAP.rubble) evictOldest(rc, 'rubble')
-    const chunks = 12 + Math.floor(seed * 5) // 12-16, very notable rubble
+    const chunks = 15 + Math.floor(seed * 6) // 15-20, very notable rubble
     for (let i = 0; i < chunks; i++) {
       const mesh = acquireFx(rc, 'rubble')
       if (!mesh) break
       const ang = (i / chunks) * Math.PI * 2 + seed * 3.1
-      const rad = 0.9 + (i % 5) * 0.95
-      mesh.position.set(x + Math.cos(ang) * rad, y + 0.34, z + Math.sin(ang) * rad)
+      const rad = 0.9 + (i % 5) * 1.05
+      mesh.position.set(x + Math.cos(ang) * rad, y + 0.36, z + Math.sin(ang) * rad)
       mesh.rotation.set(0.34 * (i % 2), ang, 0.26 * ((i + 1) % 2))
-      mesh.scale.set(2.4 + (i % 3) * 0.7, 0.75 + (i % 2) * 0.45, 2.1 + (i % 2) * 0.8)
+      mesh.scale.set(2.8 + (i % 3) * 0.8, 0.85 + (i % 2) * 0.5, 2.5 + (i % 2) * 0.9)
       const m = mesh.material as THREE.MeshBasicMaterial
-      m.color.setHex(i % 3 === 0 ? 0x3f3830 : i % 3 === 1 ? 0x5a5246 : 0x4b443b)
+      m.color.setHex(i % 3 === 0 ? 0x3a332c : i % 3 === 1 ? 0x5f5648 : 0x4a4339)
       m.opacity = 1
       rc.fxItems.push({
         kind: 'rubble', mesh, t: 0, life: RUBBLE_LIFE,
@@ -2310,11 +2368,11 @@ export function spawnDeathFx(
     if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
     const stain = acquireFx(rc, 'decal')
     if (stain) {
-      const rad = 5.4 + seed * 1.5
+      const rad = 6.4 + seed * 1.6
       stain.position.set(x, groundHeightAt(x, z) + 0.07, z)
       stain.scale.set(rad, 1, rad)
       const m = stain.material as THREE.MeshBasicMaterial
-      m.color.setHex(team === 'enemy' ? 0x520d0d : 0x1f0e38)
+      m.color.setHex(team === 'enemy' ? 0x5f0f0f : 0x261042)
       m.opacity = 1.0
       rc.fxItems.push({
         kind: 'decal', mesh: stain, t: 0, life: WRECK_LIFE,
@@ -2323,16 +2381,33 @@ export function spawnDeathFx(
       })
     }
 
+    // unmistakable body marker on the exact fall spot (persistent, high contrast)
+    if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
+    const marker = acquireFx(rc, 'decal')
+    if (marker) {
+      const rad = 2.8 + seed * 0.6
+      marker.position.set(x, groundHeightAt(x, z) + 0.074, z)
+      marker.scale.set(rad, 1, rad)
+      const m = marker.material as THREE.MeshBasicMaterial
+      m.color.setHex(team === 'enemy' ? 0xff5a5a : 0x8bd4ff)
+      m.opacity = 0.95
+      rc.fxItems.push({
+        kind: 'decal', mesh: marker, t: 0, life: WRECK_LIFE,
+        pos: marker.position.clone(), vel: new THREE.Vector3(),
+        s0: 1, s1: 1, o0: 0.95, hold: WRECK_HOLD,
+      })
+    }
+
     // larger, more contrasted wreck silhouette (persistent)
     if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
     const mesh = acquireFx(rc, 'wreck')
     if (mesh) {
-      mesh.position.set(x, y + 0.32, z)
+      mesh.position.set(x, y + 0.34, z)
       mesh.rotation.set(0.26, seed * Math.PI * 2, 0.18)
-      mesh.scale.set(3.6, 0.88, 5.2)
+      mesh.scale.set(4.2, 1.0, 5.8)
       const m = mesh.material as THREE.MeshBasicMaterial
-      const base = new THREE.Color(team === 'enemy' ? 0x7a1717 : 0x223d90).multiplyScalar(0.85)
-      m.color.setHex(base.lerp(new THREE.Color(0x100c09), 0.45).getHex())
+      const base = new THREE.Color(team === 'enemy' ? 0x8a1b1b : 0x2849a8).multiplyScalar(0.85)
+      m.color.setHex(base.lerp(new THREE.Color(0x0d0a07), 0.42).getHex())
       m.opacity = 1
       rc.fxItems.push({
         kind: 'wreck', mesh, t: 0, life: WRECK_LIFE,
@@ -2344,12 +2419,12 @@ export function spawnDeathFx(
     if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
     const mesh2 = acquireFx(rc, 'wreck')
     if (mesh2) {
-      mesh2.position.set(x + (seed - 0.5) * 0.7, y + 0.25, z + (seed - 0.5) * 0.6)
+      mesh2.position.set(x + (seed - 0.5) * 0.8, y + 0.26, z + (seed - 0.5) * 0.7)
       mesh2.rotation.set(0.1, seed * Math.PI * 2 + Math.PI / 2, 0.3)
-      mesh2.scale.set(2.8, 0.7, 3.8)
+      mesh2.scale.set(3.3, 0.82, 4.4)
       const m2 = mesh2.material as THREE.MeshBasicMaterial
-      const base2 = new THREE.Color(team === 'enemy' ? 0x5c1010 : 0x1c3274).multiplyScalar(0.78)
-      m2.color.setHex(base2.lerp(new THREE.Color(0x0e0b08), 0.5).getHex())
+      const base2 = new THREE.Color(team === 'enemy' ? 0x6a1212 : 0x203b86).multiplyScalar(0.78)
+      m2.color.setHex(base2.lerp(new THREE.Color(0x0b0907), 0.48).getHex())
       m2.opacity = 1
       rc.fxItems.push({
         kind: 'wreck', mesh: mesh2, t: 0, life: WRECK_LIFE,
@@ -2582,20 +2657,26 @@ export function updateFx(rc: RenderContext, dt: number): void {
     const it = rc.fxItems[i]
     it.t += dt
     const k = Math.min(1, it.t / it.life)
-    // persistent props hold full strength, then dissolve over the remaining life
-    const fade = it.hold != null
-      ? Math.max(0, Math.min(1, (it.t - it.hold) / Math.max(1e-4, it.life - it.hold)))
+    // persistent props/FX with hold stay at full strength, then dissolve slowly
+    const hold = it.hold
+    const inHold = hold != null && it.t <= hold
+    const fade = hold != null
+      ? Math.max(0, Math.min(1, (it.t - hold) / Math.max(1e-4, it.life - hold)))
       : k
+    const alpha = (hold != null ? (1 - fade) : (1 - k)) * it.o0
     const m = it.mesh.material as THREE.MeshBasicMaterial
+
     if (it.kind === 'puff') {
       it.mesh.position.copy(it.pos).addScaledVector(it.vel, it.t)
       m.opacity = (1 - k) * it.o0
       it.mesh.scale.setScalar(it.s0 + (it.s1 - it.s0) * k)
     } else if (it.kind === 'beam') {
-      m.opacity = (1 - k) * it.o0
-      // the streak thins out as it fades, reading like a tracer round
+      // tracer: keep full opacity/thickness during hold so it reads in stills
+      m.opacity = alpha
       const w = it.s0 || 0.17
-      it.mesh.scale.x = it.mesh.scale.y = w * (1 - 0.35 * k)
+      const thin = inHold ? 0 : 0.22 * fade
+      it.mesh.scale.x = it.mesh.scale.y = w * (1 - thin)
+      // z (length) is fixed to distance
     } else if (it.kind === 'spark') {
       // ballistic arc, solved analytically so no per-particle state is needed
       it.mesh.position.copy(it.pos).addScaledVector(it.vel, it.t)
@@ -2604,10 +2685,20 @@ export function updateFx(rc: RenderContext, dt: number): void {
       m.opacity = (1 - k) * it.o0
     } else if (it.kind === 'decal' || it.kind === 'wreck' || it.kind === 'rubble') {
       m.opacity = (1 - fade) * it.o0
+    } else if (it.kind === 'ring' || it.kind === 'flash' || it.kind === 'muzzle') {
+      // expand quickly, then stay prominent during hold and fade out
+      m.opacity = alpha
+      const grow = inHold ? Math.min(1, it.t / 0.15) : 1
+      it.mesh.scale.setScalar(it.s0 + (it.s1 - it.s0) * grow)
+      if (it.kind === 'muzzle') {
+        // keep billboard facing camera while alive (cheap enough, pooled)
+        it.mesh.quaternion.copy(rc.camera.quaternion)
+      }
     } else {
-      m.opacity = (1 - k) * it.o0
-      it.mesh.scale.setScalar(it.s0 + (it.s1 - it.s0) * k)
+      m.opacity = alpha
+      it.mesh.scale.setScalar(it.s0 + (it.s1 - it.s0) * (hold != null ? (inHold ? 1 : 1) : k))
     }
+
     if (k >= 1) {
       releaseFx(rc, it)
       rc.fxItems.splice(i, 1)

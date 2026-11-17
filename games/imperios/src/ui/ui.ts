@@ -2,7 +2,7 @@ import { BUILDING_DEFS, ERAS, RESOURCE_LABEL, TECHS, TILE, UNIT_DEFS } from '../
 import { formatCost } from '../core/utils'
 import { canResearch, canTrain, getEntity, type GameState } from '../sim/state'
 import { VIS_EXPLORED, VIS_UNKNOWN, VIS_VISIBLE, visionAtCell } from '../sim/vision'
-import type { BuildingType, ResourceKey, Stance, Team, UnitType } from '../core/types'
+import type { BuildingType, Cost, ResourceKey, Stance, Team, UnitType } from '../core/types'
 
 const STANCE_LABEL: Record<Stance, string> = {
   aggressive: 'Agresiva',
@@ -69,6 +69,8 @@ export interface UIRefs {
   progWrap: HTMLElement
   progFill: HTMLElement
   progLabel: HTMLElement
+  idleList: HTMLElement
+  idleCount: HTMLElement
 }
 
 export function createUI(root: HTMLElement): UIRefs {
@@ -89,6 +91,10 @@ export function createUI(root: HTMLElement): UIRefs {
       <div class="left-hint">Seleccioná un Ayuntamiento o Cuartel para producir. Seleccioná un Ingeniero y usá los botones de construcción.</div>
     </div>
     <div class="bottombar"><div id="selection-info" class="selection-info">Sin selección. Clic izq: seleccionar · Clic der: mover/recolectar/atacar.</div></div>
+    <div class="idle-wrap" id="idle-wrap">
+      <div class="idle-head"><span>Unidades ociosas</span><b id="idle-count">0</b></div>
+      <div id="idle-list" class="idle-list"></div>
+    </div>
     <div class="minimap-wrap"><canvas id="minimap" width="220" height="220"></canvas></div>
     <button class="help-toggle" id="help-toggle" title="Controles" aria-label="Controles">?</button>
     <div class="help-panel hidden" id="help-panel">
@@ -174,6 +180,8 @@ export function createUI(root: HTMLElement): UIRefs {
     progWrap: q('prog'),
     progFill: q('prog-fill'),
     progLabel: q('prog-label'),
+    idleList: q('idle-list'),
+    idleCount: q('idle-count'),
   }
 }
 
@@ -194,6 +202,15 @@ function shortEntityLabel(name: string): string {
 
 function teamLabel(team: Team): string {
   return team === 'player' ? 'Aliado' : 'Enemigo'
+}
+
+function formatCostRich(cost: Cost): string {
+  const parts: string[] = []
+  if (cost.suministros) parts.push(`${RESOURCE_ICON.suministros}${cost.suministros}`)
+  if (cost.materiales) parts.push(`${RESOURCE_ICON.materiales}${cost.materiales}`)
+  if (cost.combustible) parts.push(`${RESOURCE_ICON.combustible}${cost.combustible}`)
+  if (cost.minerales) parts.push(`${RESOURCE_ICON.minerales}${cost.minerales}`)
+  return parts.length ? parts.join(' ') : 'Sin costo'
 }
 
 function hpFillClass(pct: number): string {
@@ -239,16 +256,19 @@ export function updateTopBar(ui: UIRefs, gs: GameState): void {
   // progress strip: era advance wins over research (it is the bigger decision)
   let label = ''
   let pct = 0
+  let secsLeft = 0
   let kind: 'era' | 'research' = 'research'
   if (p.advancing) {
     const { remaining, total, to } = p.advancing
     pct = total > 0 ? ((total - remaining) / total) * 100 : 0
-    label = `Avanzando a ${ERAS[to - 1].name} · ${Math.ceil(Math.max(0, remaining))}s`
+    secsLeft = Math.ceil(Math.max(0, remaining))
+    label = `Avance de era: ${ERAS[to - 1].name}`
     kind = 'era'
   } else if (p.research && research) {
     const { remaining, total } = p.research
     pct = total > 0 ? ((total - remaining) / total) * 100 : 0
-    label = `Investigando ${research.name} · ${Math.ceil(Math.max(0, remaining))}s`
+    secsLeft = Math.ceil(Math.max(0, remaining))
+    label = `Investigación: ${research.name}`
   }
   if (!label) {
     ui.progWrap.classList.remove('show')
@@ -258,8 +278,9 @@ export function updateTopBar(ui: UIRefs, gs: GameState): void {
   ui.progWrap.classList.add('show')
   ui.progFill.style.width = `${clamped.toFixed(1)}%`
   ui.progFill.className = `prod-bar-fill ${kind === 'era' ? 'era' : 'research'}`
-  if (ui.progLabel.textContent !== `${label} · ${Math.floor(clamped)}%`) {
-    ui.progLabel.textContent = `${label} · ${Math.floor(clamped)}%`
+  const progText = `${label} · ${Math.floor(clamped)}% · ${secsLeft}s restantes`
+  if (ui.progLabel.textContent !== progText) {
+    ui.progLabel.textContent = progText
   }
 }
 
@@ -291,7 +312,13 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
   const sel = gs.selectedIds.map(id => getEntity(gs, id)).filter(Boolean) as any[]
   const p = gs.players.player
 
-  const addBtn = (label: string, sub: string, fn: () => void, disabled = false, opts?: { title?: string, active?: boolean, kind?: string, icon?: string }) => {
+  const addBtn = (
+    label: string,
+    sub: string,
+    fn: () => void,
+    disabled = false,
+    opts?: { title?: string, active?: boolean, kind?: string, icon?: string, cost?: Cost, subExtra?: string }
+  ) => {
     const b = document.createElement('button')
     b.className = 'btn cmd-slot'
     if (opts?.active) b.classList.add('is-active')
@@ -300,7 +327,12 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
     b.disabled = disabled
     if (opts?.title) b.title = opts.title
     const iconHtml = opts?.icon ? `<span class="cmd-icon" aria-hidden="true">${opts.icon}</span>` : ''
-    b.innerHTML = `${iconHtml}<span class="cmd-name">${label}</span><small class="cmd-cost">${sub}</small>`
+    const subParts: string[] = []
+    if (opts?.subExtra) subParts.push(`<span class="cmd-sub-extra">${opts.subExtra}</span>`)
+    if (opts?.cost) subParts.push(`<span class="cost-tag">Costo</span><span class="cost-values">${formatCostRich(opts.cost)}</span>`)
+    const subContent = subParts.length ? subParts.join(' ') : sub
+    const costClass = opts?.cost ? ' has-cost' : ''
+    b.innerHTML = `${iconHtml}<span class="cmd-name">${label}</span><small class="cmd-cost${costClass}">${subContent}</small>`
     b.onclick = fn
     acts.appendChild(b)
   }
@@ -313,17 +345,40 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
         const defU = UNIT_DEFS[ut]
         if (defU.era > p.era) continue
         const chk = canTrain(gs, 'player', ut)
-        addBtn(shortEntityLabel(defU.name), formatCost(defU.cost), () => onTrain(b.id, ut), !chk.ok, { title: `Entrenar ${defU.name}`, kind: 'train', icon: UNIT_ICON[ut] ?? '❔' })
+        addBtn(shortEntityLabel(defU.name), '', () => onTrain(b.id, ut), !chk.ok, {
+          title: `Entrenar ${defU.name}. Costo: ${formatCost(defU.cost)}. Clic para entrenar.`,
+          kind: 'train',
+          icon: UNIT_ICON[ut] ?? '❔',
+          cost: defU.cost,
+        })
       }
     }
     if (b.btype === 'ayuntamiento') {
       const next = ERAS[p.era]
-      if (next) addBtn('Avanzar', `${shortEntityLabel(next.name)} · ${formatCost(next.advanceCost)}`, onAdvance, !!p.advancing, { title: `Avanzar era: ${next.name} · ${formatCost(next.advanceCost)}`, kind: 'advance', icon: '⏫' })
-      else addBtn('Era máx.', 'IV alcanzada', () => {}, true, { title: 'Era máxima alcanzada', kind: 'advance', icon: '🏁' })
+      if (next) {
+        addBtn('Avanzar era', '', onAdvance, !!p.advancing, {
+          title: `Avanzar a ${next.name}. Costo: ${formatCost(next.advanceCost)}. Clic para iniciar el avance de era.`,
+          kind: 'advance',
+          icon: '⏫',
+          subExtra: shortEntityLabel(next.name),
+          cost: next.advanceCost,
+        })
+      } else {
+        addBtn('Era máx.', 'IV alcanzada', () => {}, true, {
+          title: 'Era máxima alcanzada.',
+          kind: 'advance',
+          icon: '🏁',
+        })
+      }
       for (const t of TECHS) {
         if (p.researched.includes(t.id)) continue
         const chk = canResearch(gs, 'player', t.id)
-        addBtn(shortEntityLabel(t.name), formatCost(t.cost), () => onResearch(t.id), !chk.ok, { title: `Investigar ${t.name}: ${t.desc} · ${formatCost(t.cost)}`, kind: 'research', icon: '🔬' })
+        addBtn(shortEntityLabel(t.name), '', () => onResearch(t.id), !chk.ok, {
+          title: `Investigar ${t.name}: ${t.desc}. Costo: ${formatCost(t.cost)}. Clic para investigar.`,
+          kind: 'research',
+          icon: '🔬',
+          cost: t.cost,
+        })
       }
     }
   }
@@ -333,7 +388,12 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
     const defs: BuildingType[] = ['vivienda', 'cuartel', 'almacen', 'torre', 'fabrica']
     for (const bt of defs) {
       const d = BUILDING_DEFS[bt]
-      addBtn(shortEntityLabel(d.name), formatCost(d.cost), () => onBuild(bt), false, { title: `Construir ${d.name} · ${formatCost(d.cost)}`, kind: 'build', icon: BUILDING_ICON[bt] ?? '🏗️' })
+      addBtn(shortEntityLabel(d.name), '', () => onBuild(bt), false, {
+        title: `Construir ${d.name}. Costo: ${formatCost(d.cost)}. Clic para colocar el edificio.`,
+        kind: 'build',
+        icon: BUILDING_ICON[bt] ?? '🏗️',
+        cost: d.cost,
+      })
     }
   }
 
@@ -342,7 +402,12 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
     const current: Stance = ownUnits.every((e: any) => e.stance === ownUnits[0].stance) ? ownUnits[0].stance : 'aggressive'
     for (const s of STANCES) {
       const active = s === current
-      addBtn(shortEntityLabel(STANCE_LABEL[s]), active ? 'Actual ●' : 'Postura', () => onStance(s), false, { title: `Postura: ${STANCE_LABEL[s]}`, active, kind: 'stance', icon: STANCE_ICON[s] ?? '•' })
+      addBtn(shortEntityLabel(STANCE_LABEL[s]), active ? 'Postura actual' : 'Cambiar postura', () => onStance(s), false, {
+        title: `Postura: ${STANCE_LABEL[s]}. ${active ? 'Postura activa.' : 'Clic para aplicar postura.'}`,
+        active,
+        kind: 'stance',
+        icon: STANCE_ICON[s] ?? '•',
+      })
     }
   }
 
@@ -411,19 +476,49 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
         const pct = Math.max(0, Math.min(100, Math.floor(e.buildProgress * 100)))
         status = `Construyendo ${pct}%`
         bars += `<div class="prod-bar sel-prod"><div class="prod-bar-fill build" style="width:${pct}%"></div></div>`
-        extra = `<span class="sel-pill subtle">Progreso de obra</span>`
+        extra = `<span class="sel-pill">Progreso de obra: ${pct}%</span>`
       } else if (e.queue.length > 0) {
         const job = e.queue[0]
         const pct = Math.max(0, Math.min(100, ((job.total - job.remaining) / job.total) * 100))
         const secs = Math.max(0, Math.ceil(job.remaining))
         const unitName = UNIT_DEFS[job.type]?.name ?? job.type
-        const more = e.queue.length - 1
-        status = `Entrenando ${unitName} · ${Math.floor(pct)}% (${secs}s)`
+        status = `Produciendo ${unitName} · ${Math.floor(pct)}% · ${secs}s restantes`
         bars += `<div class="prod-bar sel-prod"><div class="prod-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>`
-        extra = `<span class="sel-pill subtle">Cola actual: ${unitName}${more > 0 ? ` · +${more} en cola` : ''}</span>`
+        const nextItems = e.queue.slice(1, 4).map((j: { type: UnitType }) => UNIT_DEFS[j.type]?.name ?? j.type)
+        const moreQueued = e.queue.length - 1 - nextItems.length
+        extra = `<span class="sel-pill">Producción en cola: ${e.queue.length}</span><span class="sel-pill subtle">Actual: ${unitName} · ${Math.floor(pct)}% · ${secs}s restantes</span>`
+        if (nextItems.length > 0) {
+          extra += `<span class="sel-pill subtle">Siguientes: ${nextItems.join(', ')}${moreQueued > 0 ? `, +${moreQueued} más` : ''}</span>`
+        }
       } else {
-        extra = `<span class="sel-pill subtle">${d.produces && d.produces.length ? 'Listo para producir' : 'Sin cola'}</span>`
+        extra = `<span class="sel-pill subtle">${d.produces && d.produces.length ? 'Sin producción en cola · Listo para producir' : 'Sin cola de producción'}</span>`
       }
+
+      let progInfo = ''
+      if (e.built && e.btype === 'ayuntamiento' && e.team === 'player') {
+        const pstate = gs.players.player
+        if (pstate.advancing) {
+          const { remaining, total, to } = pstate.advancing
+          const pct = total > 0 ? clampPct(((total - remaining) / total) * 100) : 0
+          const secs = Math.ceil(Math.max(0, remaining))
+          bars += `<div class="prod-bar sel-prod"><div class="prod-bar-fill era" style="width:${pct.toFixed(1)}%"></div></div>`
+          progInfo += `<span class="sel-pill">Avance de era: ${ERAS[to - 1].name}</span><span class="sel-pill subtle">Progreso ${Math.floor(pct)}% · ${secs}s restantes</span>`
+          if (e.queue.length === 0) status = `Avanzando a ${ERAS[to - 1].name} · ${Math.floor(pct)}%`
+        } else if (pstate.research) {
+          const tech = TECHS.find(t => t.id === pstate.research!.id)
+          if (tech) {
+            const { remaining, total } = pstate.research
+            const pct = total > 0 ? clampPct(((total - remaining) / total) * 100) : 0
+            const secs = Math.ceil(Math.max(0, remaining))
+            bars += `<div class="prod-bar sel-prod"><div class="prod-bar-fill research" style="width:${pct.toFixed(1)}%"></div></div>`
+            progInfo += `<span class="sel-pill">Investigación: ${tech.name}</span><span class="sel-pill subtle">Progreso ${Math.floor(pct)}% · ${secs}s restantes</span>`
+            if (e.queue.length === 0) status = `Investigando ${tech.name} · ${Math.floor(pct)}%`
+          }
+        } else if (e.queue.length === 0) {
+          progInfo += `<span class="sel-pill subtle">Sin avance de era ni investigación en curso</span>`
+        }
+      }
+
       const icon = BUILDING_ICON[e.btype] ?? '🏗️'
       ui.selInfo.innerHTML = `
         <div class="sel-card sel-building team-${e.team}">
@@ -438,7 +533,7 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
             <div class="sel-hpnum">${Math.ceil(e.hp)}/${e.maxHp} HP</div>
           </div>
           ${bars}
-          <div class="sel-meta">${extra}</div>
+          <div class="sel-meta">${extra}${progInfo}</div>
         </div>`
     } else {
       const rk = e.resource as ResourceKey
@@ -507,6 +602,38 @@ export function showToast(ui: UIRefs, msg: string): void {
   ui.toast.textContent = msg
   ui.toast.classList.add('show')
   setTimeout(() => ui.toast.classList.remove('show'), 1800)
+}
+
+export function updateIdleList(ui: UIRefs, gs: GameState): void {
+  const idle: Array<{ id: number; x: number; z: number; utype: UnitType; name: string; icon: string }> = []
+  for (const e of gs.entities.values() as any) {
+    if (!e || e.dead) continue
+    if (e.kind !== 'unit' || e.team !== 'player') continue
+    if (e.state !== 'idle') continue
+    const d = UNIT_DEFS[e.utype as UnitType]
+    idle.push({
+      id: e.id,
+      x: e.x,
+      z: e.z,
+      utype: e.utype,
+      name: d?.name ?? e.utype,
+      icon: UNIT_ICON[e.utype] ?? '•',
+    })
+  }
+  idle.sort((a, b) => a.id - b.id)
+  ui.idleCount.textContent = String(idle.length)
+  const sig = idle.map(u => u.id).join(',')
+  if ((ui.idleList as any).dataset.sig === sig) return
+  ;(ui.idleList as any).dataset.sig = sig
+  if (idle.length === 0) {
+    ui.idleList.innerHTML = '<div class="idle-empty">Sin unidades ociosas</div>'
+    return
+  }
+  ui.idleList.innerHTML = idle.map(u => `
+    <button class="idle-item" data-id="${u.id}" data-x="${u.x}" data-z="${u.z}" title="${u.name} · Ir y seleccionar">
+      <span class="idle-icon" aria-hidden="true">${u.icon}</span>
+      <span class="idle-name">${shortEntityLabel(u.name)}</span>
+    </button>`).join('')
 }
 
 export function updateMinimap(ui: UIRefs, gs: GameState, camX?: number, camZ?: number): void {

@@ -11,7 +11,7 @@ import {
   spawnDeathFx, spawnDepositFx, spawnImpact, spawnMuzzleFlash, spawnTracer, syncEntityMesh, updateCamera,
 } from './render/scene'
 import type { EntityVisibility } from './render/scene'
-import { createUI, renderActions, showEnd, showToast, updateMinimap, updateSelectionInfo, updateTopBar } from './ui/ui'
+import { createUI, renderActions, showEnd, showToast, updateIdleList, updateMinimap, updateSelectionInfo, updateTopBar } from './ui/ui'
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement
 const uiRoot = document.getElementById('ui') as HTMLElement
@@ -487,6 +487,7 @@ function frame(): void {
     uiSlowTimer = 0
     updateTopBar(ui, gs)
     updateMinimap(ui, gs, rc.target.x, rc.target.z)
+    updateIdleList(ui, gs)
     refreshActions()
   }
 
@@ -509,10 +510,29 @@ function frame(): void {
 
 bindUI()
 bindMinimap()
+ui.idleList.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('.idle-item') as HTMLElement | null
+  if (!btn) return
+  const id = Number(btn.dataset.id)
+  if (!Number.isFinite(id)) return
+  const ent = getEntity(gs, id) as any
+  const x = ent && !ent.dead ? ent.x : Number(btn.dataset.x)
+  const z = ent && !ent.dead ? ent.z : Number(btn.dataset.z)
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return
+  const lim = MAP_SIZE / 2 - 8
+  rc.target.x = Math.max(-lim, Math.min(lim, x))
+  rc.target.z = Math.max(-lim, Math.min(lim, z))
+  updateCamera(rc)
+  setSelection(gs, [id])
+  updateSelectionInfo(ui, gs)
+  updateIdleList(ui, gs)
+  refreshActions()
+})
 setupWorld()
 refreshActions()
 updateTopBar(ui, gs)
 updateSelectionInfo(ui, gs)
+updateIdleList(ui, gs)
 frame()
 
 if (import.meta.hot) {

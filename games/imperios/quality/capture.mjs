@@ -323,7 +323,7 @@ const SCENARIOS = [
       }
       if (!node) return 'no-node'
       globalThis.__lastNodeId = node.id
-      g.camera(node.x, node.z, 55)
+      g.camera(node.x, node.z, 60)
       g.select([node.id])
       g.gatherNode(node.id, 8)
       return 'ok node=' + node.id
@@ -367,10 +367,11 @@ const SCENARIOS = [
       if (tc == null) return 'no-tc'
       g.select([tc])
       const r = g.research('motor')
+      if (r === 'ok') g.skip(1.5) // progreso intermedio visible sin completar la investigación
       g.camera(-48, 0, 62)
       return r === 'ok' ? 'ok' : 'research:' + r
     })()`,
-    settleMs: 350,
+    settleMs: 500,
   },
   {
     id: '09b-avance-era',
@@ -386,34 +387,39 @@ const SCENARIOS = [
       if (tc == null) return 'no-tc'
       g.select([tc])
       const r = g.advanceEra()
+      if (r === 'ok') g.skip(2) // progreso intermedio visible sin completar el avance
       return r === 'ok' ? 'ok' : 'era:' + r
     })()`,
-    settleMs: 600,
+    settleMs: 700,
   },
   {
     id: '04-combate',
-    title: 'Combate: choque frontal de milicias y fusileros a corta distancia con bajas',
+    title: 'Combate: choque frontal melee + fuego ranged con trazadoras, impactos y bajas',
     js: `(() => {
       const g = window.__imperios
-      // Fuerzas enfrentadas a 4-6 tiles: contacto/melee inmediato y fusileros ya en rango
-      g.spawn('player', 'milicia', 12, -2, 25)
-      g.spawn('player', 'fusilero', 4, -4, 25)
-      g.spawn('enemy', 'milicia', 12,  2, 25)
-      g.spawn('enemy', 'fusilero', 4,  4, 25)
+      // Mezcla melee/ranged a corta distancia: contacto inmediato y trazadoras obvias
+      g.spawn('player', 'milicia', 10, -2, 25)
+      g.spawn('player', 'fusilero', 8, -4, 25)
+      g.spawn('player', 'granadero', 2, -3, 24)
+      g.spawn('enemy', 'milicia', 10,  2, 25)
+      g.spawn('enemy', 'fusilero', 8,  4, 25)
+      g.spawn('enemy', 'granadero', 2,  3, 24)
 
       const entities = () => typeof g.state.entities.values === 'function'
         ? [...g.state.entities.values()]
         : Object.values(g.state.entities)
       const deadCount = () => entities().filter(e => e && e.dead && e.kind === 'unit').length
 
-      // Avanzar simulación hasta choque real y al menos 2 bajas (cap de seguridad)
+      // Avanzar simulación hasta choque real y bajas (cap de seguridad)
       let dead = 0
-      for (let i = 0; i < 12 && dead < 2; i++) {
+      for (let i = 0; i < 14 && dead < 3; i++) {
         g.skip(0.5)
         dead = deadCount()
       }
-      // pequeño margen extra para que decals/huellas de muerte se asienten y rendericen
-      g.skip(0.3)
+      // Dejar correr un poco más SIN pausar para generar ataques/trazadoras recientes,
+      // luego pausar: los FX persistentes (trazadoras/marcas) quedarán visibles en el still.
+      g.skip(0.2)
+      g.state.status = 'paused'
 
       // Centrar cámara en bajas visibles; si aún no hay, en el frente vivo del choque
       let cx = 0, cz = 0, n = 0
@@ -432,10 +438,9 @@ const SCENARIOS = [
       if (n > 0) g.camera(cx / n, cz / n, 45)
       else g.camera(0, 25, 45)
 
-      g.state.status = 'paused'
-      return 'ok'
+      return 'ok dead=' + dead
     })()`,
-    settleMs: 700,
+    settleMs: 800,
   },
   {
     id: '05-fog',
@@ -462,7 +467,7 @@ const SCENARIOS = [
   },
   {
     id: '07-late-game',
-    title: 'Late game: era 4, base enemiga desarrollada y oleada compuesta avanzando al choque',
+    title: 'Late game: era 4, base enemiga desarrollada y cruce de fuego activo con bajas',
     js: `(() => {
       const g = window.__imperios
       g.give(4000)
@@ -473,42 +478,76 @@ const SCENARIOS = [
       g.build('player', 'vivienda', -46, -16, true)
       g.build('player', 'cuartel', -52, -14, true)
       g.build('player', 'fabrica', -46, 16, true)
-      // base enemiga desarrollada (viviendas, cuartel, almacén, fábrica, torres)
+      // base enemiga desarrollada y activa (producción/defensas visibles)
       g.build('enemy', 'vivienda', 46, 10, true)
       g.build('enemy', 'vivienda', 46, -10, true)
+      g.build('enemy', 'vivienda', 58, 0, true)
+      g.build('enemy', 'vivienda', 58, -16, true)
       g.build('enemy', 'cuartel', 50, 16, true)
       g.build('enemy', 'almacen', 50, -14, true)
       g.build('enemy', 'fabrica', 60, 12, true)
       g.build('enemy', 'torre', 44, 0, true)
       g.build('enemy', 'torre', 44, 18, true)
-      // ejército propio
-      g.spawn('player', 'milicia', 10, -38, -2)
-      g.spawn('player', 'fusilero', 6, -38, 4)
+      g.build('enemy', 'torre', 56, -8, true)
+      // defensores posicionados alrededor de la base enemiga (más ranged/cañones)
+      g.spawn('enemy', 'milicia', 4, 45, -2)
+      g.spawn('enemy', 'fusilero', 5, 46, 4)
+      g.spawn('enemy', 'granadero', 2, 47, 1)
+      g.spawn('enemy', 'milicia', 3, 48, -12)
+      g.spawn('enemy', 'fusilero', 4, 53, -10)
+      g.spawn('enemy', 'tanque', 2, 54, 6)
+      g.spawn('enemy', 'canon', 2, 55, -2)
+      // actividad de "producción": grupos recién salidos de cuartel/fábrica con intención
+      const prodInf = []
+      prodInf.push(...g.spawn('enemy', 'milicia', 4, 48, 15))
+      prodInf.push(...g.spawn('enemy', 'fusilero', 4, 48, 13))
+      prodInf.push(...g.spawn('enemy', 'granadero', 2, 48, 14))
+      g.moveFormation(prodInf, 28, 10, 'line')
+      const prodMech = []
+      prodMech.push(...g.spawn('enemy', 'tanque', 2, 57, 11))
+      prodMech.push(...g.spawn('enemy', 'canon', 2, 57, 9))
+      g.moveFormation(prodMech, 24, 6, 'wedge')
+      // segunda oleada en ruta desde la base hacia el frente (más fuego a distancia)
+      const routeWave = []
+      routeWave.push(...g.spawn('enemy', 'milicia', 6, 18, -3))
+      routeWave.push(...g.spawn('enemy', 'fusilero', 6, 20, 3))
+      routeWave.push(...g.spawn('enemy', 'granadero', 2, 19, 0))
+      routeWave.push(...g.spawn('enemy', 'tanque', 2, 22, 8))
+      routeWave.push(...g.spawn('enemy', 'canon', 1, 23, 6))
+      g.moveFormation(routeWave, -8, 2, 'line')
+      // ejército propio con cruce de fuego activo (ranged/cañones)
+      g.spawn('player', 'milicia', 8, -38, -2)
+      g.spawn('player', 'fusilero', 8, -38, 4)
+      g.spawn('player', 'granadero', 3, -39, 1)
       g.spawn('player', 'tanque', 5, -38, 10)
-      g.spawn('player', 'canon', 2, -40, 15)
-      // oleada enemiga clara y reconocible avanzando al frente (infantería + blindados + artillería)
-      const wave = []
-      wave.push(...g.spawn('enemy', 'milicia', 10, -14, -2))
-      wave.push(...g.spawn('enemy', 'fusilero', 6, -12, 4))
-      wave.push(...g.spawn('enemy', 'tanque', 5, -10, 10))
-      wave.push(...g.spawn('enemy', 'canon', 2, -8, 15))
-      g.moveFormation(wave, -34, 6, 'line')
+      g.spawn('player', 'canon', 3, -40, 15)
+      // oleada enemiga compuesta ya presionando/atacando en el frente
+      const frontWave = []
+      frontWave.push(...g.spawn('enemy', 'milicia', 7, -14, -2))
+      frontWave.push(...g.spawn('enemy', 'fusilero', 7, -12, 4))
+      frontWave.push(...g.spawn('enemy', 'granadero', 2, -13, 1))
+      frontWave.push(...g.spawn('enemy', 'tanque', 4, -10, 10))
+      frontWave.push(...g.spawn('enemy', 'canon', 2, -8, 14))
+      g.moveFormation(frontWave, -34, 6, 'line')
       g.reveal('player')
-      g.camera(-26, 6, 74)
-      g.skip(6)
-      // recentrar en el choque/base+ejércitos con acción visible
+      // encuadre amplio: base enemiga activa/defendida, oleadas saliendo y choque al frente
+      g.camera(10, 6, 106)
+      g.skip(6.5)
+      // ajustar levemente al eje de avance manteniendo legible la base y la ruta
       let cx = 0, cz = 0, n = 0
       for (const e of g.state.entities.values()) {
         if (e.dead || e.kind !== 'unit') continue
-        if (e.x < -45 || e.x > -5 || Math.abs(e.z - 6) > 28) continue
+        if (e.x < -28 || e.x > 38 || Math.abs(e.z - 6) > 30) continue
         cx += e.x; cz += e.z; n++
       }
-      if (n > 0) g.camera(cx / n, cz / n, 70)
-      g.skip(2.8)
+      if (n > 0) g.camera(Math.min(14, cx / n + 8), cz / n, 102)
+      // más duración para huellas/bajas y pausa justo tras actividad reciente
+      g.skip(3.2)
+      g.skip(0.25)
       g.state.status = 'paused'
       return 'ok'
     })()`,
-    settleMs: 700,
+    settleMs: 900,
   },
   // --- ciclo 02: niebla / formaciones / asedio -----------------------------
   {
@@ -517,14 +556,30 @@ const SCENARIOS = [
     js: `(() => {
       const g = window.__imperios
       g.camera(-42, 12)
+      // asegurar margen de población tras escenarios previos con muchas unidades
+      g.build('player', 'vivienda', -60, 30, true)
+      g.build('player', 'vivienda', -60, 34, true)
       let squad = g.spawn('player', 'milicia', 9, -45, 12) || []
       if (squad.length < 6) {
         const extra = g.spawn('player', 'milicia', 9 - squad.length, -47, 14) || []
         squad = squad.concat(extra)
       }
       g.skip(1)
-      // seleccionar las milicias recién creadas (o las disponibles) para la toma
-      g.select(squad.length ? squad : g.selectUnits('player', 'milicia', 9))
+      // fallback: seleccionar milicias/unidades propias existentes si el spawn fue limitado
+      if (!squad || squad.length < 6) {
+        const fallback = (typeof g.selectUnits === 'function') ? (g.selectUnits('player', 'milicia', 9) || []) : []
+        if (fallback.length) squad = fallback
+      }
+      if (!squad || squad.length < 6) {
+        const ids = []
+        const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
+        for (const e of iter) {
+          if (e && !e.dead && e.kind === 'unit' && e.team === 'player') ids.push(e.id)
+          if (ids.length >= 9) break
+        }
+        if (ids.length) squad = ids
+      }
+      g.select((squad || []).slice ? (squad || []).slice(0, 9) : (squad || []))
       const sel = g.state.selectedIds || []
       return sel.length >= 6 ? 'ok' : 'sel:' + sel.length
     })()`,
@@ -547,33 +602,61 @@ const SCENARIOS = [
   },
   {
     id: '08-asedio',
-    title: 'Asedio real: base enemiga defendida con defensores y cruce de fuego activo',
+    title: 'Asedio real: cruce de fuego activo con cañones, trazadoras y bajas persistentes',
     js: `(() => {
       const g = window.__imperios
       g.setEra(4)
-      // base enemiga más desarrollada y defendida
+      // base enemiga más desarrollada, defendida y con actividad
       g.build('enemy', 'vivienda', 58, 10, true)
       g.build('enemy', 'vivienda', 58, -10, true)
+      g.build('enemy', 'vivienda', 62, 0, true)
       g.build('enemy', 'cuartel', 48, 18, true)
       g.build('enemy', 'almacen', 52, 14, true)
       g.build('enemy', 'fabrica', 60, -14, true)
       g.build('enemy', 'torre', 50, -6, true)
       g.build('enemy', 'torre', 50, 8, true)
       g.build('enemy', 'torre', 46, 2, true)
-      // defensores y presión/contraataque breve
-      g.spawn('enemy', 'milicia', 8, 51, 2)
-      g.spawn('enemy', 'fusilero', 5, 52, -4)
-      g.spawn('enemy', 'tanque', 2, 54, 7)
-      const counter = g.spawn('enemy', 'milicia', 4, 48, 0)
-      g.moveFormation(counter, 44, 0, 'line')
-      // fuerza atacante con presión sostenida
-      g.spawn('player', 'tanque', 4, 40, 0)
+      // defensores posicionados (más ranged/cañones para cruce activo)
+      g.spawn('enemy', 'milicia', 6, 51, 2)
+      g.spawn('enemy', 'fusilero', 7, 52, -4)
+      g.spawn('enemy', 'granadero', 2, 51, -1)
+      g.spawn('enemy', 'fusilero', 3, 49, 10)
+      g.spawn('enemy', 'tanque', 3, 54, 7)
+      g.spawn('enemy', 'canon', 2, 55, 4)
+      // contraataque saliendo desde la base/cuartel
+      const counter = []
+      counter.push(...g.spawn('enemy', 'milicia', 4, 48, 16))
+      counter.push(...g.spawn('enemy', 'fusilero', 3, 46, 15))
+      g.moveFormation(counter, 42, 6, 'line')
+      // fuerza atacante con presión sostenida y más fuego ranged/cañones
+      g.spawn('player', 'tanque', 5, 40, 0)
       g.spawn('player', 'milicia', 8, 39, 6)
-      g.spawn('player', 'canon', 3, 37, -4)
-      g.spawn('player', 'fusilero', 4, 38, 10)
+      g.spawn('player', 'canon', 4, 37, -4)
+      g.spawn('player', 'fusilero', 7, 38, 10)
+      g.spawn('player', 'granadero', 2, 39, 8)
       g.reveal('player')
-      g.skip(4)
-      // centrar en el asedio/combate activo (ambos bandos)
+      g.skip(5.5)
+      // daño visible de asedio en curso (estructuras/tropas heridas, sin destruir todo)
+      const iter = typeof g.state.entities.values === 'function' ? [...g.state.entities.values()] : Object.values(g.state.entities)
+      for (const e of iter) {
+        if (!e || e.dead) continue
+        if (e.kind === 'building' && e.team === 'enemy' && e.x >= 44 && e.x <= 56 && e.z >= -10 && e.z <= 12) {
+          if (e.btype === 'torre' || e.btype === 'almacen' || e.btype === 'vivienda') {
+            e.hp = Math.max(1, Math.floor(e.maxHp * 0.45))
+          } else if (e.btype === 'cuartel') {
+            e.hp = Math.max(1, Math.floor(e.maxHp * 0.6))
+          }
+        }
+        if (e.kind === 'unit' && e.x >= 36 && e.x <= 54 && e.z >= -8 && e.z <= 14) {
+          if (e.team === 'enemy' && (e.utype === 'milicia' || e.utype === 'fusilero' || e.utype === 'granadero')) {
+            e.hp = Math.max(1, Math.floor(e.maxHp * 0.55))
+          }
+          if (e.team === 'player' && (e.utype === 'milicia' || e.utype === 'fusilero')) {
+            e.hp = Math.max(1, Math.floor(e.maxHp * 0.7))
+          }
+        }
+      }
+      // centrar en el asedio/cruce de fuego activo (ambos bandos)
       let cx = 0, cz = 0, n = 0
       for (const e of g.state.entities.values()) {
         if (e.dead || e.kind !== 'unit') continue
@@ -583,11 +666,14 @@ const SCENARIOS = [
       if (n > 0) g.camera(cx / n, cz / n, 54)
       else g.camera(47, 2, 54)
       g.fog()
-      g.skip(2.5)
+      // algo más de duración para huellas/bajas, manteniendo unidades vivas visibles
+      g.skip(3.0)
+      // pausa justo tras actividad reciente (FX persistentes mostrarán trazadoras/marcas)
+      g.skip(0.25)
       g.state.status = 'paused'
       return 'ok'
     })()`,
-    settleMs: 700,
+    settleMs: 900,
   },
 ]
 
