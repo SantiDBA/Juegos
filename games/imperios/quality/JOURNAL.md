@@ -1065,6 +1065,58 @@ se revirtió. Se conservó un fix de culling y unidades algo más grandes. Prome
 
 ---
 
+# Juez ciego · ciclo-23-encuadre-legibilidad · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-23-encuadre-legibilidad/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** pase de **encuadre** en las capturas
+(acercar ~15-20 % la cámara de 03/04/06b/06c y reorientar 07 hacia la base enemiga) para que
+unidades y edificios ocupen más píxeles y se lean mejor a zoom de juego. Es un cambio sólo de
+captura (el juego se ve así al hacer zoom), no de gameplay.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC y viviendas más grandes, granjas con trigo, anillos de selección; los ingenieros todavía se leen como grupo y los caminos son tenues. |
+| 2 | Combate / counters / proyectiles | 6.0 | `04-combate.png`/`08-asedio.png`: unidades algo más grandes con anillos de bando; trazadoras tenues y sin feedback de golpe por unidad. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: desconocido oscuro, memoria en penumbra, visible nítido; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: árboles, rocas, arbustos y cajas alrededor de la base; el lector estima ~20-30 % de la densidad de un arranque AoE2. |
+| 7 | IA legítima | 5.5 | `07-late-game.png`: sólo puntos rojos dispersos; **no se lee** una base enemiga con producción/defensas en el encuadre. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible, posturas sin truncar; techs abreviadas y ayuda recortada. |
+| 9 | Art direction / diorama isométrico | 6.0 | `02-arranque.png`/`03-economia.png`: cámara y paleta coherentes; mundo low-poly de bajo contraste vs AoE2 DE. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello; sin feedback por unidad. Sin audio. |
+
+**Promedio:** 6.25 · **Mínima:** 5.5 · **Dimensiones < 7:** 9
+
+**Veredicto — SORPRENDIDO: NO**
+Acercar el encuadre agranda unidades/edificios, pero no cambia la lectura de combate ni hace
+legible la base enemiga. Promedio sin moverse (~6.25).
+
+## Top 7 brechas
+1. Base enemiga ilegible aun con encuadre dedicado — `07-late-game.png` — dim 7.
+2. Combate sin lectura por unidad ni trazadoras claras — `04/08` — dim 2,10.
+3. Mundo low-poly de bajo contraste (renderer 3D) — `03-economia.png` — dim 9.
+4. Economía sin lectura de carga/ruta por unidad — dim 1.
+5. Densidad aún muy por debajo de AoE2 — `02-arranque.png` — dim 6.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Fase 4 (ortográfica) no viable sin trabajo de renderer — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Base enemiga: construirla con huella clara (TC+cuartel+fábrica+torres) y encuadre que la ponga como sujeto — Dim 7.
+2. Combate legible por unidad + trazadoras — Dim 2,10.
+3. Densidad/variación — Dim 6.
+4. HUD sin abreviaturas/recortes — Dim 8.
+5. Fase 4 sólo con repro mínimo aislado — Dim 9.
+
+## Riesgos / notas
+- **23 ciclos, promedio 6.20-6.40 sin tendencia.** Ya hay 3 ciclos consecutivos (21-23) sin mover el promedio; el techo es estructural (renderer/diorama) y el loop está en rendimiento decreciente. Recomendación fuerte: pausar el loop o redefinir la vara.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+- Cambiar encuadres de captura altera la medición entre ciclos (no comparable estrictamente).
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
