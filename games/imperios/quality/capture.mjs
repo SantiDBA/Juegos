@@ -223,35 +223,62 @@ const SCENARIOS = [
       nodes.sort((a, b) => ((a.x - tx) ** 2 + (a.z - tz) ** 2) - ((b.x - tx) ** 2 + (b.z - tz) ** 2))
       const n1 = nodes[0] || null
       const n2 = nodes[1] || n1
+      const n3 = nodes[2] || n2 || n1
+      const targets = [n1, n2, n3].filter((n, i, a) => n && a.indexOf(n) === i)
+
       let assigned = 0
-      if (typeof g.assignEconomy === 'function') assigned = g.assignEconomy(12) || 0
-      // densificar economía cerca del TC para que haya más líneas de acarreo visibles
-      if (n1) {
-        g.spawn('player', 'ingeniero', 4, tx + 3, tz + 2)
-        if (typeof g.gatherNode === 'function') g.gatherNode(n1.id, 4)
-      }
-      g.skip(14)   // oleada principal llega al nodo y recolecta
-      g.skip(8)    // parte inicia retorno al depósito con carga
-      // segunda oleada: varios recolectando mientras otros vuelven al dropoff
-      if (n2) {
-        g.spawn('player', 'ingeniero', 3, tx + 4, tz - 2)
-        if (typeof g.gatherNode === 'function') g.gatherNode(n2.id, 3)
-      }
-      g.skip(7)
+      if (typeof g.assignEconomy === 'function') assigned = g.assignEconomy(10) || 0
+
+      // oleada temprana (2-3 nodos cercanos): acumula carga y vuelve hacia el dropoff
+      if (n1) { g.spawn('player', 'ingeniero', 3, tx + 2, tz + 1); if (typeof g.gatherNode === 'function') g.gatherNode(n1.id, 3) }
+      if (n2) { g.spawn('player', 'ingeniero', 2, tx + 2, tz - 1); if (typeof g.gatherNode === 'function') g.gatherNode(n2.id, 2) }
+      if (n3 && n3 !== n1) { g.spawn('player', 'ingeniero', 1, tx + 3, tz); if (typeof g.gatherNode === 'function') g.gatherNode(n3.id, 1) }
+      g.skip(18)
+
+      // oleada media: mezcla de ingenieros en camino (ida/retorno) durante el ciclo
+      if (n2) { g.spawn('player', 'ingeniero', 2, tx + 4, tz + 2); if (typeof g.gatherNode === 'function') g.gatherNode(n2.id, 2) }
+      if (n3 || n1) { const nm = n3 || n1; g.spawn('player', 'ingeniero', 2, tx + 4, tz - 2); if (typeof g.gatherNode === 'function') g.gatherNode(nm.id, 2) }
+      g.skip(8)
+
+      // oleada tardía: permanece recolectando en nodos al pausar
+      if (n1) { g.spawn('player', 'ingeniero', 2, tx + 5, tz + 1); if (typeof g.gatherNode === 'function') g.gatherNode(n1.id, 2) }
+      if (n2 || n3) { const nl = n2 || n3; g.spawn('player', 'ingeniero', 2, tx + 5, tz - 1); if (typeof g.gatherNode === 'function') g.gatherNode(nl.id, 2) }
+      if (n3 && n3 !== n1 && n3 !== n2) { g.spawn('player', 'ingeniero', 1, tx + 6, tz); if (typeof g.gatherNode === 'function') g.gatherNode(n3.id, 1) }
+      g.skip(5)
+
       const countCarrying = () => {
         let n = 0
         for (const e of getIter()) if (e && !e.dead && e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && (e.carryAmount || 0) > 0.5) n++
         return n
       }
-      for (let i = 0; i < 8 && countCarrying() < 4; i++) g.skip(2)
+      const countGathering = () => {
+        let n = 0
+        for (const e of getIter()) if (e && !e.dead && e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && !((e.carryAmount || 0) > 0.5) && e.gatherTargetId) n++
+        return n
+      }
+
+      // asegurar mezcla mínima: >=5 con carga (retorno/cerca del dropoff) y >=3 recolectando
+      for (let i = 0; i < 8 && countCarrying() < 5; i++) g.skip(2)
+      for (let i = 0; i < 4 && countGathering() < 3; i++) {
+        const ng = targets[i % Math.max(1, targets.length)] || n1
+        if (ng) {
+          g.spawn('player', 'ingeniero', 2, ng.x + 0.6, ng.z + 0.4 + i * 0.25)
+          if (typeof g.gatherNode === 'function') g.gatherNode(ng.id, 2)
+        }
+        g.skip(3)
+      }
+
       const carrying = []
       const gathering = []
+      const others = []
       for (const e of getIter()) {
         if (!e || e.dead || e.kind !== 'unit' || e.team !== 'player' || e.utype !== 'ingeniero') continue
         if ((e.carryAmount || 0) > 0.5) carrying.push(e)
         else if (e.gatherTargetId) gathering.push(e)
+        else others.push(e)
       }
-      // priorizar retornando/cargados cerca del dropoff y mantener recolectores en cuadro
+
+      // priorizar retornando/cargados cerca del dropoff (TC señalizado) para legibilidad de cargas
       carrying.sort((a, b) => {
         const ar = !a.gatherTargetId ? 1 : 0, br = !b.gatherTargetId ? 1 : 0
         if (ar !== br) return br - ar
@@ -259,18 +286,27 @@ const SCENARIOS = [
         const db = (b.x - tx) ** 2 + (b.z - tz) ** 2
         return da - db
       })
-      const focus = [...carrying.slice(0, 5), ...gathering.slice(0, 3)]
-      let cx = tx + 6, cz = tz + 1
+      // mantener recolectores activos en nodos dentro del encuadre
+      gathering.sort((a, b) => ((a.x - tx) ** 2 + (a.z - tz) ** 2) - ((b.x - tx) ** 2 + (b.z - tz) ** 2))
+
+      const focus = [...carrying.slice(0, 6), ...gathering.slice(0, 4), ...others.slice(0, 2)]
+      let cx = tx + 7, cz = tz
       if (focus.length > 0) {
         cx = 0; cz = 0
         for (const e of focus) { cx += e.x; cz += e.z }
         cx /= focus.length; cz /= focus.length
       }
-      if (carrying.length > 0) g.select(carrying.slice(0, 6).map(e => e.id))
-      // encuadre que incluye dropoff y trayectoria de acarreo
-      g.camera(tx * 0.5 + cx * 0.5, tz * 0.5 + cz * 0.5, 44)
-      g.state.status = 'paused' // congelar para que carga, retorno y recolecta sean legibles en el still
-      return 'ok assigned=' + assigned + ' carrying=' + carrying.length + ' gathering=' + gathering.length
+      if (n1) { cx = (cx + n1.x) / 2; cz = (cz + n1.z) / 2 }
+
+      // selección representativa que incluya cargados
+      const selected = [...carrying.slice(0, 4), ...gathering.slice(0, 2), ...others.slice(0, 2)]
+      if (selected.length > 0) g.select(selected.map(e => e.id))
+
+      // encuadre que incluye TC (dropoff), camino y nodos cercanos sin perder legibilidad de cargas
+      g.camera(tx * 0.45 + cx * 0.55, tz * 0.45 + cz * 0.55, 50)
+      g.state.status = 'paused' // congelar para que carga, retorno, camino y recolecta sean legibles en el still
+      const totalEng = carrying.length + gathering.length + others.length
+      return 'ok assigned=' + assigned + ' carrying=' + carrying.length + ' gathering=' + gathering.length + ' totalEng=' + totalEng
     })()`,
     settleMs: 900,
   },
@@ -376,6 +412,8 @@ const SCENARIOS = [
         g.skip(0.5)
         dead = deadCount()
       }
+      // pequeño margen extra para que decals/huellas de muerte se asienten y rendericen
+      g.skip(0.3)
 
       // Centrar cámara en bajas visibles; si aún no hay, en el frente vivo del choque
       let cx = 0, cz = 0, n = 0
@@ -466,7 +504,7 @@ const SCENARIOS = [
         cx += e.x; cz += e.z; n++
       }
       if (n > 0) g.camera(cx / n, cz / n, 70)
-      g.skip(1.8)
+      g.skip(2.8)
       g.state.status = 'paused'
       return 'ok'
     })()`,
@@ -494,12 +532,12 @@ const SCENARIOS = [
   },
   {
     id: '06c-formacion',
-    title: 'Formación en cuña: el mismo grupo, orden de movimiento en wedge',
+    title: 'Formación en línea: el mismo grupo, orden de movimiento en line',
     js: `(() => {
       const g = window.__imperios
       const squad = (g.state.selectedIds || []).slice()
       if (squad.length < 3) return 'moved:0/' + squad.length
-      const n = g.moveFormation(squad, -35, 12, 'wedge')
+      const n = g.moveFormation(squad, -35, 12, 'line')
       g.skip(8)              // avanzar y asentarse para que filas/frente queden regulares
       g.camera(-35, 12, 46)  // reencuadre al destino/formación
       g.state.status = 'paused'
@@ -545,7 +583,7 @@ const SCENARIOS = [
       if (n > 0) g.camera(cx / n, cz / n, 54)
       else g.camera(47, 2, 54)
       g.fog()
-      g.skip(1.5)
+      g.skip(2.5)
       g.state.status = 'paused'
       return 'ok'
     })()`,

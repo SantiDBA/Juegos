@@ -97,12 +97,12 @@ const FX_LIVE_CAP: Record<FxKind, number> = {
 }
 
 /** Lifetime of a crater, and how long it holds full opacity before fading. */
-const CRATER_LIFE = 180
-const CRATER_HOLD = 168
-const WRECK_LIFE = 180
-const WRECK_HOLD = 170
-const RUBBLE_LIFE = 180
-const RUBBLE_HOLD = 170
+const CRATER_LIFE = 300
+const CRATER_HOLD = 280
+const WRECK_LIFE = 300
+const WRECK_HOLD = 280
+const RUBBLE_LIFE = 300
+const RUBBLE_HOLD = 280
 /** Wounded buildings cough smoke at this interval (presentation only). */
 const DAMAGE_SMOKE_INTERVAL = 0.5
 
@@ -173,6 +173,8 @@ function addDensityProps(scene: THREE.Scene): void {
     [-2, 2, 14], [2, -2, 14], [-12, -30, 12], [12, 30, 12],
     [-34, -16, 16], [-38, 16, 14], [34, 16, 16], [38, -16, 14], [-24, 18, 14], [24, -18, 14], [-18, -6, 12], [18, 6, 12],
     [-14, 28, 12], [14, -28, 12], [-6, -12, 12], [6, 12, 12], [-26, -10, 12], [26, 10, 12],
+    // extra center/node-adjacent scrub for denser readable map
+    [-16, 6, 14], [16, -6, 14], [-10, 18, 12], [10, -18, 12], [-20, 30, 12], [20, -30, 12], [-8, -18, 12], [8, 18, 12],
   ]
   for (let ci = 0; ci < clusters.length && bi < bushCount; ci++) {
     const [cx, cz, n] = clusters[ci]
@@ -248,6 +250,8 @@ function addDensityProps(scene: THREE.Scene): void {
     [-30, 18, -8, 4], [-34, 16, -12, 2], [-24, -22, -8, -8], [-32, 24, -10, 8], [-22, -20, -6, -4],
     [30, -18, 8, -4], [34, -16, 12, -2], [24, 22, 8, 8], [32, -24, 10, -8], [22, 20, 6, 4],
     [-12, 12, 0, 0], [12, -12, 0, 0], [-26, 10, -10, 0], [26, -10, 10, 0],
+    // additional center/route connectors
+    [-16, 24, -4, 6], [16, -24, 4, -6],
   ]
   for (const [x1, z1, x2, z2] of paths) {
     const dx = x2 - x1, dz = z2 - z1
@@ -301,6 +305,8 @@ function addDensityProps(scene: THREE.Scene): void {
     [38, 16, 22], [34, -16, 24], [30, -20, 22], [24, 22, 18], [24, -18, 18], [6, 0, 16],
     [-2, 2, 18], [2, -2, 18], [-14, 28, 16], [14, -28, 16], [-42, 22, 16], [42, -22, 16],
     [-20, -8, 14], [20, 8, 14], [-10, 18, 14], [10, -18, 14], [-26, 12, 14], [26, -12, 14],
+    // extra center/node-adjacent groves for denser readable map
+    [-12, -20, 16], [12, 20, 16], [-30, 4, 14], [30, -4, 14], [-16, 10, 14], [16, -10, 14],
   ]
   const groves = new THREE.InstancedMesh(groveGeo, groveMat, 560)
   let gi = 0
@@ -343,6 +349,8 @@ function addDensityProps(scene: THREE.Scene): void {
     [-28, -14, 4.6, 3.0, 1], [-24, -12, 4.0, 2.8, 0], [28, 14, 4.6, 3.0, 1], [24, 12, 4.0, 2.8, 0],
     [-16, 18, 4.2, 2.8, 0], [-10, 22, 3.8, 2.6, 1], [16, -18, 4.2, 2.8, 0], [10, -22, 3.8, 2.6, 1],
     [-30, 10, 3.6, 2.5, 1], [30, -10, 3.6, 2.5, 1], [-18, -2, 3.4, 2.4, 0], [18, 2, 3.4, 2.4, 0],
+    // extra visible center/node-adjacent crop strips
+    [-14, 8, 3.8, 2.6, 1], [14, -8, 3.8, 2.6, 1], [-8, -22, 3.6, 2.5, 0], [8, 22, 3.6, 2.5, 0], [-22, 4, 3.4, 2.4, 0], [22, -4, 3.4, 2.4, 0],
   ]
   for (let i = 0; i < fields.length; i++) {
     const [fx, fz, fw, fl, mi] = fields[i]
@@ -2185,6 +2193,26 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
       s0: 1, s1: 1, o0: 1.0, hold: CRATER_HOLD,
     })
   }
+  // Secondary splash decal: small dark splatter so each impact leaves an extra visible mark.
+  if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
+  const splash = acquireFx(rc, 'decal')
+  if (splash) {
+    const ox = (hash2(x * 1.7 + 3.1, z * 0.9 - 2.2) - 0.5) * 1.6
+    const oz = (hash2(x * 0.6 - 1.4, z * 1.8 + 4.3) - 0.5) * 1.6
+    const sx = x + ox
+    const sz = z + oz
+    const rad = 2.4 + seed * 0.9
+    splash.position.set(sx, groundHeightAt(sx, sz) + 0.072, sz)
+    splash.scale.set(rad, 1, rad)
+    const m = splash.material as THREE.MeshBasicMaterial
+    m.color.setHex(seed > 0.45 ? 0x0d0906 : 0x14100a)
+    m.opacity = 0.92
+    rc.fxItems.push({
+      kind: 'decal', mesh: splash, t: 0, life: CRATER_LIFE,
+      pos: splash.position.clone(), vel: new THREE.Vector3(),
+      s0: 1, s1: 1, o0: 0.92, hold: CRATER_HOLD,
+    })
+  }
 }
 
 /** Grey smoke rising from a wounded building's roof (presentation only). */
@@ -2282,11 +2310,11 @@ export function spawnDeathFx(
     if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
     const stain = acquireFx(rc, 'decal')
     if (stain) {
-      const rad = 4.1 + seed * 1.3
+      const rad = 5.4 + seed * 1.5
       stain.position.set(x, groundHeightAt(x, z) + 0.07, z)
       stain.scale.set(rad, 1, rad)
       const m = stain.material as THREE.MeshBasicMaterial
-      m.color.setHex(team === 'enemy' ? 0x661111 : 0x281244)
+      m.color.setHex(team === 'enemy' ? 0x520d0d : 0x1f0e38)
       m.opacity = 1.0
       rc.fxItems.push({
         kind: 'decal', mesh: stain, t: 0, life: WRECK_LIFE,
@@ -2299,12 +2327,12 @@ export function spawnDeathFx(
     if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
     const mesh = acquireFx(rc, 'wreck')
     if (mesh) {
-      mesh.position.set(x, y + 0.3, z)
+      mesh.position.set(x, y + 0.32, z)
       mesh.rotation.set(0.26, seed * Math.PI * 2, 0.18)
-      mesh.scale.set(3.0, 0.78, 4.4)
+      mesh.scale.set(3.6, 0.88, 5.2)
       const m = mesh.material as THREE.MeshBasicMaterial
-      const base = new THREE.Color(team === 'enemy' ? 0x8a1f1f : 0x2b4aa8).multiplyScalar(0.9)
-      m.color.setHex(base.lerp(new THREE.Color(0x15110e), 0.35).getHex())
+      const base = new THREE.Color(team === 'enemy' ? 0x7a1717 : 0x223d90).multiplyScalar(0.85)
+      m.color.setHex(base.lerp(new THREE.Color(0x100c09), 0.45).getHex())
       m.opacity = 1
       rc.fxItems.push({
         kind: 'wreck', mesh, t: 0, life: WRECK_LIFE,
@@ -2316,12 +2344,12 @@ export function spawnDeathFx(
     if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
     const mesh2 = acquireFx(rc, 'wreck')
     if (mesh2) {
-      mesh2.position.set(x + (seed - 0.5) * 0.6, y + 0.24, z + (seed - 0.5) * 0.5)
+      mesh2.position.set(x + (seed - 0.5) * 0.7, y + 0.25, z + (seed - 0.5) * 0.6)
       mesh2.rotation.set(0.1, seed * Math.PI * 2 + Math.PI / 2, 0.3)
-      mesh2.scale.set(2.2, 0.6, 3.0)
+      mesh2.scale.set(2.8, 0.7, 3.8)
       const m2 = mesh2.material as THREE.MeshBasicMaterial
-      const base2 = new THREE.Color(team === 'enemy' ? 0x6b1515 : 0x243b86).multiplyScalar(0.8)
-      m2.color.setHex(base2.lerp(new THREE.Color(0x120e0b), 0.4).getHex())
+      const base2 = new THREE.Color(team === 'enemy' ? 0x5c1010 : 0x1c3274).multiplyScalar(0.78)
+      m2.color.setHex(base2.lerp(new THREE.Color(0x0e0b08), 0.5).getHex())
       m2.opacity = 1
       rc.fxItems.push({
         kind: 'wreck', mesh: mesh2, t: 0, life: WRECK_LIFE,

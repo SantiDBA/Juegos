@@ -331,13 +331,13 @@ export function formationSlots(count: number, formation: Formation, from: Vec2, 
       slots.push({ x: target.x + px * along + dx * depth, z: target.z + pz * along + dz * depth })
     }
   } else {
-    // wedge: the first unit holds the tip, the rest fan out in pairs behind it
+    // wedge: the first unit holds the tip, the rest fan out in pairs behind it (compact, readable)
     slots.push({ x: target.x, z: target.z })
     for (let i = 1; i < count; i++) {
       const side = i % 2 === 1 ? 1 : -1
       const rank = Math.ceil(i / 2)
-      const along = side * rank * FORMATION_SPACING * 0.85
-      const depth = -rank * FORMATION_SPACING
+      const along = side * rank * FORMATION_SPACING * 0.82
+      const depth = -rank * FORMATION_SPACING * 0.82
       slots.push({ x: target.x + px * along + dx * depth, z: target.z + pz * along + dz * depth })
     }
   }

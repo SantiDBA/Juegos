@@ -577,6 +577,7 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
     const d = rangeTo(e.x, e.z, tgt)
     e.state = 'attack'
     const hdHome = e.home ? dist(e.x, e.z, e.home.x, e.home.z) : 0
+    const homeToTgt = e.home ? dist(e.home.x, e.home.z, tgt.x, tgt.z) : Infinity
     if (d <= def.range) {
       if (e.attackCd <= 0) {
         const atkProfile = UNIT_COMBAT[e.utype]?.attack ?? { base: def.damage, bonusVs: {} }
@@ -584,15 +585,15 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
         e.attackCd = def.attackCooldown
         if (tgt.dead && e.targetId === tgt.id) e.targetId = undefined
       }
-      // dress ranks while holding fire: nudge toward formation slot without chasing away
-      if (e.home) {
-        if (hdHome > 0.4 && hdHome < FORMATION_SPACING * 3.0) {
-          const step = Math.min(speed * dt * 0.45, hdHome - 0.3)
-          if (step > 0.001) {
-            const nx = e.x + ((e.home.x - e.x) / hdHome) * step
-            const nz = e.z + ((e.home.z - e.z) / hdHome) * step
-            if (!isHardBlocked(gs, nx, nz)) { e.x = nx; e.z = nz }
-          }
+      // dress ranks while holding fire: stronger nudge toward formation slot without chasing away
+      if (e.home && hdHome > 0.35 && hdHome < FORMATION_SPACING * 3.0) {
+        const step = Math.min(speed * dt * 0.6, hdHome - 0.2)
+        if (step > 0.001) {
+          const nx = e.x + ((e.home.x - e.x) / hdHome) * step
+          const nz = e.z + ((e.home.z - e.z) / hdHome) * step
+          if (!isHardBlocked(gs, nx, nz)) { e.x = nx; e.z = nz }
+          else if (!isHardBlocked(gs, nx, e.z)) e.x = nx
+          else if (!isHardBlocked(gs, e.x, nz)) e.z = nz
         }
       }
       return
@@ -604,6 +605,20 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
       if (hdHome > leash) {
         e.path = findPath(gs, e.x, e.z, e.home.x, e.home.z)
         followPath(gs, e, speed, dt)
+        return
+      }
+      // formation/contact hold: keep slot/front when fighting near home unless target pulls far away
+      if (hdHome < FORMATION_SPACING * 2.5 && d <= def.range + FORMATION_SPACING * 2.2 && homeToTgt <= def.range + FORMATION_SPACING * 3.0) {
+        if (hdHome > 0.3) {
+          const step = Math.min(speed * dt * 0.55, hdHome)
+          if (step > 0.001) {
+            const nx = e.x + ((e.home.x - e.x) / hdHome) * step
+            const nz = e.z + ((e.home.z - e.z) / hdHome) * step
+            if (!isHardBlocked(gs, nx, nz)) { e.x = nx; e.z = nz }
+            else if (!isHardBlocked(gs, nx, e.z)) e.x = nx
+            else if (!isHardBlocked(gs, e.x, nz)) e.z = nz
+          }
+        }
         return
       }
     }
