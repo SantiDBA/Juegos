@@ -133,7 +133,7 @@ export function createUI(root: HTMLElement): UIRefs {
             <h4>Niebla de guerra</h4>
             <ul>
               <li>Lo nunca visto es negro: explorá con ingenieros o avanzá con el ejército.</li>
-              <li>Lo explorado queda en penumbra: recordás el terreno, no las unidades.</li>
+              <li>Lo explorado queda en velo gris (memoria): recordás el terreno y edificios vistos, no las unidades.</li>
               <li>Los edificios enemigos vistos quedan en gris hasta volver a verlos.</li>
               <li>El minimapa usa la misma niebla que la vista principal.</li>
             </ul>
@@ -532,10 +532,10 @@ export function updateMinimap(ui: UIRefs, gs: GameState, camX?: number, camZ?: n
       const cx = Math.min(gw - 1, Math.floor((px / w) * gw))
       const v = observer ? visionAtCell(gs, observer, cx, cz) : VIS_VISIBLE
       const o = (py * w + px) * 4
-      // 0 = unexplored (near black), 1 = explored (cold blue-gray haze), 2 = visible (lit terrain)
-      if (v === VIS_UNKNOWN) { data[o] = 2; data[o+1] = 4; data[o+2] = 8 }
-      else if (v === VIS_EXPLORED) { data[o] = 38; data[o+1] = 48; data[o+2] = 62 }
-      else { data[o] = 78; data[o+1] = 104; data[o+2] = 62 }
+      // 0 = unexplored (near black), 1 = explored (gray-blue memory), 2 = visible (lit terrain)
+      if (v === VIS_UNKNOWN) { data[o] = 4; data[o+1] = 6; data[o+2] = 12 }
+      else if (v === VIS_EXPLORED) { data[o] = 96; data[o+1] = 106; data[o+2] = 122 }
+      else { data[o] = 82; data[o+1] = 112; data[o+2] = 70 }
       data[o + 3] = 255
     }
   }

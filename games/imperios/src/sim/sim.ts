@@ -176,10 +176,12 @@ function isFormationSettling(gs: GameState, e: UnitEntity): boolean {
     const t = getEntity(gs, e.targetId)
     if (t && !t.dead && t.team !== e.team && t.kind !== 'resource') {
       // allow dress-ranks/spacing discipline while engaging close to the assigned slot
-      return hd < FORMATION_SPACING * 1.6
+      return hd < FORMATION_SPACING * 3.0
     }
   }
-  return hd < FORMATION_SPACING * 1.35
+  // also keep discipline when in combat contact near slot even if target ref is transient
+  if (e.state === 'attack') return hd < FORMATION_SPACING * 2.6
+  return hd < FORMATION_SPACING * 1.5
 }
 
 /**
@@ -219,8 +221,10 @@ function stepUnits(gs: GameState, dt: number): void {
 
         const aForm = aPush > 0 && isFormationSettling(gs, a)
         const bForm = bPush > 0 && isFormationSettling(gs, b)
-        // pairs settling into formation slots need weaker mutual separation to hold rows/columns
-        if (aForm && bForm) { aPush *= 0.35; bPush *= 0.35 }
+        // pairs settling/fighting in formation slots need weaker mutual separation to hold rows/columns
+        if (aForm && bForm) { aPush *= 0.28; bPush *= 0.28 }
+        else if (aForm) { aPush *= 0.45 }
+        else if (bForm) { bPush *= 0.45 }
 
         let adx = -(dx / d) * aPush, adz = -(dz / d) * aPush
         let bdx = (dx / d) * bPush, bdz = (dz / d) * bPush
@@ -548,6 +552,7 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
   if (tgt && !tgt.dead && tgt.team !== e.team && tgt.kind !== 'resource') {
     const d = rangeTo(e.x, e.z, tgt)
     e.state = 'attack'
+    const hdHome = e.home ? dist(e.x, e.z, e.home.x, e.home.z) : 0
     if (d <= def.range) {
       if (e.attackCd <= 0) {
         const atkProfile = UNIT_COMBAT[e.utype]?.attack ?? { base: def.damage, bonusVs: {} }
@@ -556,26 +561,27 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
         if (tgt.dead && e.targetId === tgt.id) e.targetId = undefined
       }
       // dress ranks while holding fire: nudge toward formation slot without chasing away
-      if (e.home && e.stance !== 'aggressive') {
-        const hd = dist(e.x, e.z, e.home.x, e.home.z)
-        if (hd > 0.45 && hd < FORMATION_SPACING * 2.2) {
-          const step = Math.min(speed * dt * 0.35, hd - 0.35)
+      if (e.home) {
+        if (hdHome > 0.4 && hdHome < FORMATION_SPACING * 3.0) {
+          const step = Math.min(speed * dt * 0.45, hdHome - 0.3)
           if (step > 0.001) {
-            const nx = e.x + ((e.home.x - e.x) / hd) * step
-            const nz = e.z + ((e.home.z - e.z) / hd) * step
+            const nx = e.x + ((e.home.x - e.x) / hdHome) * step
+            const nz = e.z + ((e.home.z - e.z) / hdHome) * step
             if (!isHardBlocked(gs, nx, nz)) { e.x = nx; e.z = nz }
           }
         }
       }
       return
     }
-    // out of range: only stances that allow movement give chase
+    // out of range: only stances that allow movement give chase, but keep formation anchor
     if (e.stance === 'standground') return
-    if (e.stance === 'defensive' && e.home && dist(e.x, e.z, e.home.x, e.home.z) > DEFENSIVE_LEASH) {
-      e.targetId = undefined
-      e.path = findPath(gs, e.x, e.z, e.home.x, e.home.z)
-      followPath(gs, e, speed, dt)
-      return
+    if (e.home) {
+      const leash = e.stance === 'defensive' ? DEFENSIVE_LEASH : FORMATION_SPACING * 3.2
+      if (hdHome > leash) {
+        e.path = findPath(gs, e.x, e.z, e.home.x, e.home.z)
+        followPath(gs, e, speed, dt)
+        return
+      }
     }
     e.repathT = (e.repathT ?? 0) - dt
     const last = e.path.length > 0 ? e.path[e.path.length - 1] : null

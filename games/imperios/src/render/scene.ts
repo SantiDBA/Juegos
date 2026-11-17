@@ -90,19 +90,19 @@ const FX_LIVE_CAP: Record<FxKind, number> = {
   ring: FX_MAX,
   puff: FX_MAX,
   muzzle: 40, // judge-visible muzzle flashes: pooled at 40
-  spark: 150,
-  decal: 360, // craters + unit stains + deposit halos (keep more persistent traces)
-  wreck: 180,
-  rubble: 180,
+  spark: 180,
+  decal: 480, // craters + unit stains + deposit halos (keep more persistent traces)
+  wreck: 260,
+  rubble: 260,
 }
 
 /** Lifetime of a crater, and how long it holds full opacity before fading. */
-const CRATER_LIFE = 50
-const CRATER_HOLD = 40
-const WRECK_LIFE = 52
-const WRECK_HOLD = 42
-const RUBBLE_LIFE = 52
-const RUBBLE_HOLD = 42
+const CRATER_LIFE = 60
+const CRATER_HOLD = 48
+const WRECK_LIFE = 60
+const WRECK_HOLD = 50
+const RUBBLE_LIFE = 60
+const RUBBLE_HOLD = 50
 /** Wounded buildings cough smoke at this interval (presentation only). */
 const DAMAGE_SMOKE_INTERVAL = 0.5
 
@@ -166,9 +166,11 @@ function addDensityProps(scene: THREE.Scene): void {
     bushes.setColorAt(bi, c)
     bi++
   }
-  // Thematic forest/bush clusters (deterministic), away from base centers.
+  // Thematic forest/bush clusters (deterministic), away from base centers and near resource zones.
   const clusters: Array<[number, number, number]> = [
-    [-22, -20, 11], [-32, 24, 9], [24, -22, 11], [30, 22, 9], [-8, 12, 8], [10, -10, 8], [-40, -6, 7], [38, 8, 7],
+    [-22, -20, 14], [-32, 24, 12], [24, -22, 14], [30, 22, 12], [-8, 12, 10], [10, -10, 10], [-40, -6, 9], [38, 8, 9],
+    [-36, 14, 14], [-30, 18, 12], [-28, 20, 10], [-40, 20, 10], [36, -14, 14], [30, -18, 12], [28, -20, 10], [40, -20, 10],
+    [-2, 2, 10], [2, -2, 10], [-12, -30, 9], [12, 30, 9],
   ]
   for (let ci = 0; ci < clusters.length && bi < bushCount; ci++) {
     const [cx, cz, n] = clusters[ci]
@@ -231,14 +233,15 @@ function addDensityProps(scene: THREE.Scene): void {
 
   // Track/worn-path decals near base -> node routes (render-only), denser for readability.
   const trackMat = new THREE.MeshBasicMaterial({
-    color: 0x6b5a3a, transparent: true, opacity: 0.22, depthWrite: false,
+    color: 0x6b5a3a, transparent: true, opacity: 0.24, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1.5, polygonOffsetUnits: -1.5,
   })
   const paths: Array<[number, number, number, number]> = [
     [-50, 2, -38, -16], [-50, 4, -34, 16], [-52, -2, -24, -22], [-52, 0, -24, 18],
-    [-46, 0, -30, 0], [-48, -6, -36, -10], [-48, 8, -36, 12],
+    [-46, 0, -30, 0], [-48, -6, -36, -10], [-48, 8, -36, 12], [-44, -12, -30, -22], [-44, 14, -30, 20], [-40, -18, -20, -36],
     [50, -2, 38, 16], [50, -4, 34, -16], [52, 2, 24, 22], [52, 0, 24, -18],
-    [46, 0, 30, 0], [48, 6, 36, 10], [48, -8, 36, -12],
+    [46, 0, 30, 0], [48, 6, 36, 10], [48, -8, 36, -12], [44, 12, 30, 22], [44, -14, 30, -20], [40, 18, 20, 36],
+    [-18, 0, 18, 0], [-10, -10, 10, 10], [-8, -30, 8, 30],
   ]
   for (const [x1, z1, x2, z2] of paths) {
     const dx = x2 - x1, dz = z2 - z1
@@ -285,17 +288,18 @@ function addDensityProps(scene: THREE.Scene): void {
   }
 
   // Thematic grove props near forest-resource areas (visual only, deterministic).
-  const groveGeo = new THREE.ConeGeometry(0.55, 1.4, 6)
+  const groveGeo = new THREE.ConeGeometry(0.6, 1.55, 6)
   const groveMat = new THREE.MeshStandardMaterial({ color: 0x2f6a35, roughness: 0.92, metalness: 0.0, flatShading: true })
   const groveCenters: Array<[number, number, number]> = [
-    [-38, -16, 10], [-34, 16, 10], [-24, -22, 8], [-24, 18, 8], [-6, 0, 7],
-    [38, 16, 10], [34, -16, 10], [24, 22, 8], [24, -18, 8], [6, 0, 7],
+    [-38, -16, 18], [-34, 16, 20], [-30, 20, 18], [-24, -22, 14], [-24, 18, 14], [-6, 0, 12],
+    [38, 16, 18], [34, -16, 20], [30, -20, 18], [24, 22, 14], [24, -18, 14], [6, 0, 12],
+    [-2, 2, 14], [2, -2, 14], [-14, 28, 12], [14, -28, 12], [-42, 22, 12], [42, -22, 12],
   ]
-  const groves = new THREE.InstancedMesh(groveGeo, groveMat, 180)
+  const groves = new THREE.InstancedMesh(groveGeo, groveMat, 420)
   let gi = 0
-  for (let ci = 0; ci < groveCenters.length && gi < 180; ci++) {
+  for (let ci = 0; ci < groveCenters.length && gi < 420; ci++) {
     const [cx, cz, n] = groveCenters[ci]
-    for (let j = 0; j < n && gi < 180; j++) {
+    for (let j = 0; j < n && gi < 420; j++) {
       const a = hash2(ci * 11.3 + j * 2.1, j * 5.7 + 1.9) * Math.PI * 2
       const r = 1.2 + hash2(j * 3.1 + ci, ci * 2.4 + j) * 4.8
       const x = cx + Math.cos(a) * r
@@ -321,9 +325,11 @@ function addDensityProps(scene: THREE.Scene): void {
   scene.add(groves)
 
   // Subtle field strips near supply-farm areas (visual only).
-  const fieldMat = new THREE.MeshBasicMaterial({ color: 0x7a8a3a, transparent: true, opacity: 0.18, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1.4, polygonOffsetUnits: -1.4 })
+  const fieldMat = new THREE.MeshBasicMaterial({ color: 0x7a8a3a, transparent: true, opacity: 0.2, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1.4, polygonOffsetUnits: -1.4 })
   const fields: Array<[number, number, number, number]> = [
-    [-40, -20, 4.5, 3.0], [-36, -22, 4.0, 2.8], [40, 20, 4.5, 3.0], [36, 22, 4.0, 2.8], [-12, -28, 3.5, 2.5], [12, 28, 3.5, 2.5],
+    [-40, -20, 4.8, 3.2], [-36, -22, 4.2, 3.0], [-42, -16, 4.4, 3.0], [-34, -24, 4.0, 2.8], [-20, -38, 5.4, 3.4], [-38, -18, 3.6, 2.6],
+    [40, 20, 4.8, 3.2], [36, 22, 4.2, 3.0], [42, 16, 4.4, 3.0], [34, 24, 4.0, 2.8], [20, 37, 5.4, 3.4], [38, 18, 3.6, 2.6],
+    [-12, -28, 3.8, 2.6], [12, 28, 3.8, 2.6], [-4, 6, 3.6, 2.6], [4, -6, 3.6, 2.6], [-2, -8, 3.2, 2.4], [2, 8, 3.2, 2.4],
   ]
   for (const [fx, fz, fw, fl] of fields) {
     if (baseClear(fx, fz)) continue
@@ -661,13 +667,13 @@ function paintFogPixels(image: ImageData, grid: Uint8Array | null): void {
 }
 
 function visFog(grid: Uint8Array | null, cx: number, cy: number): [number, number, number, number] {
-  // visible (v>=2): clear; explored (v==1): cool dim penumbra; unseen/outside: near-opaque black
+  // visible (v>=2): clear; explored (v==1): gray-blue memory veil; unseen/outside: near-opaque black
   if (!grid) return [0, 0, 0, 252]
   if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) return [0, 0, 0, 252]
   const v = grid[cy * GRID + cx]
   if (v >= 2) return [0, 0, 0, 0]
-  if (v === 1) return [18, 28, 46, 90]
-  return [0, 0, 0, 252]
+  if (v === 1) return [78, 88, 104, 135]
+  return [2, 4, 10, 250]
 }
 
 export function updateCamera(rc: RenderContext): void {
@@ -937,32 +943,31 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     tool.position.set(0.28, 0.65, 0.18); tool.rotation.z = -0.5; tool.castShadow = true; g.add(tool)
     const bag = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.18), mat(0x5a4a3a))
     bag.position.set(-0.18, 0.5, -0.05); g.add(bag)
-    // Visible load: a prominent crate carried high so gathering/returning reads
-    // at a glance in stills, tinted and brightened by the resource carried.
+    // Visible load: oversized crate + icon so gathering/returning is instant at game zoom.
     const cargo = new THREE.Mesh(
-      new THREE.BoxGeometry(0.95, 0.78, 0.78),
-      new THREE.MeshBasicMaterial({ color: 0xc9e06b, transparent: true, opacity: 0.98, toneMapped: false }),
+      new THREE.BoxGeometry(1.25, 1.0, 1.0),
+      new THREE.MeshBasicMaterial({ color: 0xbef05a, transparent: true, opacity: 0.98, toneMapped: false }),
     )
     cargo.name = 'cargo'
-    cargo.position.set(0, 2.45, 0.02)
+    cargo.position.set(0, 3.05, 0.02)
     cargo.castShadow = false
     cargo.visible = false
     cargo.userData.baseY = cargo.position.y
     g.add(cargo)
     // Bright top marker makes the carried load unmistakable from camera distance.
     const cargoMark = new THREE.Mesh(
-      new THREE.BoxGeometry(1.08, 0.16, 1.08),
+      new THREE.BoxGeometry(1.45, 0.22, 1.45),
       new THREE.MeshBasicMaterial({ color: 0xfff6c0, transparent: true, opacity: 1, toneMapped: false }),
     )
     cargoMark.name = 'cargoMark'
-    cargoMark.position.set(0, 0.46, 0)
+    cargoMark.position.set(0, 0.58, 0)
     cargo.add(cargoMark)
     // Billboard icon (always camera-readable) above the carried resource.
-    const cargoIcon = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xfff6c0, transparent: true, opacity: 1, depthTest: false, depthWrite: false, toneMapped: false }))
+    const cargoIcon = new THREE.Sprite(new THREE.SpriteMaterial({ map: cargoTexture('suministros'), color: 0xffffff, transparent: true, opacity: 1, depthTest: false, depthWrite: false, toneMapped: false }))
     cargoIcon.name = 'cargoIcon'
-    cargoIcon.position.set(0, 1.05, 0)
-    cargoIcon.scale.set(1.35, 1.35, 1)
-    cargoIcon.renderOrder = 250
+    cargoIcon.position.set(0, 1.55, 0)
+    cargoIcon.scale.set(3.1, 3.1, 1)
+    cargoIcon.renderOrder = 500
     cargo.add(cargoIcon)
   } else if (u.utype === 'milicia') {
     addContactShadow(g, 0.6, 0.40)
@@ -1178,10 +1183,13 @@ function buildingBase(x: number, z: number, h: number, color: number, teamC: num
   const g = new THREE.Group()
   addContactShadow(g, Math.max(x, z) * 0.65, 0.26)
   const platform = new THREE.Mesh(new THREE.BoxGeometry(x + 0.6, 0.22, z + 0.6), mat(0x8a7e6e, { roughness: 0.95 }))
+  platform.name = 'plinth'
   platform.position.y = 0.11; platform.receiveShadow = true; platform.castShadow = true; g.add(platform)
   const base = new THREE.Mesh(new THREE.BoxGeometry(x, h, z), mat(color, { roughness: 0.88, metalness: 0.05 }))
+  base.name = 'body'
   base.position.y = h / 2; base.castShadow = true; base.receiveShadow = true; g.add(base)
   const trim = new THREE.Mesh(new THREE.BoxGeometry(x + 0.12, 0.16, z + 0.12), paintMat(teamC, 0.5, 0.15))
+  trim.name = 'teamTrim'
   trim.position.y = Math.min(h - 0.15, h * 0.7); g.add(trim)
   return g
 }
@@ -1210,12 +1218,14 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
   } else if (b.btype === 'vivienda') {
     g = buildingBase(sz.x, sz.z, 1.7, 0xb39a78, teamC)
     const roof = new THREE.Mesh(new THREE.ConeGeometry(3.3, 1.7, 4), mat(0x7a5a3e))
+    roof.name = 'roof'
     roof.position.y = 2.55; roof.rotation.y = Math.PI / 4; roof.castShadow = true; g.add(roof)
     const door = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.1), mat(0x4a3828))
     door.position.set(0, 0.5, sz.z/2 + 0.06); g.add(door)
   } else if (b.btype === 'cuartel') {
     g = buildingBase(sz.x, sz.z, 2.0, 0x5b6674, teamC)
     const roof = new THREE.Mesh(new THREE.BoxGeometry(sz.x + 0.5, 0.35, sz.z + 0.5), mat(0x404854))
+    roof.name = 'roof'
     roof.position.y = 2.15; roof.castShadow = true; g.add(roof)
     const gate = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 0.15), mat(0x2a2f36))
     gate.position.set(0, 0.6, sz.z/2 + 0.08); g.add(gate)
@@ -1225,6 +1235,7 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
     g = buildingBase(sz.x, sz.z, 2.2, 0x6b7280, teamC)
     for (let i = -1; i <= 1; i++) {
       const saw = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.18, sz.z + 0.3), mat(0x4a5561))
+      if (i === 0) saw.name = 'roof'
       saw.position.set(i * 2.6, 2.75, 0); saw.rotation.x = 0.32; saw.castShadow = true; g.add(saw)
     }
     const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.68, 3.8, 10), mat(0x7a6a58))
@@ -1242,6 +1253,7 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
   } else if (b.btype === 'almacen') {
     g = buildingBase(sz.x, sz.z, 1.5, 0x8a7458, teamC)
     const roof = new THREE.Mesh(new THREE.BoxGeometry(sz.x + 0.3, 0.3, sz.z + 0.3), mat(0x5e4a38))
+    roof.name = 'roof'
     roof.position.y = 1.65; g.add(roof)
     for (let i = -1; i <= 1; i++) {
       const crate = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.7), mat(0x8f7350))
@@ -1251,8 +1263,10 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
     g = new THREE.Group()
     addContactShadow(g, 1.7, 0.3)
     const base = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.75, 4.2, 12), mat(0x8a7e6e, { roughness: 0.95 }))
+    base.name = 'body'
     base.position.y = 2.1; base.castShadow = true; base.receiveShadow = true; g.add(base)
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.5, 12), paintMat(teamC, 0.5, 0.15))
+    rim.name = 'roof'
     rim.position.y = 4.4; rim.castShadow = true; g.add(rim)
     for (let i = 0; i < 8; i++) {
       const ang = (i / 8) * Math.PI * 2
@@ -1271,28 +1285,31 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
   if (BUILDING_DEFS[b.btype]?.dropoff) {
     const r = Math.max(sz.x, sz.z) * 0.4
     const drop = new THREE.Mesh(
-      new THREE.RingGeometry(r * 0.7, r * 1.3, 32),
-      new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }),
+      new THREE.RingGeometry(r * 0.95, r * 1.75, 48),
+      new THREE.MeshBasicMaterial({ color: 0xffef8a, transparent: true, opacity: 0.98, side: THREE.DoubleSide, depthWrite: false, depthTest: false, toneMapped: false }),
     )
     drop.rotation.x = -Math.PI / 2
-    drop.position.y = 0.08
+    drop.position.y = 0.09
     drop.name = 'dropoff'
+    drop.renderOrder = 220
     drop.visible = false
     g.add(drop)
     const beacon = new THREE.Mesh(
-      new THREE.CylinderGeometry(r * 0.22, r * 0.32, 2.6, 12, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0xfff3a8, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+      new THREE.CylinderGeometry(r * 0.42, r * 0.58, 8.5, 16, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false }),
     )
-    beacon.position.y = 1.3
+    beacon.position.y = 4.3
     beacon.name = 'dropoffBeacon'
+    beacon.renderOrder = 221
     beacon.visible = false
     g.add(beacon)
     const cap = new THREE.Mesh(
-      new THREE.SphereGeometry(r * 0.28, 12, 8),
-      new THREE.MeshBasicMaterial({ color: 0xfff8c8, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+      new THREE.SphereGeometry(r * 0.5, 14, 10),
+      new THREE.MeshBasicMaterial({ color: 0xfffde0, transparent: true, opacity: 0.98, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false }),
     )
-    cap.position.y = 2.6
+    cap.position.y = 8.6
     cap.name = 'dropoffCap'
+    cap.renderOrder = 222
     cap.visible = false
     g.add(cap)
   }
@@ -1463,32 +1480,73 @@ function applyEraDetails(obj: THREE.Object3D, e: AnyEntity, era: number): void {
 
   if (e.kind === 'building' && !isTownHall) {
     const b = e.btype
+    // Palette progression by era so the jump is readable without HUD (within 3D ceiling)
+    if (o._eraPalette !== era) {
+      o._eraPalette = era
+      const recolor = (name: string, color: number, emissive = 0x000000, ei = 0) => {
+        const mesh = obj.getObjectByName(name) as THREE.Mesh | undefined
+        if (!mesh) return
+        const own = (mesh.userData.origMaterial ?? mesh.material) as THREE.MeshStandardMaterial
+        if (own && (own as any).isMeshStandardMaterial) {
+          own.color.setHex(color)
+          if ('emissive' in own) { own.emissive.setHex(emissive); own.emissiveIntensity = ei }
+          if ('metalness' in own) own.metalness = Math.max(own.metalness ?? 0, era >= 3 ? 0.12 : 0.05)
+          if ('roughness' in own) own.roughness = era >= 4 ? Math.min(own.roughness ?? 0.8, 0.55) : (own.roughness ?? 0.8)
+        }
+      }
+      if (b === 'vivienda') {
+        if (era >= 4) { recolor('body', 0x8f98aa); recolor('roof', 0x3a4654, 0x16324a, 0.18) }
+        else if (era >= 3) { recolor('body', 0xa7a293); recolor('roof', 0x4a5560) }
+        else if (era >= 2) { recolor('body', 0xb0a58d); recolor('roof', 0x5a5f66) }
+      } else if (b === 'cuartel') {
+        if (era >= 4) { recolor('body', 0x556575); recolor('roof', 0x2f3f4d, 0x12344d, 0.22) }
+        else if (era >= 3) { recolor('body', 0x586878); recolor('roof', 0x3a4652) }
+        else if (era >= 2) { recolor('body', 0x5f6f7e); recolor('roof', 0x454e5a) }
+      } else if (b === 'almacen') {
+        if (era >= 4) { recolor('body', 0x7f8791); recolor('roof', 0x3a4652, 0x13283a, 0.15) }
+        else if (era >= 3) { recolor('body', 0x858377); recolor('roof', 0x4a4f56) }
+        else if (era >= 2) { recolor('body', 0x8b8470); recolor('roof', 0x56514a) }
+      } else if (b === 'fabrica') {
+        if (era >= 4) { recolor('body', 0x5a6675); recolor('roof', 0x2b3947, 0x14324a, 0.18) }
+        else if (era >= 3) { recolor('body', 0x626d7a); recolor('roof', 0x3a4652) }
+        else if (era >= 2) { recolor('body', 0x697684); recolor('roof', 0x454f5a) }
+      } else if (b === 'torre') {
+        if (era >= 4) { recolor('body', 0x6c7886); recolor('roof', 0x3a4652, 0x14324a, 0.2) }
+        else if (era >= 3) { recolor('body', 0x76818c); recolor('roof', 0x4a5560) }
+        else if (era >= 2) { recolor('body', 0x838c96); recolor('roof', 0x5a646e) }
+      }
+    }
+
     // Era 2: industrial steel reinforcements and utility details
     if (era >= 2 && !o._era2b) {
       o._era2b = true
       if (b === 'vivienda') {
-        const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.4, 8), paintMat(0x7a6a58, 0.7, 0.15))
-        chimney.position.set(1.1, 2.45, -0.6); chimney.castShadow = true; obj.add(chimney)
-        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.2, 0.12), paintMat(0x6b5a48, 0.6, 0.2))
+        const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.6, 8), paintMat(0x7a6a58, 0.7, 0.15))
+        chimney.position.set(1.1, 2.55, -0.6); chimney.castShadow = true; obj.add(chimney)
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.3, 0.12), paintMat(0x6b5a48, 0.6, 0.2))
         frame.position.set(0, 0.6, 2.05); obj.add(frame)
       } else if (b === 'cuartel') {
-        const parapet = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.3, 0.5), paintMat(0x5b6674, 0.5, 0.25))
-        parapet.position.set(0, 2.35, 3.05); parapet.castShadow = true; obj.add(parapet)
-        const crate = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.7), mat(0x6b5a45))
-        crate.position.set(2.2, 0.3, 3.5); crate.castShadow = true; obj.add(crate)
+        const parapet = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.45, 0.6), paintMat(0x5b6674, 0.5, 0.25))
+        parapet.position.set(0, 2.42, 3.1); parapet.castShadow = true; obj.add(parapet)
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.7, 0.8), mat(0x6b5a45))
+        crate.position.set(2.2, 0.35, 3.5); crate.castShadow = true; obj.add(crate)
+        const butt = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.8, 0.6), paintMat(0x6a7482, 0.55, 0.3))
+        butt.position.set(-2.7, 0.9, 2.6); butt.castShadow = true; obj.add(butt)
       } else if (b === 'almacen') {
-        const awning = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.12, 1.1), paintMat(0x5a4a38, 0.6, 0.1))
-        awning.position.set(0, 1.82, 1.9); awning.rotation.x = 0.18; awning.castShadow = true; obj.add(awning)
+        const awning = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.14, 1.3), paintMat(0x5a4a38, 0.6, 0.1))
+        awning.position.set(0, 1.88, 1.95); awning.rotation.x = 0.18; awning.castShadow = true; obj.add(awning)
       } else if (b === 'fabrica') {
-        const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.6, 10), paintMat(0x6d7782, 0.5, 0.35))
-        tank.position.set(3.2, 0.8, -2.2); tank.castShadow = true; obj.add(tank)
-        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.2, 8), paintMat(0x555e68, 0.45, 0.4))
-        pipe.rotation.x = Math.PI / 2; pipe.position.set(2.2, 1.2, -2.2); obj.add(pipe)
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.8, 10), paintMat(0x6d7782, 0.5, 0.35))
+        tank.position.set(3.2, 0.9, -2.2); tank.castShadow = true; obj.add(tank)
+        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.4, 8), paintMat(0x555e68, 0.45, 0.4))
+        pipe.rotation.x = Math.PI / 2; pipe.position.set(2.2, 1.3, -2.2); obj.add(pipe)
+        const chimney2 = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, 2.4, 8), mat(0x7a6a58))
+        chimney2.position.set(-2.4, 1.2, -1.8); chimney2.castShadow = true; obj.add(chimney2)
       } else if (b === 'torre') {
-        const plate = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.7, 0.35, 12), paintMat(0x6a7280, 0.45, 0.45))
+        const plate = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.85, 0.4, 12), paintMat(0x6a7280, 0.45, 0.45))
         plate.position.y = 3.35; plate.castShadow = true; obj.add(plate)
       } else {
-        const vent = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 0.45), paintMat(0x4b5563, 0.45, 0.3))
+        const vent = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.26, 0.5), paintMat(0x4b5563, 0.45, 0.3))
         vent.position.set(0.9, 0.28, 0.9); vent.castShadow = true; obj.add(vent)
       }
     }
@@ -1496,88 +1554,122 @@ function applyEraDetails(obj: THREE.Object3D, e: AnyEntity, era: number): void {
     if (era >= 3 && !o._era3b) {
       o._era3b = true
       if (b === 'vivienda') {
-        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 6), mat(0x444))
-        mast.position.set(-1.1, 3.2, 0.8); obj.add(mast)
-        const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffd08a, emissive: 0xffa53c, emissiveIntensity: 1.0 }))
-        lamp.position.set(-1.1, 3.85, 0.8); obj.add(lamp)
+        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 6), mat(0x444))
+        mast.position.set(-1.1, 3.35, 0.8); obj.add(mast)
+        const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffd08a, emissive: 0xffa53c, emissiveIntensity: 1.1 }))
+        lamp.position.set(-1.1, 4.15, 0.8); obj.add(lamp)
+        const dormer = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.9), paintMat(0x9aa3ad, 0.55, 0.2))
+        dormer.position.set(0.8, 2.65, 0.2); dormer.castShadow = true; obj.add(dormer)
       } else if (b === 'cuartel') {
-        const beacon = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.18, 0.35), new THREE.MeshStandardMaterial({ color: 0xffc06a, emissive: 0xff9a3c, emissiveIntensity: 1.1 }))
-        beacon.position.set(0, 2.45, 0); obj.add(beacon)
-        const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.8, 6), paintMat(0x4a525a, 0.4, 0.6))
-        antenna.position.set(-2.2, 3.1, -2.2); obj.add(antenna)
+        const beacon = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.45), new THREE.MeshStandardMaterial({ color: 0xffc06a, emissive: 0xff9a3c, emissiveIntensity: 1.2 }))
+        beacon.position.set(0, 2.55, 0); obj.add(beacon)
+        const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 2.2, 6), paintMat(0x4a525a, 0.4, 0.6))
+        antenna.position.set(-2.2, 3.3, -2.2); obj.add(antenna)
+        const comm = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.6, 0.8), paintMat(0x5d6774, 0.45, 0.35))
+        comm.position.set(-1.9, 2.45, 1.8); comm.castShadow = true; obj.add(comm)
       } else if (b === 'almacen') {
-        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.16, 0.16), new THREE.MeshStandardMaterial({ color: 0xffe2a8, emissive: 0xffc060, emissiveIntensity: 1.0 }))
-        lamp.position.set(0, 1.95, 2.05); obj.add(lamp)
+        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.18), new THREE.MeshStandardMaterial({ color: 0xffe2a8, emissive: 0xffc060, emissiveIntensity: 1.1 }))
+        lamp.position.set(0, 2.0, 2.1); obj.add(lamp)
+        const ventBox = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 0.6), paintMat(0x6b7682, 0.5, 0.3))
+        ventBox.position.set(-1.0, 1.75, -1.1); obj.add(ventBox)
       } else if (b === 'fabrica') {
-        const vent = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 0.7), paintMat(0x59626d, 0.5, 0.35))
-        vent.position.set(-2.6, 2.75, 1.4); vent.castShadow = true; obj.add(vent)
-        const fan = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 12), mat(0x2b3138, { roughness: 0.4, metalness: 0.4 }))
-        fan.rotation.z = Math.PI / 2; fan.position.set(-1.9, 2.75, 1.4); obj.add(fan)
+        const vent = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 0.8), paintMat(0x59626d, 0.5, 0.35))
+        vent.position.set(-2.6, 2.85, 1.4); vent.castShadow = true; obj.add(vent)
+        const fan = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.1, 12), mat(0x2b3138, { roughness: 0.4, metalness: 0.4 }))
+        fan.rotation.z = Math.PI / 2; fan.position.set(-1.8, 2.85, 1.4); obj.add(fan)
+        const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, 2.0, 8), paintMat(0x626d78, 0.5, 0.3))
+        stack.position.set(1.8, 3.2, 1.6); obj.add(stack)
       } else if (b === 'torre') {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.45, 0.08, 8, 20), paintMat(0x707a86, 0.4, 0.5))
-        ring.rotation.x = Math.PI / 2; ring.position.y = 4.65; obj.add(ring)
-        const sensor = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 0.8 }))
-        sensor.position.set(0.9, 4.95, 0.4); obj.add(sensor)
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.1, 8, 20), paintMat(0x707a86, 0.4, 0.5))
+        ring.rotation.x = Math.PI / 2; ring.position.y = 4.7; obj.add(ring)
+        const sensor = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 0.9 }))
+        sensor.position.set(0.9, 5.0, 0.4); obj.add(sensor)
+        const pod = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.5), paintMat(0x5a6674, 0.45, 0.4))
+        pod.position.set(-0.8, 5.0, 0.2); obj.add(pod)
       }
     }
     // Era 4: high-tech panels, plating and emissive identity
     if (era >= 4 && !o._era4b) {
       o._era4b = true
       if (b === 'vivienda') {
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 1.0), new THREE.MeshStandardMaterial({ color: 0x1d3a5c, emissive: 0x2d6fb0, emissiveIntensity: 0.25, roughness: 0.25, metalness: 0.5 }))
-        panel.position.set(0, 2.9, -0.4); panel.rotation.x = -0.5; panel.castShadow = true; obj.add(panel)
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.0 }))
-        strip.position.set(0, 1.45, 2.05); obj.add(strip)
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 1.1), new THREE.MeshStandardMaterial({ color: 0x1d3a5c, emissive: 0x2d6fb0, emissiveIntensity: 0.28, roughness: 0.25, metalness: 0.5 }))
+        panel.position.set(0, 3.0, -0.4); panel.rotation.x = -0.5; panel.castShadow = true; obj.add(panel)
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.07, 0.09), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.15 }))
+        strip.position.set(0, 1.45, 2.06); obj.add(strip)
+        const aw2 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.1, 0.9), paintMat(0x2f4254, 0.4, 0.35))
+        aw2.position.set(-0.9, 2.1, 1.4); aw2.rotation.x = 0.25; obj.add(aw2)
       } else if (b === 'cuartel') {
-        const plateL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 5.2), paintMat(0x55606c, 0.45, 0.45))
-        plateL.position.set(-3.2, 1.0, 0); plateL.castShadow = true; obj.add(plateL)
-        const plateR = plateL.clone(); plateR.position.x = 3.2; obj.add(plateR)
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.07, 0.1), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.0 }))
-        strip.position.set(0, 1.55, 3.08); obj.add(strip)
+        const plateL = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.8, 5.4), paintMat(0x55606c, 0.45, 0.45))
+        plateL.position.set(-3.25, 1.05, 0); plateL.castShadow = true; obj.add(plateL)
+        const plateR = plateL.clone(); plateR.position.x = 3.25; obj.add(plateR)
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.08, 0.12), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.15 }))
+        strip.position.set(0, 1.55, 3.1); obj.add(strip)
+        const crest = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.25), new THREE.MeshStandardMaterial({ color: 0x1d3a5c, emissive: 0x2d6fb0, emissiveIntensity: 0.35, roughness: 0.3, metalness: 0.5 }))
+        crest.position.set(0, 2.75, 3.05); obj.add(crest)
       } else if (b === 'almacen') {
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 1.2), new THREE.MeshStandardMaterial({ color: 0x1d3a5c, emissive: 0x2d6fb0, emissiveIntensity: 0.22, roughness: 0.25, metalness: 0.5 }))
-        panel.position.set(0, 1.95, -0.2); panel.rotation.x = -0.45; obj.add(panel)
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 0.9 }))
-        strip.position.set(0, 1.05, 2.05); obj.add(strip)
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 1.3), new THREE.MeshStandardMaterial({ color: 0x1d3a5c, emissive: 0x2d6fb0, emissiveIntensity: 0.25, roughness: 0.25, metalness: 0.5 }))
+        panel.position.set(0, 2.0, -0.2); panel.rotation.x = -0.45; obj.add(panel)
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.07, 0.09), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.0 }))
+        strip.position.set(0, 1.05, 2.06); obj.add(strip)
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.12, 1.0), paintMat(0x334455, 0.4, 0.35))
+        canopy.position.set(0, 1.95, 1.7); canopy.rotation.x = 0.2; obj.add(canopy)
       } else if (b === 'fabrica') {
-        const panelA = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 1.4), new THREE.MeshStandardMaterial({ color: 0x1d3a5c, emissive: 0x2d6fb0, emissiveIntensity: 0.22, roughness: 0.25, metalness: 0.5 }))
-        panelA.position.set(1.8, 2.95, -0.8); panelA.rotation.x = -0.45; obj.add(panelA)
-        const panelB = panelA.clone(); panelB.position.set(-1.8, 2.95, -0.8); obj.add(panelB)
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.07, 0.1), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.0 }))
-        strip.position.set(0, 1.4, 3.08); obj.add(strip)
+        const panelA = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.08, 1.5), new THREE.MeshStandardMaterial({ color: 0x1d3a5c, emissive: 0x2d6fb0, emissiveIntensity: 0.25, roughness: 0.25, metalness: 0.5 }))
+        panelA.position.set(1.8, 3.05, -0.8); panelA.rotation.x = -0.45; obj.add(panelA)
+        const panelB = panelA.clone(); panelB.position.set(-1.8, 3.05, -0.8); obj.add(panelB)
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.08, 0.12), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.15 }))
+        strip.position.set(0, 1.4, 3.1); obj.add(strip)
+        const catwalk = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.14, 0.9), paintMat(0x445566, 0.45, 0.4))
+        catwalk.position.set(0, 2.6, 2.2); obj.add(catwalk)
       } else if (b === 'torre') {
-        const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.06, 14), paintMat(0x9fb4c4, 0.3, 0.7))
-        dish.position.set(-0.6, 5.65, -0.4); dish.rotation.z = 0.3; obj.add(dish)
-        const strip = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.05, 8, 24), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 0.9 }))
+        const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.07, 14), paintMat(0x9fb4c4, 0.3, 0.7))
+        dish.position.set(-0.6, 5.85, -0.4); dish.rotation.z = 0.3; obj.add(dish)
+        const strip = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.06, 8, 24), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.0 }))
         strip.rotation.x = Math.PI / 2; strip.position.y = 4.15; obj.add(strip)
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 0.45, 10), new THREE.MeshStandardMaterial({ color: 0x23384a, emissive: 0x2d6fb0, emissiveIntensity: 0.25, roughness: 0.35, metalness: 0.45 }))
+        cap.position.y = 5.35; obj.add(cap)
       } else {
         const strip = new THREE.Mesh(
-          new THREE.BoxGeometry(1.9, 0.06, 0.08),
-          new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 0.9, roughness: 0.2, metalness: 0.2 }),
+          new THREE.BoxGeometry(2.1, 0.07, 0.09),
+          new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.0, roughness: 0.2, metalness: 0.2 }),
         )
         strip.position.set(0, 1.2, 1.3); obj.add(strip)
       }
     }
   }
 
-  if (era >= 3 && !o._era3u && e.kind === 'unit' && e.utype === 'blindado') {
-    o._era3u = true
-    const teamC = TEAM_COLORS[e.team]
-    const sensor = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.18, 0.18),
-      new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.55, roughness: 0.3, metalness: 0.4 }),
-    )
-    sensor.position.set(0.35, 1.22, -0.2)
-    obj.add(sensor)
-  }
-  if (era >= 4 && !o._era4u && e.kind === 'unit') {
-    o._era4u = true
-    const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.07, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.1 }),
-    )
-    core.position.set(0, 1.0, 0.15)
-    obj.add(core)
+  if (e.kind === 'unit') {
+    const era3u = era >= 3 && !o._era3u
+    const era4u = era >= 4 && !o._era4u
+    if (era3u) {
+      o._era3u = true
+      const teamC = TEAM_COLORS[e.team]
+      if (e.utype === 'blindado' || e.utype === 'tanque' || e.utype === 'cazacarros' || e.utype === 'mlrs' || e.utype === 'canon' || e.utype === 'tanque_autonomo') {
+        const sensor = new THREE.Mesh(
+          new THREE.BoxGeometry(0.22, 0.22, 0.22),
+          new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.6, roughness: 0.3, metalness: 0.4 }),
+        )
+        sensor.position.set(0.35, 1.25, -0.2)
+        obj.add(sensor)
+      } else {
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.18), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 0.7 }))
+        visor.position.set(0, 1.08, 0.16)
+        obj.add(visor)
+      }
+    }
+    if (era4u) {
+      o._era4u = true
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(0.12, 10, 8),
+        new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 1.25 }),
+      )
+      core.position.set(0, 1.08, 0.18)
+      obj.add(core)
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.03, 8, 18), new THREE.MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x46d9ff, emissiveIntensity: 0.9 }))
+      ring.rotation.x = Math.PI / 2
+      ring.position.set(0, 0.12, 0)
+      obj.add(ring)
+    }
   }
 }
 
@@ -1684,7 +1776,7 @@ export function syncEntityMesh(
       dropoff.visible = showDrop
       if (showDrop) {
         const m = dropoff.material as THREE.MeshBasicMaterial
-        m.opacity = 0.82 + 0.16 * (0.5 + 0.5 * Math.sin(rc.clock.elapsedTime * 3.2))
+        m.opacity = 0.88 + 0.12 * (0.5 + 0.5 * Math.sin(rc.clock.elapsedTime * 2.8))
       }
     }
     const dropBeacon = obj.getObjectByName('dropoffBeacon') as THREE.Mesh | undefined
@@ -1693,9 +1785,9 @@ export function syncEntityMesh(
       dropBeacon.visible = showDrop
       if (showDrop) {
         const m = dropBeacon.material as THREE.MeshBasicMaterial
-        const pulse = 0.5 + 0.5 * Math.sin(rc.clock.elapsedTime * 3.6 + e.x * 0.2)
-        m.opacity = 0.3 + 0.28 * pulse
-        dropBeacon.scale.setScalar(0.95 + 0.22 * pulse)
+        const pulse = 0.5 + 0.5 * Math.sin(rc.clock.elapsedTime * 3.4 + e.x * 0.2)
+        m.opacity = 0.58 + 0.3 * pulse
+        dropBeacon.scale.setScalar(0.96 + 0.18 * pulse)
       }
     }
     const dropCap = obj.getObjectByName('dropoffCap') as THREE.Mesh | undefined
@@ -1704,9 +1796,9 @@ export function syncEntityMesh(
       dropCap.visible = showDrop
       if (showDrop) {
         const m = dropCap.material as THREE.MeshBasicMaterial
-        const pulse = 0.5 + 0.5 * Math.sin(rc.clock.elapsedTime * 4.2 + e.z * 0.2)
-        m.opacity = 0.7 + 0.3 * pulse
-        dropCap.position.y = 2.6 + pulse * 0.2
+        const pulse = 0.5 + 0.5 * Math.sin(rc.clock.elapsedTime * 4.0 + e.z * 0.2)
+        m.opacity = 0.9 + 0.1 * pulse
+        dropCap.position.y = 8.6 + pulse * 0.35
       }
     }
     // Wounded buildings smoke from the roof: the fog of war only reveals what
@@ -1779,12 +1871,41 @@ export function syncEntityMesh(
   }
 }
 
-/** Tint of an engineer's load, per resource (matches the node's palette). */
+/** Tint of an engineer's load, per resource (high-contrast for instant readability). */
 const CARRY_COLORS: Record<ResourceKey, number> = {
-  suministros: 0xc9e06b,
-  materiales: 0x8a6a3a,
-  combustible: 0x33383d,
-  minerales: 0xb8c6d8,
+  suministros: 0xbef05a,
+  materiales: 0xd07a2a,
+  combustible: 0x49d8ff,
+  minerales: 0xe8f4ff,
+}
+
+const CARRY_GLYPH: Record<ResourceKey, string> = {
+  suministros: '🌾',
+  materiales: '🪵',
+  combustible: '⛽',
+  minerales: '⛏',
+}
+const _cargoTex: Partial<Record<ResourceKey, THREE.CanvasTexture>> = {}
+function cargoTexture(key: ResourceKey): THREE.CanvasTexture {
+  if (_cargoTex[key]) return _cargoTex[key]!
+  const c = document.createElement('canvas')
+  c.width = 128; c.height = 128
+  const ctx = c.getContext('2d')!
+  const col = '#' + CARRY_COLORS[key].toString(16).padStart(6, '0')
+  ctx.fillStyle = 'rgba(8,10,14,0.72)'
+  ctx.beginPath(); ctx.arc(64, 64, 56, 0, Math.PI * 2); ctx.fill()
+  ctx.lineWidth = 10; ctx.strokeStyle = col; ctx.stroke()
+  ctx.fillStyle = col
+  ctx.beginPath(); ctx.arc(64, 64, 44, 0, Math.PI * 2); ctx.globalAlpha = 0.22; ctx.fill(); ctx.globalAlpha = 1
+  ctx.font = '72px sans-serif'
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText(CARRY_GLYPH[key] || '■', 64, 70)
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.needsUpdate = true
+  _cargoTex[key] = tex
+  return tex
 }
 
 /** Which resource dominates the engineer's load (deterministic tie-break). */
@@ -1810,22 +1931,22 @@ function syncCargo(u: UnitEntity, obj: THREE.Object3D, moving: boolean, t: numbe
   if (!carrying) return
   const fill = Math.min(1, u.carryAmount / (UNIT_DEFS[u.utype]?.carry ?? 20))
   const returning = carrying && !u.gatherTargetId
-  cargo.scale.setScalar(1.15 + 0.6 * fill + (returning ? 0.12 : 0))
+  cargo.scale.setScalar(1.3 + 0.75 * fill + (returning ? 0.18 : 0))
   const key = dominantCarry(u.carrying)
   const resColor = CARRY_COLORS[key]
   if (cargo.userData.resKey !== key) cargo.userData.resKey = key
 
-  const pulse = 0.5 + 0.5 * Math.sin(t * (returning ? 9 : 6) + u.id)
+  const pulse = 0.5 + 0.5 * Math.sin(t * (returning ? 10 : 6.5) + u.id)
   const m = (cargo as THREE.Mesh).material as THREE.Material
   if (m && (m as any).isMeshBasicMaterial) {
     const mb = m as THREE.MeshBasicMaterial
     mb.color.setHex(resColor)
-    mb.opacity = 0.95 + pulse * 0.05
+    mb.opacity = 0.96 + pulse * 0.04
   } else if (m && (m as any).isMeshStandardMaterial) {
     const ms = m as THREE.MeshStandardMaterial
     ms.color.setHex(resColor)
     ms.emissive.setHex(resColor)
-    ms.emissiveIntensity = 0.9 + 0.6 * fill + pulse * 0.25 + (returning ? 0.3 : 0)
+    ms.emissiveIntensity = 1.0 + 0.7 * fill + pulse * 0.3 + (returning ? 0.35 : 0)
   }
   const mark = cargo.getObjectByName('cargoMark') as THREE.Mesh | undefined
   if (mark) {
@@ -1838,24 +1959,26 @@ function syncCargo(u: UnitEntity, obj: THREE.Object3D, moving: boolean, t: numbe
       const mms = mm as THREE.MeshStandardMaterial
       mms.color.setHex(resColor)
       mms.emissive.setHex(resColor)
-      mms.emissiveIntensity = 1.1 + 0.5 * fill + pulse * 0.35
+      mms.emissiveIntensity = 1.2 + 0.55 * fill + pulse * 0.35
     }
-    mark.position.y = 0.46 + pulse * 0.04
+    mark.position.y = 0.58 + pulse * 0.05
   }
   const icon = cargo.getObjectByName('cargoIcon') as THREE.Sprite | undefined
   if (icon) {
     const im = icon.material as THREE.SpriteMaterial
-    im.color.setHex(resColor)
-    im.opacity = 0.96
-    const s = 1.35 + 0.35 * fill + pulse * 0.18 + (returning ? 0.12 : 0)
+    im.map = cargoTexture(key)
+    im.color.setHex(0xffffff)
+    im.opacity = 1
+    im.needsUpdate = true
+    const s = 3.0 + 0.6 * fill + pulse * 0.22 + (returning ? 0.35 : 0)
     icon.scale.set(s, s, 1)
-    icon.position.y = 1.05 + pulse * 0.08 + (returning ? 0.06 : 0)
+    icon.position.y = 1.55 + pulse * 0.1 + (returning ? 0.12 : 0)
   }
-  const baseY = (cargo.userData.baseY as number | undefined) ?? 2.45
+  const baseY = (cargo.userData.baseY as number | undefined) ?? 3.05
   const sway = moving ? Math.sin(t * 9 + u.id) : 0
-  cargo.rotation.z = sway * 0.16
-  cargo.position.x = sway * 0.05
-  cargo.position.y = baseY + (moving ? Math.abs(sway) * 0.06 : pulse * 0.05) + (returning ? 0.08 : 0)
+  cargo.rotation.z = sway * 0.12
+  cargo.position.x = sway * 0.04
+  cargo.position.y = baseY + (moving ? Math.abs(sway) * 0.06 : pulse * 0.06) + (returning ? 0.14 : 0)
 }
 
 export function removeEntityMesh(rc: RenderContext, id: number): void {
@@ -1994,20 +2117,20 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     })
   }
 
-  // Crater decal: large, high-contrast scorch that persists for stills.
+  // Crater decal: very large, high-contrast scorch that persists for stills.
   if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
   const crater = acquireFx(rc, 'decal')
   if (crater) {
-    const rad = 3.0 + seed * 1.2
+    const rad = 5.2 + seed * 1.8
     crater.position.set(x, groundHeightAt(x, z) + 0.07, z)
     crater.scale.set(rad, 1, rad)
     const m = crater.material as THREE.MeshBasicMaterial
-    m.color.setHex(seed > 0.5 ? 0x2b2418 : 0x3a3122)
-    m.opacity = 0.92
+    m.color.setHex(seed > 0.5 ? 0x120d08 : 0x1a140d)
+    m.opacity = 0.98
     rc.fxItems.push({
       kind: 'decal', mesh: crater, t: 0, life: CRATER_LIFE,
       pos: crater.position.clone(), vel: new THREE.Vector3(),
-      s0: 1, s1: 1, o0: 0.92, hold: CRATER_HOLD,
+      s0: 1, s1: 1, o0: 0.98, hold: CRATER_HOLD,
     })
   }
 }
@@ -2071,30 +2194,30 @@ export function spawnDeathFx(
     if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
     const scorch = acquireFx(rc, 'decal')
     if (scorch) {
-      const rad = 3.6 + seed * 1.2
+      const rad = 5.8 + seed * 1.6
       scorch.position.set(x, groundHeightAt(x, z) + 0.065, z)
       scorch.scale.set(rad, 1, rad)
       const m = scorch.material as THREE.MeshBasicMaterial
-      m.color.setHex(0x2a1d12)
-      m.opacity = 0.9
+      m.color.setHex(0x140d06)
+      m.opacity = 0.97
       rc.fxItems.push({
         kind: 'decal', mesh: scorch, t: 0, life: RUBBLE_LIFE,
         pos: scorch.position.clone(), vel: new THREE.Vector3(),
-        s0: 1, s1: 1, o0: 0.9, hold: RUBBLE_HOLD,
+        s0: 1, s1: 1, o0: 0.97, hold: RUBBLE_HOLD,
       })
     }
     if (rc.fxLive.rubble >= FX_LIVE_CAP.rubble) evictOldest(rc, 'rubble')
-    const chunks = 8 + Math.floor(seed * 3) // 8-10, very notable rubble
+    const chunks = 12 + Math.floor(seed * 5) // 12-16, very notable rubble
     for (let i = 0; i < chunks; i++) {
       const mesh = acquireFx(rc, 'rubble')
       if (!mesh) break
       const ang = (i / chunks) * Math.PI * 2 + seed * 3.1
-      const rad = 0.8 + (i % 4) * 0.85
-      mesh.position.set(x + Math.cos(ang) * rad, y + 0.32, z + Math.sin(ang) * rad)
+      const rad = 0.9 + (i % 5) * 0.95
+      mesh.position.set(x + Math.cos(ang) * rad, y + 0.34, z + Math.sin(ang) * rad)
       mesh.rotation.set(0.34 * (i % 2), ang, 0.26 * ((i + 1) % 2))
-      mesh.scale.set(1.8 + (i % 3) * 0.6, 0.65 + (i % 2) * 0.4, 1.6 + (i % 2) * 0.7)
+      mesh.scale.set(2.4 + (i % 3) * 0.7, 0.75 + (i % 2) * 0.45, 2.1 + (i % 2) * 0.8)
       const m = mesh.material as THREE.MeshBasicMaterial
-      m.color.setHex(i % 3 === 0 ? 0x4b443b : i % 3 === 1 ? 0x6a6256 : 0x5b544a)
+      m.color.setHex(i % 3 === 0 ? 0x3f3830 : i % 3 === 1 ? 0x5a5246 : 0x4b443b)
       m.opacity = 1
       rc.fxItems.push({
         kind: 'rubble', mesh, t: 0, life: RUBBLE_LIFE,
@@ -2107,16 +2230,16 @@ export function spawnDeathFx(
     if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
     const stain = acquireFx(rc, 'decal')
     if (stain) {
-      const rad = 2.0 + seed * 0.9
+      const rad = 3.2 + seed * 1.1
       stain.position.set(x, groundHeightAt(x, z) + 0.07, z)
       stain.scale.set(rad, 1, rad)
       const m = stain.material as THREE.MeshBasicMaterial
-      m.color.setHex(team === 'enemy' ? 0x6b1a1a : 0x3a2030)
-      m.opacity = 0.9
+      m.color.setHex(team === 'enemy' ? 0x5a1010 : 0x221038)
+      m.opacity = 0.96
       rc.fxItems.push({
         kind: 'decal', mesh: stain, t: 0, life: WRECK_LIFE,
         pos: stain.position.clone(), vel: new THREE.Vector3(),
-        s0: 1, s1: 1, o0: 0.9, hold: WRECK_HOLD,
+        s0: 1, s1: 1, o0: 0.96, hold: WRECK_HOLD,
       })
     }
 
@@ -2124,12 +2247,12 @@ export function spawnDeathFx(
     if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
     const mesh = acquireFx(rc, 'wreck')
     if (mesh) {
-      mesh.position.set(x, y + 0.28, z)
+      mesh.position.set(x, y + 0.3, z)
       mesh.rotation.set(0.26, seed * Math.PI * 2, 0.18)
-      mesh.scale.set(2.1, 0.65, 3.1)
+      mesh.scale.set(3.0, 0.78, 4.4)
       const m = mesh.material as THREE.MeshBasicMaterial
-      const base = new THREE.Color(TEAM_COLORS[team]).multiplyScalar(0.85)
-      m.color.setHex(base.lerp(new THREE.Color(0x2a221c), 0.25).getHex())
+      const base = new THREE.Color(team === 'enemy' ? 0x8a1f1f : 0x2b4aa8).multiplyScalar(0.9)
+      m.color.setHex(base.lerp(new THREE.Color(0x15110e), 0.35).getHex())
       m.opacity = 1
       rc.fxItems.push({
         kind: 'wreck', mesh, t: 0, life: WRECK_LIFE,
@@ -2141,12 +2264,12 @@ export function spawnDeathFx(
     if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
     const mesh2 = acquireFx(rc, 'wreck')
     if (mesh2) {
-      mesh2.position.set(x + (seed - 0.5) * 0.5, y + 0.22, z + (seed - 0.5) * 0.4)
+      mesh2.position.set(x + (seed - 0.5) * 0.6, y + 0.24, z + (seed - 0.5) * 0.5)
       mesh2.rotation.set(0.1, seed * Math.PI * 2 + Math.PI / 2, 0.3)
-      mesh2.scale.set(1.5, 0.5, 2.0)
+      mesh2.scale.set(2.2, 0.6, 3.0)
       const m2 = mesh2.material as THREE.MeshBasicMaterial
-      const base2 = new THREE.Color(TEAM_COLORS[team]).multiplyScalar(0.7)
-      m2.color.setHex(base2.lerp(new THREE.Color(0x201914), 0.35).getHex())
+      const base2 = new THREE.Color(team === 'enemy' ? 0x6b1515 : 0x243b86).multiplyScalar(0.8)
+      m2.color.setHex(base2.lerp(new THREE.Color(0x120e0b), 0.4).getHex())
       m2.opacity = 1
       rc.fxItems.push({
         kind: 'wreck', mesh: mesh2, t: 0, life: WRECK_LIFE,
@@ -2176,16 +2299,16 @@ export function spawnDepositFx(
   if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
   const halo = acquireFx(rc, 'decal')
   if (halo) {
-    const rad = 2.6
+    const rad = 3.8
     halo.position.set(px, groundHeightAt(px, pz) + 0.075, pz)
     halo.scale.set(rad, 1, rad)
     const m = halo.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
-    m.opacity = 0.72
+    m.opacity = 0.92
     rc.fxItems.push({
-      kind: 'decal', mesh: halo, t: 0, life: 6.0,
+      kind: 'decal', mesh: halo, t: 0, life: 8.0,
       pos: halo.position.clone(), vel: new THREE.Vector3(),
-      s0: 1, s1: 1, o0: 0.72, hold: 4.0,
+      s0: 1, s1: 1, o0: 0.92, hold: 6.0,
     })
   }
 

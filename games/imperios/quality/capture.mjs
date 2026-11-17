@@ -228,10 +228,14 @@ const SCENARIOS = [
         if (e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') tc = e
         if (e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && (e.carryAmount || 0) > 0.5) carrying.push(e)
       }
-      // encuadre cerrado sobre dropoff e ingenieros con carga (lectura inequívoca)
+      // encuadre cerrado sobre dropoff e ingenieros con carga/retorno (lectura inequívoca)
       let cx = 0, cz = 0
       if (carrying.length > 0) {
-        carrying.sort((a, b) => (a.carryAmount || 0) < (b.carryAmount || 0) ? 1 : -1)
+        carrying.sort((a, b) => {
+          const ar = !a.gatherTargetId ? 1 : 0, br = !b.gatherTargetId ? 1 : 0
+          if (ar !== br) return br - ar
+          return (b.carryAmount || 0) - (a.carryAmount || 0)
+        })
         const pick = carrying.slice(0, 4)
         for (const e of pick) { cx += e.x; cz += e.z }
         cx /= pick.length; cz /= pick.length
@@ -240,7 +244,7 @@ const SCENARIOS = [
         cx = -46; cz = 2
       }
       const tx = tc ? tc.x : -55, tz = tc ? tc.z : 0
-      g.camera(tx * 0.55 + cx * 0.45, tz * 0.55 + cz * 0.45, 40)
+      g.camera(tx * 0.62 + cx * 0.38, tz * 0.62 + cz * 0.38, 38)
       g.state.status = 'paused' // congelar para que la carga y el dropoff sean legibles en el still
       return 'ok assigned=' + assigned + ' carrying=' + carrying.length
     })()`,
@@ -337,9 +341,11 @@ const SCENARIOS = [
         cx += e.x; cz += e.z; n++
       }
       if (n > 0) g.camera(cx / n, cz / n, 50)
+      g.skip(1.8)
+      g.state.status = 'paused'
       return 'ok'
     })()`,
-    settleMs: 1400, // tiempo real para drenar VFX del intercambio
+    settleMs: 700,
   },
   {
     id: '05-fog',
@@ -397,9 +403,11 @@ const SCENARIOS = [
         cx += e.x; cz += e.z; n++
       }
       if (n > 0) g.camera(cx / n, cz / n, 70)
+      g.skip(1.8)
+      g.state.status = 'paused'
       return 'ok'
     })()`,
-    settleMs: 1200,
+    settleMs: 700,
   },
   // --- ciclo 02: niebla / formaciones / asedio -----------------------------
   {
@@ -471,9 +479,11 @@ const SCENARIOS = [
       if (n > 0) g.camera(cx / n, cz / n, 54)
       else g.camera(47, 2, 54)
       g.fog()
+      g.skip(1.5)
+      g.state.status = 'paused'
       return 'ok'
     })()`,
-    settleMs: 1600,
+    settleMs: 700,
   },
 ]
 
