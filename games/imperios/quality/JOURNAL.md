@@ -545,6 +545,51 @@ Priorizar 1-5 arriba; **fase 4 (renderer 2D isométrico)** sigue siendo el desbl
 ### Brechas elegidas para el ciclo 13 (siguiente)
 Priorizar 1-5 arriba; **fase 4 (renderer 2D isométrico)** sigue siendo el desbloqueo crítico para 9/6/1/5 y el techo AoE2 (criterio: SORPRENDIDO SÍ, promedio ≥ 8.5, ninguna dim < 7).
 
+---
+
+### Juez ciego · ciclo-13-combate-fog-nodo · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-13-combate-fog-nodo/ (14/14)
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 5.0 | 03-economia.png: varios ingenieros con cajas de carga naranja visibles en tránsito/retorno entre bosque y base; 03b-nodos.png: grupo de ingenieros trabajando un bosque seleccionado con panel “Bosque” y cantidad restante legible; 03c-nodo-agotado.png: el mismo tipo de nodo aparece reducido de escala con “10 rest · 1%” frente al lleno de 03b, consumo visible; 02-arranque.png: pocos trabajadores y sin líneas densas de acarreo. Ciclo parcialmente legible pero escaso y sin feedback de depósito destacado. |
+| 2 | Combate / counters / proyectiles | 5.0 | 04-combate.png: choque frontal cuerpo a cuerpo y a distancia con barras de vida, fogonazos/estelas y varias unidades caídas con manchas oscuras en el suelo, contacto real en cuadro; 07-late-game.png y 08-asedio.png: enfrentamientos y asedio con humo, explosiones y daños visibles. Sin trayectorias de proyectil nítidas y consistentes, sin counters por tipo identificables y sin rastro/cadáveres sistemáticos en todas las escenas. |
+| 3 | Niebla / exploración | 6.0 | 05-fog.png: se distinguen negro no explorado, zona gris-azulada de memoria explorada con siluetas claras de edificios enemigos recordados y área visible nítida; minimapa coherente con los tres estados; 02-arranque.png: borde de exploración presente. Bordes aún geométricos/bloqueados y memoria sin detalle fino del terreno. |
+| 4 | Pathfinding / formaciones | 5.0 | 06c-formacion.png: bloque en cuña con separación y orientación aproximadas pero filas/frente irregulares; 06b-unidades.png: selección de 6 milicias agrupadas sin alineación estricta; 04-combate.png y 07-late-game.png: en contacto las unidades se mezclan en masa sin disciplina sostenida. |
+| 5 | Tech tree / edades | 5.0 | 09-research.png: panel de tecnologías con investigación en curso y barra/progreso visible; 09b-avance-era.png: barra dorada de avance de era en el ayuntamiento; 02-arranque.png vs 07-late-game.png: mayor variedad de unidades/edificios en fase tardía, pero el salto de era se lee más por HUD/etiquetas que por siluetas y materiales transformados. |
+| 6 | Contenido y densidad | 4.0 | 02-arranque.png, 03b-nodos.png y 05-fog.png: terreno mayormente plano con árboles dispersos, campos/nodos y algunos edificios, dejando amplias zonas vacías y repetitivas; 07-late-game.png: más estructuras y unidades pero poca variación de bioma, caminos o props que den identidad a zonas. |
+| 7 | IA legítima | 5.0 | 07-late-game.png y 08-asedio.png: base enemiga con múltiples edificios/torres y ejército compuesto presionando o defendiendo; 04-combate.png: fuerza enemiga enfrentando activamente. No se observa economía enemiga, colas ni un plan estratégico legible más allá del choque. |
+| 8 | HUD / UX AoE2 | 5.0 | 06-ui.png, 03-economia.png y 09-research.png: barra superior de recursos/población/era/tiempo, minimapa, command card con acciones y costos, panel de selección con nombre/vida/estadísticas y barras de progreso. Funcional pero genérico, sin iconografía, jerarquía ni estética de AoE2. |
+| 9 | Art direction / diorama isométrico | 4.0 | 01-menu.png: pantalla genérica sin identidad de diorama; 02-arranque.png y 07-late-game.png: vista isométrica 3D consistente pero con materiales simples, iluminación plana, terreno uniforme y siluetas sin peso de miniatura ni paleta característica de AoE2. |
+| 10 | Audio / juice | 5.0 | 04-combate.png: fogonazos, humo y manchas oscuras de bajas visibles en el contacto; 07-late-game.png y 08-asedio.png: explosiones, humo y señales de daño en edificios/unidades. Feedback presente en algunas escenas pero no sistemático ni persistente de forma uniforme (sin huellas duraderas claras en todo el combate). |
+
+**Promedio:** 4.90 · **Mínima:** 4.0 · **Dimensiones < 7:** 10
+
+**Veredicto — SORPRENDIDO: NO**
+Se ven mejoras puntuales (choque y bajas en 04-combate, nodo consumido en 03c, siluetas en niebla) pero el conjunto sigue lejos del estándar AoE2 en arte, densidad y peso de juego.
+
+## Top 7 brechas
+1. Arte 3D genérico sin lectura de diorama — 01-menu.png, 02-arranque.png, 07-late-game.png — rompe la ilusión AoE2 (dim 9).
+2. Mapa plano y poco habitado — 02-arranque.png, 03b-nodos.png, 05-fog.png — el mundo se siente vacío y sin identidad de zonas (dim 6).
+3. Combate sin consecuencias persistentes y sistemáticas — 04-combate.png, 07-late-game.png, 08-asedio.png — impactos y bajas no dejan huella durable y consistente que explique la batalla (dim 2,10).
+4. Formaciones sin disciplina en movimiento/contacto — 06c-formacion.png, 04-combate.png, 07-late-game.png — los bloques no sostienen frente/filas al pelear (dim 4).
+5. Economía sin ciclo completo y denso — 03-economia.png, 02-arranque.png — pocos trabajadores, entrega/deposito poco celebrada y sin líneas de acarreo claras (dim 1).
+6. Progresión de eras poco visible en el mundo — 02-arranque.png, 07-late-game.png, 09b-avance-era.png — el salto depende del HUD más que de siluetas/materiales (dim 5).
+7. IA sin intención económica/estratégica legible — 07-late-game.png, 08-asedio.png — se ve ejército pero no plan ni producción rival (dim 7).
+
+## 5 cambios para el próximo ciclo
+1. Huellas de combate persistentes y uniformes (mancha + restos/cráter duraderos por baja/impacto visibles en todo choque) — 04-combate.png, 07-late-game.png, 08-asedio.png — mueve dim 2,10.
+2. Formación en cuña/línea que conserve frente y espaciado al detenerse y al entrar en contacto — 06c-formacion.png, 04-combate.png — mueve dim 4.
+3. Densidad temática del mapa: clusters claros de bosque/cultivo, caminos y props que rellenen vacíos sin tapar juego — 02-arranque.png, 03b-nodos.png — mueve dim 6 (dentro del tope 3D).
+4. Feedback de depósito inequívoco y más ingenieros en ciclo visible (beacon/pulso al entregar y retorno claro) — 03-economia.png, 03b-nodos.png — mueve dim 1,10.
+5. Diferenciación visual de era más marcada en edificios/unidades clave (silueta/paleta) apreciable en comparación arranque vs late game — 02-arranque.png, 07-late-game.png — mueve dim 5,9.
+
+## Riesgos / notas
+- Dim 9 (art direction/diorama) y el techo de 6 siguen limitados por el renderer 3D actual; la fase 4 (2D isométrico) es el desbloqueo estructural para alcanzar ≥8.5.
+- El estado de audio real no es audible en capturas fijas; el puntaje de dim 10 se basó solo en feedback visual observable.
+- 03c-nodo-agotado.png muestra consumo claro (10 rest · 1%) pero en un still aislado no prueba el ciclo completo de extracción en tiempo real.
+
 
 ---
 
