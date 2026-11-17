@@ -2286,9 +2286,9 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(0xffbf55)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'flash', mesh: flash, t: 0, life: 0.9,
+      kind: 'flash', mesh: flash, t: 0, life: 1.7,
       pos: flash.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.1, s1: 1.8, o0: 0.9, hold: 0.35,
+      s0: 1.2, s1: 2.3, o0: 0.95, hold: 0.75,
     })
   }
   const ring = acquireFx(rc, 'ring')
@@ -2299,9 +2299,9 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(0xffe4a8)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'ring', mesh: ring, t: 0, life: 0.8,
+      kind: 'ring', mesh: ring, t: 0, life: 1.6,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.1, s1: 2.0, o0: 0.32, hold: 0.3,
+      s0: 1.2, s1: 2.6, o0: 0.45, hold: 0.7,
     })
   }
 
@@ -2320,7 +2320,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(i % 3 === 0 ? 0xffd06a : i % 3 === 1 ? 0xfff6d0 : 0xff8b3d)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'spark', mesh, t: 0, life: 1.15,
+      kind: 'spark', mesh, t: 0, life: 1.6,
       pos: mesh.position.clone(),
       vel: new THREE.Vector3(Math.cos(ang) * spread, 5.4 + (i % 3) * 1.8, Math.sin(ang) * spread),
       s0: size, s1: size, o0: 1.0,

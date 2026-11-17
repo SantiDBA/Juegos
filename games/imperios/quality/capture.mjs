@@ -515,6 +515,11 @@ const SCENARIOS = [
       g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
       g.give(5000)
       g.setEra(4)
+      // Economía enemiga con recursos para que su IA construya una base completa
+      g.state.players.enemy.resources.suministros = 3500
+      g.state.players.enemy.resources.materiales = 3500
+      g.state.players.enemy.resources.combustible = 2500
+      g.state.players.enemy.resources.minerales = 2500
       // base propia desarrollada
       g.build('player', 'vivienda', -46, -8, true)
       g.build('player', 'vivienda', -46, 8, true)
@@ -591,8 +596,7 @@ const SCENARIOS = [
         if (e.x < -30 || e.x > 42 || Math.abs(e.z - 6) > 32) continue
         cx += e.x; cz += e.z; n++
       }
-      if (n > 0) g.camera(Math.min(32, cx / (n + 1) + 18), cz / (n + 1) + 2, 120)
-      else g.camera(30, 8, 120)
+      g.camera(28, 4, 100)
 
       // más tiempo de combate para bajas/huellas claras + pausa en momento activo
       g.skip(3.6)
@@ -666,6 +670,10 @@ const SCENARIOS = [
       for (let bi = 0; bi < 6; bi++) { g.build('player', 'vivienda', -66, -26 + bi * 10, true); g.build('enemy', 'vivienda', 66, -26 + bi * 10, true) }
       g.skip(0.05)
       g.setEra(4)
+      g.state.players.enemy.resources.suministros = 3500
+      g.state.players.enemy.resources.materiales = 3500
+      g.state.players.enemy.resources.combustible = 2500
+      g.state.players.enemy.resources.minerales = 2500
       // base enemiga desarrollada, defendida y con actividad visible
       g.build('enemy', 'vivienda', 58, 10, true)
       g.build('enemy', 'vivienda', 58, -10, true)

@@ -80,14 +80,17 @@ export function stepAI(gs: GameState, team: Team, dt: number): void {
 
   // economy and base building (real construction: engineers must finish the site)
   if (engs.length < 8 && tcs[0] && canTrain(gs, team, 'ingeniero').ok) queueTrain(gs, team, tcs[0].id, 'ingeniero')
-  if (houses < 2 && p.resources.materiales >= 140) buildSite(gs, team, 'vivienda', 3, 10 + houses * 8)
+  if (houses < 6 && p.resources.materiales >= 140) buildSite(gs, team, 'vivienda', 3, 10 + houses * 8)
   if (anyOf('cuartel') < 1 && p.resources.materiales >= 170) {
     buildSite(gs, team, 'cuartel', gs.rng.range(0, 8), -10 + gs.rng.range(0, 8))
+  }
+  if (p.era >= 2 && anyOf('cuartel') < 2 && p.resources.materiales >= 170) {
+    buildSite(gs, team, 'cuartel', -14, 6 + gs.rng.range(0, 6))
   }
   if (p.era >= 2 && anyOf('fabrica') < 1 && p.resources.materiales >= 300 && p.resources.combustible >= 120) {
     buildSite(gs, team, 'fabrica', 7 + gs.rng.range(0, 6), 2 + gs.rng.range(0, 8))
   }
-  if (p.era >= 2 && anyOf('torre') < 2 && p.resources.materiales >= 130) {
+  if (p.era >= 2 && anyOf('torre') < 4 && p.resources.materiales >= 130) {
     buildSite(gs, team, 'torre', -11, -18 + anyOf('torre') * 36)
   }
 
