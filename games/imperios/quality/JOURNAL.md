@@ -900,6 +900,60 @@ de AoE2 DE.
 
 ---
 
+# Juez ciego · ciclo-20-ia-base-visible · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-20-ia-base-visible/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** la IA enemiga ahora levanta una base
+más completa (hasta 6 viviendas para el tope, 2 cuarteles, 4 torres) y en los escenarios de
+late-game/asedio se le carga economía para que la construya sola; encuadre de `07` reorientado
+a mostrar ambos bandos. Además se arregló una regresión de ciclo 19: el impacto había quedado
+demasiado efímero e **invisible en el still**; ahora el destello/estallido se sostiene lo
+justo para leerse (hold ~0.7 s) sin volver a la acumulación de 6-9 s que generaba el wash.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: base con TC, viviendas, caminos, granjas y etiquetas sobrias; cluster de ingenieros trabajando. Sin lectura de carga por unidad. |
+| 2 | Combate / counters / proyectiles | 6.0 | `08-asedio.png`: melé densa azul vs rojo con destellos de impacto visibles, barras de vida y torres intactas en el frente; `04-combate.png`: bandos separados por color. Las trazadoras siguen tenues en la melé. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: no explorado oscuro, memoria en penumbra y terreno visible; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con orientación y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con porcentaje y segundos; siluetas de era 4. |
+| 6 | Contenido y densidad | 6.5 | `07-late-game.png`: mapa poblado con base propia, tropas y recursos; persisten zonas abiertas. |
+| 7 | IA legítima | 5.5 | `07-late-game.png`: en el encuadre se ve la base propia y humo de combate, pero **la base enemiga con producción/defensas no se lee**; el minimapa sí muestra su cúmulo al este. La IA ahora construye más (viviendas/cuarteles/torres) pero la captura no lo hace evidente. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card a 2 columnas, posturas sin truncar, selección con contexto; nombres de tech abreviados y ayuda recortada. |
+| 9 | Art direction / diorama isométrico | 6.0 | `02-arranque.png`/`08-asedio.png`: cámara y paleta coherentes; materiales/luz más simples que AoE2 DE. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello y chispas visibles otra vez; `04-combate.png`: sin feedback de golpe por unidad. Sin audio. |
+
+**Promedio:** 6.25 · **Mínima:** 5.5 · **Dimensiones < 7:** 9
+
+**Veredicto — SORPRENDIDO: NO**
+La IA construye más y los impactos vuelven a leerse, pero la base enemiga no queda legible en
+el encuadre y la melé sigue por debajo de AoE2. Promedio estancado en ~6.2-6.3.
+
+## Top 7 brechas
+1. Base enemiga no legible en el encuadre pese a que la IA la construye — `07-late-game.png` — dim 7.
+2. Melé densa sin lectura por unidad ni trazadoras claras — `04-combate.png`, `08-asedio.png` — dim 2,10.
+3. Economía sin lectura de carga/ruta por unidad — `03-economia.png` — dim 1.
+4. Encuadres wide (1280x577) achican todo; sin composición que guíe la mirada — dim 9,7.
+5. HUD: nombres de tech abreviados y ayuda recortada — `06-ui.png` — dim 8.
+6. Densidad irregular y terreno plano — `02-arranque.png` — dim 6.
+7. Materiales/luz de prototipo (techo del renderer 3D) — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Mostrar la base enemiga: composición dedicada (TC enemigo + cuarteles + torres) en un encuadre propio — Dim 7.
+2. Legibilidad de melé: separar siluetas y trazadoras claras — Dim 2,10.
+3. Economía por unidad: carga y ruta visibles — Dim 1.
+4. HUD sin abreviaturas/recortes — Dim 8.
+5. Densidad/variación temática — Dim 6.
+
+## Riesgos / notas
+- **El loop lleva 20 ciclos (el README fija 5) y el promedio está estancado en ~6.2-6.4.** Las dimensiones que traban (2, 7, 9, 10) dependen del renderer isométrico 2D de la fase 4, que sigue sin construirse. Conviene decidir: encarar la fase 4, redefinir la vara, o frenar el loop.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+- El encuadre de 07 cambió de nuevo (medición no comparable con ciclos previos).
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
