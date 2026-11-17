@@ -954,6 +954,60 @@ el encuadre y la melé sigue por debajo de AoE2. Promedio estancado en ~6.2-6.3.
 
 ---
 
+# Juez ciego · ciclo-21-densidad-props · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-21-densidad-props/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** se intentó el primer paso de **fase 4**
+—cámara **ortográfica** isométrica (proyección paralela, sin convergencia de perspectiva)—.
+El resultado fue una **regresión clara**: el render quedó lavado/borroso y perdió detalle de
+props; apretar el rango near/far no lo arregló, así que **se revirtió** y se volvió a la
+cámara en perspectiva. Como feature neta del ciclo se sumó **densidad temática**: cajas/barriles
+cerca de las bases y rutas, y afloramientos de roca que dan identidad a zonas vacías.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC, viviendas, caminos, granjas y etiquetas; cluster de ingenieros. Sin lectura de carga por unidad. |
+| 2 | Combate / counters / proyectiles | 6.0 | `08-asedio.png`: melé azul vs rojo con destellos de impacto; trazadoras tenues. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: desconocido oscuro, memoria en penumbra, visible nítido; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: borde de bosque, rocas, cajas/barriles, camino y arbustos junto a la base; `07-late-game.png`: más props y zonas. Aun así, el lector lo ve ~1/4-1/3 de la densidad de AoE2 por pantalla. |
+| 7 | IA legítima | 5.5 | `07-late-game.png`: cúmulo enemigo y domos naranjas a media distancia, pero base enemiga con producción/defensas no legible en el encuadre. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible, posturas sin truncar, selección con contexto; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 6.0 | `02-arranque.png`/`07-late-game.png`: paleta y cámara coherentes; render algo blando/bajo contraste y materiales simples vs AoE2 DE. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello y chispas; sin feedback de golpe por unidad. Sin audio. |
+
+**Promedio:** 6.25 · **Mínima:** 5.5 · **Dimensiones < 7:** 9
+
+**Veredicto — SORPRENDIDO: NO**
+La fase 4 ortográfica regresionó y se revirtió; la densidad temática suma pero no alcanza el
+estándar. Promedio estancado en ~6.25.
+
+## Top 7 brechas
+1. Fase 4: la cámara ortográfica lava el render (props/detalle desaparecen) — `03-economia.png` — bloquea el salto de diorama.
+2. Base enemiga no legible — `07-late-game.png` — dim 7.
+3. Melé densa sin lectura por unidad ni trazadoras claras — `04/08` — dim 2,10.
+4. Densidad aún por debajo de AoE2 (vacíos visibles) — `02-arranque.png` — dim 6.
+5. Economía sin lectura de carga/ruta por unidad — `03-economia.png` — dim 1.
+6. HUD: techs abreviadas y ayuda recortada — `06-ui.png` — dim 8.
+7. Materiales/luz de prototipo — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Fase 4 bien hecha: investigar por qué la ortográfica lava el render (¿culling de instanced meshes? ¿fog overlay? ¿precision?) antes de reintentar — Dim 9.
+2. Base enemiga legible en un encuadre dedicado — Dim 7.
+3. Melé legible por unidad + trazadoras — Dim 2,10.
+4. Más densidad y variación en vacíos — Dim 6.
+5. HUD sin abreviaturas/recortes — Dim 8.
+
+## Riesgos / notas
+- **Ciclo 21 no dejó el avance estructural esperado**: la ortográfica se revirtió. Antes de reintentar fase 4 hay que diagnosticar la causa del lavado (probable: frustum culling de `InstancedMesh` con bounding sphere de la geometría base, o el overlay de niebla con cámara ortográfica). No se debe shipear una cámara que empeora.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+- Promedio del loop: 20-21 ciclos, estancado ~6.2-6.4.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
