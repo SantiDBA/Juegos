@@ -143,6 +143,7 @@ function addDensityProps(scene: THREE.Scene): void {
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x3f6a35, roughness: 0.95, metalness: 0.0, flatShading: true })
   const bushCount = 2400
   const bushes = new THREE.InstancedMesh(bushGeo, bushMat, bushCount)
+  bushes.frustumCulled = false
   const d = new THREE.Object3D()
   const c = new THREE.Color()
   let bi = 0
@@ -217,6 +218,7 @@ function addDensityProps(scene: THREE.Scene): void {
   const pebMat = new THREE.MeshStandardMaterial({ color: 0x7a7a72, roughness: 0.98, metalness: 0.02, flatShading: true })
   const pebCount = 820
   const pebs = new THREE.InstancedMesh(pebGeo, pebMat, pebCount)
+  pebs.frustumCulled = false
   let pi = 0
   for (let i = 0; i < 3600 && pi < pebCount; i++) {
     const h = hash2(i * 0.91 + 40.1, i * 1.23 + 13.7)
@@ -248,6 +250,7 @@ function addDensityProps(scene: THREE.Scene): void {
   const flowerMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
   const flowerCount = 500
   const flowers = new THREE.InstancedMesh(flowerGeo, flowerMat, flowerCount)
+  flowers.frustumCulled = false
   let fi = 0
   for (let i = 0; i < 2200 && fi < flowerCount; i++) {
     const h = hash2(i * 1.11 + 7.7, i * 0.93 + 2.1)
@@ -278,6 +281,7 @@ function addDensityProps(scene: THREE.Scene): void {
   const crateMat = new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.9, metalness: 0.02 })
   const crateCount = 130
   const crates = new THREE.InstancedMesh(crateGeo, crateMat, crateCount)
+  crates.frustumCulled = false
   const crateCenters: Array<[number, number]> = [
     [-46, -12], [-46, 14], [-58, 6], [-40, -4], [46, 12], [46, -14], [58, -6], [40, 4],
     [-30, 18], [30, -18], [-20, -24], [20, 24], [-8, 22], [8, -22],
@@ -313,6 +317,7 @@ function addDensityProps(scene: THREE.Scene): void {
   const rockMat2 = new THREE.MeshStandardMaterial({ color: 0x7f7d75, roughness: 0.98, metalness: 0.02, flatShading: true })
   const rockCount2 = 130
   const rocks2 = new THREE.InstancedMesh(rockGeo2, rockMat2, rockCount2)
+  rocks2.frustumCulled = false
   const rockCenters: Array<[number, number]> = [
     [-24, -30], [24, 30], [-34, 24], [34, -24], [-8, -40], [8, 40], [40, 18], [-40, -18], [-16, -8], [16, 8],
   ]
@@ -418,6 +423,7 @@ function addDensityProps(scene: THREE.Scene): void {
     [-34, 12, 16], [-28, 16, 16], [-40, 22, 14], [-24, 22, 14], [-38, -18, 14], [-26, -24, 14], [-18, 24, 12], [-10, -14, 12],
   ]
   const groves = new THREE.InstancedMesh(groveGeo, groveMat, 700)
+  groves.frustumCulled = false
   let gi = 0
   for (let ci = 0; ci < groveCenters.length && gi < 700; ci++) {
     const [cx, cz, n] = groveCenters[ci]
@@ -650,6 +656,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   })
   const grassCount = 8000
   const grassMesh = new THREE.InstancedMesh(grassGeo, grassMat, grassCount)
+  grassMesh.frustumCulled = false
   const grassDummy = new THREE.Object3D()
   const grassColor = new THREE.Color()
   for (let i = 0; i < grassCount; i++) {
@@ -672,6 +679,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   const rockMat = new THREE.MeshStandardMaterial({ color: 0x7a7a72, roughness: 0.95, metalness: 0.02, flatShading: true })
   const rockCount = 300
   const rocksMesh = new THREE.InstancedMesh(rockGeo, rockMat, rockCount)
+  rocksMesh.frustumCulled = false
   const rockDummy = new THREE.Object3D()
   for (let i = 0; i < rockCount; i++) {
     const rx = (Math.random() - 0.5) * MAP_SIZE * 0.9
@@ -1947,6 +1955,8 @@ export function syncEntityMesh(
   // facing and simple animation
   const prev = rc.prevPos.get(e.id)
   if (e.kind === 'unit') {
+    // Slightly larger unit meshes read better at game zoom (silhouettes vs AoE2).
+    obj.scale.setScalar(1.12)
     const u = e as UnitEntity
     if (prev) {
       const dx = e.x - prev.x, dz = e.z - prev.z
