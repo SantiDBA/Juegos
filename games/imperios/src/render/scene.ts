@@ -626,6 +626,42 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   }
   groundGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
   const groundMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0.0 })
+
+  // Procedural, tileable ground-detail texture multiplied over the vertex colours:
+  // adds grass/dirt high-frequency speckle so the terrain reads as ground instead of
+  // flat paint (the biggest "low-poly prototype" tell vs AoE2).
+  const groundDetail = (() => {
+    const N = 256
+    const c = document.createElement('canvas')
+    c.width = c.height = N
+    const ctx = c.getContext('2d')!
+    const img = ctx.createImageData(N, N)
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        // tileable-ish fbm using sin-based hash (wrap by sampling both edges is
+        // overkill; RepeatWrapping tolerates the seam at this fine scale)
+        const n = valueNoise(x * 0.08, y * 0.08) * 0.55 + valueNoise(x * 0.31 + 40, y * 0.31 - 12) * 0.45
+        const s = hash2(x * 1.7, y * 2.3)
+        let v = 0.9 + (n - 0.5) * 0.22
+        if (s > 0.88) v -= 0.18       // dirt/gravel speck
+        else if (s < 0.09) v += 0.09  // light blade highlight
+        v = Math.max(0.6, Math.min(1.0, v))
+        const o = (y * N + x) * 4
+        const g = Math.round(v * 255)
+        img.data[o] = g
+        img.data[o + 1] = g
+        img.data[o + 2] = Math.round(g * 0.97)
+        img.data[o + 3] = 255
+      }
+    }
+    ctx.putImageData(img, 0, 0)
+    const tex = new THREE.CanvasTexture(c)
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+    tex.repeat.set(30, 30)
+    tex.needsUpdate = true
+    return tex
+  })()
+  groundMat.map = groundDetail
   groundMat.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <map_fragment>',
