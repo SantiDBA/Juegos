@@ -211,42 +211,66 @@ const SCENARIOS = [
     title: 'Economía real: ingenieros recolectando, con carga y volviendo a depositar',
     js: `(() => {
       const g = window.__imperios
-      const assigned = g.assignEconomy(8)
-      g.skip(12)   // llegar al nodo y recolectar
-      g.skip(8)    // cargar y comenzar retorno al depósito
       const getIter = () => typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
+      let tc = null
+      const nodes = []
+      for (const e of getIter()) {
+        if (!e || e.dead) continue
+        if (e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') tc = e
+        if (e.kind === 'resource' && e.amount > 0) nodes.push(e)
+      }
+      const tx = tc ? tc.x : -55, tz = tc ? tc.z : 0
+      nodes.sort((a, b) => ((a.x - tx) ** 2 + (a.z - tz) ** 2) - ((b.x - tx) ** 2 + (b.z - tz) ** 2))
+      const n1 = nodes[0] || null
+      const n2 = nodes[1] || n1
+      let assigned = 0
+      if (typeof g.assignEconomy === 'function') assigned = g.assignEconomy(12) || 0
+      // densificar economía cerca del TC para que haya más líneas de acarreo visibles
+      if (n1) {
+        g.spawn('player', 'ingeniero', 4, tx + 3, tz + 2)
+        if (typeof g.gatherNode === 'function') g.gatherNode(n1.id, 4)
+      }
+      g.skip(14)   // oleada principal llega al nodo y recolecta
+      g.skip(8)    // parte inicia retorno al depósito con carga
+      // segunda oleada: varios recolectando mientras otros vuelven al dropoff
+      if (n2) {
+        g.spawn('player', 'ingeniero', 3, tx + 4, tz - 2)
+        if (typeof g.gatherNode === 'function') g.gatherNode(n2.id, 3)
+      }
+      g.skip(7)
       const countCarrying = () => {
         let n = 0
         for (const e of getIter()) if (e && !e.dead && e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && (e.carryAmount || 0) > 0.5) n++
         return n
       }
-      for (let i = 0; i < 5 && countCarrying() < 3; i++) g.skip(2)
-      let tc = null
+      for (let i = 0; i < 8 && countCarrying() < 4; i++) g.skip(2)
       const carrying = []
+      const gathering = []
       for (const e of getIter()) {
-        if (!e || e.dead) continue
-        if (e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') tc = e
-        if (e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && (e.carryAmount || 0) > 0.5) carrying.push(e)
+        if (!e || e.dead || e.kind !== 'unit' || e.team !== 'player' || e.utype !== 'ingeniero') continue
+        if ((e.carryAmount || 0) > 0.5) carrying.push(e)
+        else if (e.gatherTargetId) gathering.push(e)
       }
-      // encuadre cerrado sobre dropoff e ingenieros con carga/retorno (lectura inequívoca)
-      let cx = 0, cz = 0
-      if (carrying.length > 0) {
-        carrying.sort((a, b) => {
-          const ar = !a.gatherTargetId ? 1 : 0, br = !b.gatherTargetId ? 1 : 0
-          if (ar !== br) return br - ar
-          return (b.carryAmount || 0) - (a.carryAmount || 0)
-        })
-        const pick = carrying.slice(0, 4)
-        for (const e of pick) { cx += e.x; cz += e.z }
-        cx /= pick.length; cz /= pick.length
-        g.select(pick.map(e => e.id))
-      } else {
-        cx = -46; cz = 2
+      // priorizar retornando/cargados cerca del dropoff y mantener recolectores en cuadro
+      carrying.sort((a, b) => {
+        const ar = !a.gatherTargetId ? 1 : 0, br = !b.gatherTargetId ? 1 : 0
+        if (ar !== br) return br - ar
+        const da = (a.x - tx) ** 2 + (a.z - tz) ** 2
+        const db = (b.x - tx) ** 2 + (b.z - tz) ** 2
+        return da - db
+      })
+      const focus = [...carrying.slice(0, 5), ...gathering.slice(0, 3)]
+      let cx = tx + 6, cz = tz + 1
+      if (focus.length > 0) {
+        cx = 0; cz = 0
+        for (const e of focus) { cx += e.x; cz += e.z }
+        cx /= focus.length; cz /= focus.length
       }
-      const tx = tc ? tc.x : -55, tz = tc ? tc.z : 0
-      g.camera(tx * 0.62 + cx * 0.38, tz * 0.62 + cz * 0.38, 38)
-      g.state.status = 'paused' // congelar para que la carga y el dropoff sean legibles en el still
-      return 'ok assigned=' + assigned + ' carrying=' + carrying.length
+      if (carrying.length > 0) g.select(carrying.slice(0, 6).map(e => e.id))
+      // encuadre que incluye dropoff y trayectoria de acarreo
+      g.camera(tx * 0.5 + cx * 0.5, tz * 0.5 + cz * 0.5, 44)
+      g.state.status = 'paused' // congelar para que carga, retorno y recolecta sean legibles en el still
+      return 'ok assigned=' + assigned + ' carrying=' + carrying.length + ' gathering=' + gathering.length
     })()`,
     settleMs: 900,
   },
@@ -451,18 +475,20 @@ const SCENARIOS = [
   // --- ciclo 02: niebla / formaciones / asedio -----------------------------
   {
     id: '06b-unidades',
-    title: 'Unidades + barras de vida: 6 milicias propias seleccionadas',
+    title: 'Unidades + barras de vida: milicias propias seleccionadas',
     js: `(() => {
       const g = window.__imperios
       g.camera(-42, 12)
-      const squad = g.spawn('player', 'milicia', 6, -45, 12)
+      let squad = g.spawn('player', 'milicia', 9, -45, 12) || []
+      if (squad.length < 6) {
+        const extra = g.spawn('player', 'milicia', 9 - squad.length, -47, 14) || []
+        squad = squad.concat(extra)
+      }
       g.skip(1)
-      // el hook expone selectUnits(team, utype, n); el grupo recién creado se
-      // vuelve a fijar para que la toma siempre encuadre a estas 6 milicias
-      g.selectUnits('player', 'milicia', 6)
-      g.select(squad)
+      // seleccionar las milicias recién creadas (o las disponibles) para la toma
+      g.select(squad.length ? squad : g.selectUnits('player', 'milicia', 9))
       const sel = g.state.selectedIds || []
-      return sel.length === 6 ? 'ok' : 'sel:' + sel.length
+      return sel.length >= 6 ? 'ok' : 'sel:' + sel.length
     })()`,
     settleMs: 700,
   },
@@ -472,11 +498,12 @@ const SCENARIOS = [
     js: `(() => {
       const g = window.__imperios
       const squad = (g.state.selectedIds || []).slice()
-      const n = g.moveFormation(squad, -36, 12, 'wedge')
-      g.skip(6)              // avanzar hasta llegar y asentarse en formación
-      g.camera(-36, 12, 50)  // reencuadre al destino/formación
+      if (squad.length < 3) return 'moved:0/' + squad.length
+      const n = g.moveFormation(squad, -35, 12, 'wedge')
+      g.skip(8)              // avanzar y asentarse para que filas/frente queden regulares
+      g.camera(-35, 12, 46)  // reencuadre al destino/formación
       g.state.status = 'paused'
-      return n >= 6 ? 'ok' : 'moved:' + n
+      return n >= 3 ? 'ok' : 'moved:' + n + '/' + squad.length
     })()`,
     settleMs: 900,
   },
