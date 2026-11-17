@@ -635,6 +635,51 @@ Hay avances claros en niebla con memoria, nodo consumido y legibilidad parcial d
 - El puntaje de dim 10 se basa solo en feedback visual observable en capturas fijas (audio no audible).
 - 06b-unidades.png/06c-formacion.png dependen del tope de población/disponibilidad; la legibilidad de la cuña puede variar si el escuadrón es menor.
 
+---
+
+# Juez ciego · ciclo-15-formacion-huellas-economia · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-15-formacion-huellas-economia/ (14/14)
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`: aldeanos activos junto a recursos y edificios con recursos/población visibles en HUD; `03b-nodos.png`: múltiples nodos de madera y mineral; `03c-nodo-agotado.png`: área de recurso visiblemente consumida/agotada. |
+| 2 | Combate / counters / proyectiles | 6.0 | `04-combate.png`: enfrentamiento entre bandos con barras de vida y unidades en contacto; `08-asedio.png` y `07-late-game.png`: presencia de fuerzas y presión sobre estructuras, sin proyectiles, estelas o bajas claramente distinguibles. |
+| 3 | Niebla / exploración | 7.0 | `05-fog.png`: zonas no exploradas en oscuro, áreas exploradas en penumbra y terreno visible nítido; minimapa coherente con lo revelado; `02-arranque.png`: límite de visibilidad alrededor de la base. |
+| 4 | Pathfinding / formaciones | 7.0 | `06c-formacion.png`: grupo de unidades dispuesto en bloque compacto con frente común y separación uniforme; `04-combate.png` y `07-late-game.png`: agrupaciones ordenadas sin apelotonamiento evidente. |
+| 5 | Tech tree / edades | 7.0 | `09-research.png` y `09b-avance-era.png`: interfaz/progreso de investigación y avance visibles; `07-late-game.png`: unidades y edificios de aspecto más avanzado respecto a `02-arranque.png`. |
+| 6 | Contenido y densidad | 6.0 | `02-arranque.png` y `03b-nodos.png`: árboles, recursos y edificios repartidos con amplias zonas de terreno despejado; `07-late-game.png`: mayor ocupación en base, pero con parches uniformes aún visibles. |
+| 7 | IA legítima | 5.0 | `04-combate.png`, `07-late-game.png` y `08-asedio.png`: presencia de fuerzas enemigas en combate y asedio, pero sin base/economía rival claramente desarrollada ni intención estratégica totalmente legible. |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png` y `06b-unidades.png`: panel de selección con retrato, nombre, barra de vida y command card con acciones; `02-arranque.png` y `03-economia.png`: barra superior de recursos/población/era y minimapa visibles. |
+| 9 | Art direction / diorama isométrico | 7.0 | `01-menu.png`: identidad visual definida; `02-arranque.png` y `07-late-game.png`: cámara isométrica consistente, paleta coherente y siluetas legibles de unidades, edificios y vegetación. |
+| 10 | Audio / juice | 5.0 | `04-combate.png` y `08-asedio.png`: escenas de combate con barras de vida, pero sin partículas, humo, destellos ni marcas de impacto/destrucción sistemáticas observables en imagen fija. |
+
+**Promedio:** 6.40 · **Mínima:** 5.0 · **Dimensiones < 7:** 4
+
+**Veredicto — SORPRENDIDO: NO**
+No alcanza el umbral: el conjunto es competente pero no convence al nivel AoE2 por falta de feedback de combate, intención de IA y densidad/juice consistentes.
+
+## Top 7 brechas
+1. Feedback visual de combate limitado — `04-combate.png`, `08-asedio.png` (Dim 10) — los impactos y el asedio carecen de peso y respuesta clara para el jugador.
+2. IA rival sin intención completa legible — `07-late-game.png`, `04-combate.png` (Dim 7) — no se percibe una economía/base enemiga articulada ni un plan evidente.
+3. Legibilidad del combate insuficiente — `04-combate.png`, `07-late-game.png` (Dim 2) — faltan proyectiles, estelas y bajas visibles para entender counters y resultado.
+4. Densidad ambiental irregular — `02-arranque.png`, `03b-nodos.png` (Dim 6) — zonas despejadas reducen la sensación de mundo habitado.
+5. Economía funcional pero poco densa en escena — `03-economia.png` (Dim 1) — no se aprecian líneas de transporte y actividad tan continuas como en AoE2.
+6. HUD informativo sin detalle de acción completo — `06-ui.png`, `06b-unidades.png` (Dim 8) — no se observan costos, atajos o información contextual detallada en la command card.
+7. Niebla correcta pero sin riqueza visual de transición — `05-fog.png` (Dim 3) — la exploración se lee, pero con menor profundidad y carácter que el referente.
+
+## 5 cambios para el próximo ciclo
+1. Incorporar proyectiles, destellos, humo y marcas de impacto visibles en enfrentamientos y asedio — Dim 2, Dim 10 — `04-combate.png` y `08-asedio.png` mostrarían acciones y daños más legibles.
+2. Mostrar bajas y destrucciones persistentes (cadáveres, escombros o estructuras dañadas claramente) — Dim 2, Dim 10 — `04-combate.png` y `07-late-game.png` reflejarían mejor el resultado de los choques.
+3. Representar una base enemiga activa con producción, defensas y ejército compuesto en avance — Dim 7 — `07-late-game.png` evidenciaría intención y presión real del oponente.
+4. Aumentar la densidad con clusters de vegetación, rocas y props variados en áreas vacías — Dim 6, Dim 9 — `02-arranque.png` y `03b-nodos.png` ganarían riqueza ambiental sin perder legibilidad.
+5. Añadir indicadores explícitos de costos, colas/progreso y datos contextuales en paneles de selección, comando e investigación — Dim 8, Dim 5 — `06-ui.png`, `09-research.png` y `09b-avance-era.png` comunicarían mejor las acciones disponibles.
+
+## Riesgos / notas
+- Evaluación limitada a capturas estáticas: movimiento, audio, tiempos reales de pathfinding y comportamiento dinámico de IA no son plenamente observables.
+- La distinción fina de roles/counters entre unidades depende de siluetas e iconografía visibles; sin lectura completa de atributos se aplicó criterio conservador.
+- El estado exacto de depósitos, colas y flujos económicos se infiere por lo visible en escena y HUD, no por mecánicas internas.
+
 
 ---
 
