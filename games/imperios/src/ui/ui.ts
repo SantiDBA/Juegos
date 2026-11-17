@@ -454,6 +454,7 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
       }
       const stance = e.team === 'player' ? `<span class="sel-pill">Postura: ${STANCE_LABEL[e.stance as Stance]}</span>` : ''
       const econPill = econ ? `<span class="sel-pill subtle">${econ}</span>` : ''
+      const counters = (d as any).counters ? `<span class="sel-pill subtle">${(d as any).counters}</span>` : ''
       const icon = UNIT_ICON[e.utype] ?? '❔'
       ui.selInfo.innerHTML = `
         <div class="sel-card sel-unit team-${e.team}">
@@ -468,7 +469,7 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
             <div class="sel-hpnum">${Math.ceil(e.hp)}/${e.maxHp} HP</div>
           </div>
           ${hpBarHtml(e.hp, e.maxHp, 'hp-prominent')}
-          <div class="sel-meta">${econPill}${stance}</div>
+          <div class="sel-meta">${econPill}${stance}${counters}</div>
         </div>`
     } else if (e.kind === 'building') {
       const d = BUILDING_DEFS[e.btype]
@@ -530,7 +531,7 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
               <span class="sel-portrait" aria-hidden="true">${icon}</span>
               <div>
                 <div class="sel-title">${d.name}</div>
-                <div class="sel-sub">${teamLabel(e.team as Team)} · Edificio · ${status} · ${d.produces && d.produces.length ? `Produce: ${d.produces.length} tipos` : 'Estructura'}</div>
+                <div class="sel-sub">${teamLabel(e.team as Team)} · Edificio · ${status} · ${d.produces && d.produces.length ? `Produce: ${d.produces.slice(0, 4).map((u: UnitType) => UNIT_DEFS[u]?.name ?? u).join(', ')}${d.produces.length > 4 ? ', …' : ''}` : 'Estructura'}</div>
               </div>
             </div>
             <div class="sel-hpnum">${Math.ceil(e.hp)}/${e.maxHp} HP</div>

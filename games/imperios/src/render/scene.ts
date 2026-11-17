@@ -930,10 +930,10 @@ export function updateHpSprite(sp: THREE.Sprite, ratio: number, team: Team = 'pl
 const NODE_LABEL_W = 192
 const NODE_LABEL_H = 72
 /** World size of a node label; the node itself shrinks as it depletes. */
-const NODE_LABEL_SCALE_W = 3.1
-const NODE_LABEL_SCALE_H = 1.1
+const NODE_LABEL_SCALE_W = 2.5
+const NODE_LABEL_SCALE_H = 0.9
 /** World height of the label above the node's base. */
-const NODE_LABEL_Y = 3.5
+const NODE_LABEL_Y = 3.25
 
 /** Builds the reusable canvas sprite used for on-world numbers. */
 function makeLabelSprite(): THREE.Sprite {
@@ -972,19 +972,19 @@ export function updateNodeLabel(sp: THREE.Sprite, amount: number): void {
   const tex = anySp._tex as THREE.CanvasTexture
   const w = NODE_LABEL_W, h = NODE_LABEL_H
   ctx.clearRect(0, 0, w, h)
-  ctx.font = 'bold 50px ui-sans-serif, system-ui, -apple-system, sans-serif'
+  ctx.font = 'bold 46px ui-sans-serif, system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   const textW = Math.min(w - 8, Math.max(64, ctx.measureText(text).width + 40))
   const x0 = (w - textW) / 2
   // pill
-  ctx.fillStyle = 'rgba(8,11,16,0.82)'
+  ctx.fillStyle = 'rgba(8,11,16,0.70)'
   ctx.fillRect(x0, 8, textW, h - 16)
   ctx.strokeStyle = 'rgba(198,216,236,0.35)'
   ctx.lineWidth = 2
   ctx.strokeRect(x0 + 1, 9, textW - 2, h - 18)
   // digits
-  ctx.fillStyle = '#e9eef7'
+  ctx.fillStyle = '#dde6f3'
   ctx.fillText(text, w / 2, h / 2 + 1)
   tex.needsUpdate = true
 }
@@ -2315,7 +2315,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     rc.fxItems.push({
       kind: 'ring', mesh: ring, t: 0, life: 11.0,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.2, s1: 4.0, o0: 0.9, hold: 8.0,
+      s0: 1.2, s1: 3.6, o0: 0.75, hold: 8.0,
     })
   }
   // Secondary outer shockwave for siege-like punch
@@ -2329,7 +2329,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     rc.fxItems.push({
       kind: 'ring', mesh: ring2, t: 0, life: 9.0,
       pos: ring2.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.8, s1: 2.8, o0: 0.75, hold: 6.0,
+      s0: 0.8, s1: 2.6, o0: 0.6, hold: 6.0,
     })
   }
 
@@ -2647,21 +2647,6 @@ export function spawnDepositFx(
       kind: 'ring', mesh: ring, t: 0, life: 2.6,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
       s0: 0.9, s1: 5.0, o0: 0.85, hold: 1.0,
-    })
-  }
-
-  // Modest central flash.
-  const flash = acquireFx(rc, 'flash')
-  if (flash) {
-    flash.position.set(px, y + 0.4, pz)
-    flash.scale.setScalar(1.0)
-    const m = flash.material as THREE.MeshBasicMaterial
-    m.color.setHex(color)
-    m.opacity = 0.9
-    rc.fxItems.push({
-      kind: 'flash', mesh: flash, t: 0, life: 2.2,
-      pos: flash.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.0, s1: 2.8, o0: 0.9, hold: 0.9,
     })
   }
 
