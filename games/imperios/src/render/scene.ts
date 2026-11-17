@@ -272,6 +272,76 @@ function addDensityProps(scene: THREE.Scene): void {
   if (flowers.instanceColor) flowers.instanceColor.needsUpdate = true
   scene.add(flowers)
 
+  // Thematic props (render-only) that make zones read as inhabited: crates/barrels
+  // clustered near bases and on the routes, plus rock outcrops for identity.
+  const crateGeo = new THREE.BoxGeometry(0.72, 0.72, 0.72)
+  const crateMat = new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.9, metalness: 0.02 })
+  const crateCount = 130
+  const crates = new THREE.InstancedMesh(crateGeo, crateMat, crateCount)
+  const crateCenters: Array<[number, number]> = [
+    [-46, -12], [-46, 14], [-58, 6], [-40, -4], [46, 12], [46, -14], [58, -6], [40, 4],
+    [-30, 18], [30, -18], [-20, -24], [20, 24], [-8, 22], [8, -22],
+  ]
+  let cri = 0
+  for (let ci = 0; ci < crateCenters.length && cri < crateCount; ci++) {
+    const [cx, cz] = crateCenters[ci]
+    for (let j = 0; j < 12 && cri < crateCount; j++) {
+      const a = hash2(ci * 3.1 + j, j * 2.7 + ci) * Math.PI * 2
+      const r = 0.8 + hash2(j + ci, ci + j * 1.3) * 2.8
+      const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r
+      const y = terrainHeight(x, z)
+      d.position.set(x, y + 0.35, z)
+      d.rotation.set(0, hash2(j, ci) * Math.PI, 0)
+      const s = 0.7 + hash2(j * 1.7, ci) * 0.5
+      d.scale.setScalar(s)
+      d.updateMatrix()
+      crates.setMatrixAt(cri, d.matrix)
+      c.setHSL(0.09, 0.3 + hash2(j, ci * 2) * 0.14, 0.33 + hash2(ci, j) * 0.13)
+      crates.setColorAt(cri, c)
+      cri++
+    }
+  }
+  crates.count = cri
+  crates.instanceMatrix.needsUpdate = true
+  if (crates.instanceColor) crates.instanceColor.needsUpdate = true
+  crates.castShadow = true
+  crates.receiveShadow = true
+  scene.add(crates)
+
+  // Rock outcrops: a few larger, darker clusters that give empty areas an identity.
+  const rockGeo2 = new THREE.DodecahedronGeometry(0.85, 0)
+  const rockMat2 = new THREE.MeshStandardMaterial({ color: 0x7f7d75, roughness: 0.98, metalness: 0.02, flatShading: true })
+  const rockCount2 = 130
+  const rocks2 = new THREE.InstancedMesh(rockGeo2, rockMat2, rockCount2)
+  const rockCenters: Array<[number, number]> = [
+    [-24, -30], [24, 30], [-34, 24], [34, -24], [-8, -40], [8, 40], [40, 18], [-40, -18], [-16, -8], [16, 8],
+  ]
+  let rki = 0
+  for (let ci = 0; ci < rockCenters.length && rki < rockCount2; ci++) {
+    const [cx, cz] = rockCenters[ci]
+    for (let j = 0; j < 14 && rki < rockCount2; j++) {
+      const a = hash2(ci * 5.3 + j, j * 3.1 + ci) * Math.PI * 2
+      const r = 0.8 + hash2(j * 2.1 + ci, ci * 1.9 + j) * 3.6
+      const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r
+      const y = terrainHeight(x, z)
+      d.position.set(x, y + 0.32, z)
+      d.rotation.set(hash2(j, ci) * 0.7, hash2(ci, j) * Math.PI * 2, 0)
+      const s = 0.6 + hash2(j * 1.3, ci * 2.2) * 0.95
+      d.scale.set(s, s * 0.8, s)
+      d.updateMatrix()
+      rocks2.setMatrixAt(rki, d.matrix)
+      c.setHSL(0.08, 0.04 + hash2(j, ci) * 0.06, 0.35 + hash2(ci, j) * 0.2)
+      rocks2.setColorAt(rki, c)
+      rki++
+    }
+  }
+  rocks2.count = rki
+  rocks2.instanceMatrix.needsUpdate = true
+  if (rocks2.instanceColor) rocks2.instanceColor.needsUpdate = true
+  rocks2.castShadow = true
+  rocks2.receiveShadow = true
+  scene.add(rocks2)
+
   // Track/worn-path decals near base -> node routes (render-only), denser for readability.
   const trackMat = new THREE.MeshBasicMaterial({
     color: 0x6b5a3a, transparent: true, opacity: 0.24, depthWrite: false,
