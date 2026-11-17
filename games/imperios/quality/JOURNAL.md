@@ -339,6 +339,7 @@ late game encuadrando TC propio + viviendas + fábrica + 34/58 población legal.
 | 2026-11-13 | ciclo-09 · formaciones con spacing/anclaje, fog 3 estados nítida, depósito/combate más legibles y props/capturas ajustadas | `shots/ciclo-09-formacion-fog-claridad/` (14) | 4.90 (mín 4.0; niebla 6.0, HUD 6.0, combate 5.0, path 5.0, tech 5.0, densidad 5.0, IA 5.0, eco 4.0, art 4.0, juice 4.0) | NO (fog/UI/formación mejoran; economía no inequívoca, combate sin bajas/huellas claras y arte 3D tope fase 4) | FORMATION_SPACING 2.05 + llegada/anclaje y separación atenuada cerca de home; fog RGBA bilineal (visible claro, explorado penumbra fría, no visto negro); spawnDepositFx y cráteres/manchas/wreck/rubble más grandes/persistentes; más props/caminos; minimapa y capturas 03/05/06c ajustadas |
 | 2026-11-13 | ciclo-10 · carga/dropoff y depósito más visibles, huellas de combate persistentes, disciplina en contacto, detalles de era y props temáticos | `shots/ciclo-10-economia-bajas-eras/` (14) | 4.40 (mín 3.0; niebla 5.0, path 5.0, tech 5.0, HUD 5.0, art 5.0, eco 4.0, combate 4.0, densidad 4.0, IA 4.0, juice 3.0) | NO (juez no ve cambios inequívocos en stills: carga/entrega, bajas/huellas y salto de era poco legibles; arte 3D tope fase 4) | cargo+marker alto y pulso en ingenieros; dropoff con aro/beacon; depósito/cráteres/manchas/wreck/rubble/scorch más grandes y persistentes (caps/vidas); dress-ranks y settling en combate; adornos por era en edificios; arboledas/cercas/campos decorativos |
 | 2026-11-13 | ciclo-11 · carga billboard/dropoff alto, depósitos y huellas de combate muy persistentes, capturas eco/formación pausadas | `shots/ciclo-11-carga-huellas-claridad/` (14) | 4.50 (mín 3.0; combate 5.0, niebla 5.0, path 5.0, tech 5.0, HUD 5.0, juice 5.0, eco 4.0, IA 4.0, art 4.0, densidad 3.0) | NO (carga/dropoff y huellas aún no inequívocas/consistentes en stills; formaciones se rompen en combate; densidad/identidad de era pobres; arte 3D tope fase 4) | cargo BasicMaterial grande + billboard/icono y pulso; dropoff con aro/beacon alto + cap; depósito/impacto/cráter/mancha/wreck doble/rubble/scorch más grandes, contrastados y duraderos (caps/evicción por hold); 03-economia cerrada/pausada con portadores seleccionados y 06c pausada |
+| 2026-11-14 | ciclo-12 · carga billboard alta por recurso, dropoff con aro/beacon, huellas de combate más grandes y persistentes, formación sostenida en contacto, niebla con memoria gris-azul y adornos/paleta por era | `shots/ciclo-12-carga-huella-formacion-era-fog/` (14) | 5.20 (mín 4.0; eco 6.0, niebla 6.0, HUD 6.0, tech 5.5, path 5.0, densidad 5.0, IA 5.0, juice 5.0, art 4.5, combate 4.0) | NO (economía y niebla-memoria ya se leen; el still de `04-combate` no muestra choque y las huellas/formación bajo presión siguen sin evidencia clara; densidad e identidad de era débiles; arte 3D tope fase 4) | caja/log billboard grande por recurso + anillo en ingenieros con carga; dropoff con aro+beacon+cap; cráteres/manchas/wreck/scorch/rubble más grandes y duraderos con más props temáticos; dress-ranks+settling+leash en contacto; fog con velo gris-azul de memoria vs negro; UI/minimapa alineados a memoria |
 
 ### Juez ciego · ciclo-07-hud-economia (evidencia sobre capturas)
 
@@ -506,6 +507,42 @@ late game encuadrando TC propio + viviendas + fábrica + 34/58 población legal.
 5. **Mapa habitado y niebla con memoria**: clusters temáticos densos (bosques con volumen, campos/caminos/bordes) y velo gris de terreno/estructuras recordadas vs negro no explorado en `02-arranque/03b-nodos/05-fog` (mueve 6,3).
 
 ### Brechas elegidas para el ciclo 12 (siguiente)
+Priorizar 1-5 arriba; **fase 4 (renderer 2D isométrico)** sigue siendo el desbloqueo crítico para 9/6/1/5 y el techo AoE2 (criterio: SORPRENDIDO SÍ, promedio ≥ 8.5, ninguna dim < 7).
+
+### Juez ciego · ciclo-12-carga-huella-formacion-era-fog (2026-11-14)
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | 03-economia: 4 ingenieros seleccionados junto al bosque con **caja/log naranja grande por recurso** y anillo de carga inconfundibles a zoom de juego, campo de trigo y granja visibles; 03b-nodos/03c-nodo-agotado: panel de nodo con `205 rest · 91%` y cantidades flotantes sobre cada nodo. Falla que 03b y 03c son casi idénticas (el nodo no se ve consumido entre ambas) y no se ve la entrega en el depósito en el mismo cuadro. |
+| 2 | Combate / counters / proyectiles | 4.0 | 04-combate: el still **no muestra el choque** (fog, bosque con etiquetas de nodo, milicias azules en formación y barra de avance de era); no hay trazadoras, impactos ni bajas legibles en esa captura. 07-late-game/08-asedio muestran masas enfrentadas con manchas/estelas, pero sin foco de fuego ni counters por tipo. |
+| 3 | Niebla / exploración | 6.0 | 05-fog/02-arranque: se distinguen tres estados — negro no explorado, **velo gris-azul de terreno recordado** y área visible cálida — con minimapa coherente; borde de niebla todavía geométrico/en bloques y sin siluetas recordadas de edificios. |
+| 4 | Pathfinding / formaciones | 5.0 | 06b-unidades/06c-formacion: bloque con separación y orientación aproximada, pero 06c no marca frente/filas limpias y 04-combate/07-late-game no permiten acreditar disciplina bajo presión; no se ve una cuña inconfundible. |
+| 5 | Tech tree / edades | 5.5 | 09-research/09b-avance-era: barras de investigación/avance con nombre, `45S` y `0%` visibles; 07-late-game en Era Autónoma con arsenales más grandes. El salto de silueta/material/entorno entre `02-arranque` y `07-late-game` sigue leyéndose más por HUD que por arte. |
+| 6 | Contenido y densidad | 5.0 | 02-arranque/03b-nodos/05-fog: más arboledas, campos de trigo, granjas y caminos que antes, pero persisten claros grandes vacíos y el terreno plano/repetitivo; sin variación de bioma ni zonas con identidad propia. |
+| 7 | IA legítima | 5.0 | 07-late-game/08-asedio: base enemiga con edificios, torres/defensas y ejército compuesto presionando, minimapa con concentraciones rojas; no se lee economía enemiga ni un plan de presión más allá de "hay tropas". |
+| 8 | HUD / UX AoE2 | 6.0 | 06-ui/03-economia/06b-unidades: topbar completo (recursos, población, era, reloj), command card en slots con costos y botones de era/investigación, panel de selección con HP grande y "Listo para producir", multi-selección con chips; falta retrato/cola de producción y jerarquía visual AoE2. |
+| 9 | Art direction / diorama isométrico | 4.5 | 01-menu sin identidad ilustrada (overlay oscuro + tarjetas de texto); 02-arranque/07-late-game: cámara isométrica consistente y paleta algo más unificada, pero materiales planos, luz sin dirección dramática y siluetas sin peso de miniatura. **Tope renderer 3D actual (fase 4 2D isométrico pendiente).** |
+| 10 | Audio / juice | 5.0 | 07-late-game/08-asedio: manchas de facción, estelas y columnas/beacons visibles; 04-combate no aporta evidencia por no mostrar choque. Feedback sin consistencia entre escenas (ni cadáveres/wreck dobles ni cráteres dominantes en todas). |
+
+**Promedio:** 5.20 · **Mínima:** 4.0 · **Dimensiones < 7:** 10 · **Veredicto:** SORPRENDIDO: NO
+
+### Top 7 brechas (ciclo 12)
+1. **La captura de combate no muestra combate** (2, 04-combate) — el still congela antes del choque; sin evidencia visual la dimensión no puede subir.
+2. **Huella de batalla no sistemática** (2,10, 07-late-game/08-asedio) — manchas/estelas presentes pero sin cráteres, cadáveres/wreck y escombros dominantes y consistentes.
+3. **Formación no acreditada bajo presión** (4, 06c-formacion/04-combate/07-late-game) — 06c no muestra frente/filas y no hay still de contacto con bloque formado.
+4. **Identidad de era débil fuera del HUD** (5,9, 02-arranque vs 07-late-game/09b-avance-era) — sin cambio claro de silueta/material/paleta.
+5. **Densidad y bioma pobres** (6, 02-arranque/03b-nodos/05-fog) — claros vacíos y terreno plano sin zonas diferenciadas.
+6. **IA sin intención legible** (7, 07-late-game/08-asedio) — hay ejército, no se lee economía ni plan.
+7. **Nodo agotado no visible** (1, 03b-nodos/03c-nodo-agotado) — ambas capturas casi idénticas; el consumo del nodo no se demuestra.
+
+### 5 cambios para el ciclo 13
+1. **Arreglar el encuadre de `04-combate`**: garantizar choque real en cuadro (milicias propias y enemigas en contacto, trazadoras/impactos y al menos una baja con mancha) antes de pausar (mueve 2,10).
+2. **Secuelas persistentes por sistema**: cada baja deja mancha + wreck duradero y cada impacto deja cráter oscuro grande, de forma uniforme en `04-combate/07-late-game/08-asedio` (mueve 2,10).
+3. **Still de formación en contacto**: `06c-formacion` con cuña/frente limpio + separación uniforme, y en `04-combate` el bloque propio conservando filas al pelear (mueve 4).
+4. **Salto de era visible sin leer HUD**: paleta, materiales y siluetas de edificios/unidades claramente distintas entre `02-arranque` y `07-late-game/09b-avance-era` (mueve 5,9).
+5. **`03c-nodo-agotado` con nodo realmente consumido** (remanente bajo/parche vacío) y `05-fog` con siluetas recordadas de edificios enemigos (mueve 1,3).
+
+### Brechas elegidas para el ciclo 13 (siguiente)
 Priorizar 1-5 arriba; **fase 4 (renderer 2D isométrico)** sigue siendo el desbloqueo crítico para 9/6/1/5 y el techo AoE2 (criterio: SORPRENDIDO SÍ, promedio ≥ 8.5, ninguna dim < 7).
 
 
