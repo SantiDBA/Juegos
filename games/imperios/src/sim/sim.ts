@@ -448,51 +448,70 @@ function stepBuilder(gs: GameState, e: UnitEntity, dt: number): boolean {
   return true
 }
 
+/**
+ * Walks the carried load to a dropoff and unloads on arrival. Returns true while
+ * the trip is still going, false once the load has been handed over (or when no
+ * dropoff exists, so the caller can retry next tick rather than keep the load).
+ */
+function deliverLoad(gs: GameState, e: UnitEntity, dt: number): boolean {
+  const cached = e.dropoffTargetId ? getEntity(gs, e.dropoffTargetId) : undefined
+  const drop = cached && !cached.dead && cached.kind === 'building'
+    ? cached as BuildingEntity
+    : findNearestDropoff(gs, e.team, e.x, e.z)
+  if (!drop) { e.dropoffTargetId = undefined; return false }
+  e.dropoffTargetId = drop.id
+  e.state = 'return'
+  const d = dist(e.x, e.z, drop.x, drop.z)
+  if (d > approachRange(drop) + RANGE_EPS) {
+    moveTo(gs, e, drop.x, drop.z, unitSpeed(gs, e), dt, approachRange(drop))
+    return true
+  }
+  e.path = []
+  const amount = e.carryAmount
+  const resource = dominantResource(e.carrying)
+  for (const [k, v] of Object.entries(e.carrying)) (gs.players[e.team].resources as any)[k] += v as number
+  emit(gs, { kind: 'deposit', team: e.team, dropoffId: drop.id, x: drop.x, z: drop.z, amount, resource })
+  e.carrying = {}; e.carryAmount = 0; e.dropoffTargetId = undefined
+  return false
+}
+
 function stepEngineer(gs: GameState, e: UnitEntity, dt: number): void {
   const def = UNIT_DEFS[e.utype]
   const speed = unitSpeed(gs, e)
-  if (e.gatherTargetId) {
-    const node = getEntity(gs, e.gatherTargetId) as ResourceEntity | undefined
-    if (!node || node.dead || node.kind !== 'resource' || node.amount <= 0) {
-      e.gatherTargetId = undefined; e.state = 'idle'; e.path = []; return
-    }
-    if (e.carryAmount >= (def.carry ?? 10)) {
-      // return
-      const drop = e.dropoffTargetId ? getEntity(gs, e.dropoffTargetId) : findNearestDropoff(gs, e.team, e.x, e.z)
-      if (!drop || drop.kind !== 'building') { e.state = 'idle'; return }
-      e.dropoffTargetId = drop.id
-      e.state = 'return'
-      const d = dist(e.x, e.z, drop.x, drop.z)
-      if (d > approachRange(drop) + RANGE_EPS) {
-        moveTo(gs, e, drop.x, drop.z, speed, dt, approachRange(drop))
-      } else {
-        e.path = []
-        const amount = e.carryAmount
-        const resource = dominantResource(e.carrying)
-        for (const [k, v] of Object.entries(e.carrying)) (gs.players[e.team].resources as any)[k] += v as number
-        emit(gs, { kind: 'deposit', team: e.team, dropoffId: drop.id, x: drop.x, z: drop.z, amount, resource })
-        e.carrying = {}; e.carryAmount = 0; e.state = 'gather'
-      }
-      return
-    }
+  const carryMax = def.carry ?? 10
+  const node = e.gatherTargetId ? getEntity(gs, e.gatherTargetId) as ResourceEntity | undefined : undefined
+  const nodeUsable = !!node && !node.dead && node.kind === 'resource' && node.amount > 0
+
+  // A load is delivered when it is full or when the node ran out mid-load:
+  // carrying a partial load must never leave the engineer idle for good, but an
+  // explicit move order still gets to finish its route first.
+  const moving = e.state === 'move' && e.path.length > 0
+  if (!moving && e.carryAmount > 1e-6 && (e.carryAmount >= carryMax - 1e-6 || !nodeUsable)) {
+    if (!nodeUsable) e.gatherTargetId = undefined
+    if (!deliverLoad(gs, e, dt)) e.state = 'idle'
+    return
+  }
+
+  if (nodeUsable) {
     e.state = 'gather'
-    const d = dist(e.x, e.z, node.x, node.z)
+    const d = dist(e.x, e.z, node!.x, node!.z)
     if (d > GATHER_RANGE + RANGE_EPS) {
-      moveTo(gs, e, node.x, node.z, speed, dt, GATHER_RANGE)
+      moveTo(gs, e, node!.x, node!.z, speed, dt, GATHER_RANGE)
     } else {
       e.path = []
       const gatherPerSec = (def.gatherRate ?? 8) * (1 + gs.players[e.team].bonuses.gatherPct)
-      const take = Math.min(gatherPerSec * dt, node.amount, (def.carry ?? 10) - e.carryAmount)
+      const take = Math.min(gatherPerSec * dt, node!.amount, carryMax - e.carryAmount)
       if (take > 0) {
-        node.amount -= take
-        e.carrying[node.resource] = (e.carrying[node.resource] ?? 0) + take
+        node!.amount -= take
+        e.carrying[node!.resource] = (e.carrying[node!.resource] ?? 0) + take
         e.carryAmount += take
       }
-      if (node.amount <= 0) { node.dead = true; e.gatherTargetId = undefined }
+      if (node!.amount <= 0) { node!.dead = true; e.gatherTargetId = undefined }
     }
     return
   }
 
+  e.gatherTargetId = undefined
   if (e.targetId) { // can attack if forced
     stepCombatUnit(gs, e, dt); return
   }
@@ -502,21 +521,10 @@ function stepEngineer(gs: GameState, e: UnitEntity, dt: number): void {
 function stepEnemyEngineer(gs: GameState, e: UnitEntity, dt: number): void {
   const def = UNIT_DEFS[e.utype]
   const speed = unitSpeed(gs, e)
+  const carryMax = def.carry ?? 10
   // simple: always gather nearest available of needed resource cycle
-  if (e.carryAmount >= (def.carry ?? 10)) {
-    const drop = findNearestDropoff(gs, 'enemy', e.x, e.z)
-    if (drop) {
-      const d = dist(e.x, e.z, drop.x, drop.z)
-      if (d > approachRange(drop) + RANGE_EPS) moveTo(gs, e, drop.x, drop.z, speed, dt, approachRange(drop))
-      else {
-        e.path = []
-        const amount = e.carryAmount
-        const resource = dominantResource(e.carrying)
-        for (const [k, v] of Object.entries(e.carrying)) (gs.players.enemy.resources as any)[k] += v as number
-        emit(gs, { kind: 'deposit', team: e.team, dropoffId: drop.id, x: drop.x, z: drop.z, amount, resource })
-        e.carrying = {}; e.carryAmount = 0
-      }
-    }
+  if (e.carryAmount > 1e-6 && e.carryAmount >= carryMax - 1e-6) {
+    deliverLoad(gs, e, dt)
     return
   }
   const prefs: any[] = ['materiales', 'suministros', 'combustible', 'minerales']
@@ -535,13 +543,15 @@ function stepEnemyEngineer(gs: GameState, e: UnitEntity, dt: number): void {
         moveTo(gs, e, target.x, target.z, speed, dt, GATHER_RANGE)
       } else {
         e.path = []
-        const take = Math.min((def.gatherRate ?? 8) * (1 + gs.players[e.team].bonuses.gatherPct) * dt, target.amount, (def.carry ?? 10) - e.carryAmount)
+        const take = Math.min((def.gatherRate ?? 8) * (1 + gs.players[e.team].bonuses.gatherPct) * dt, target.amount, carryMax - e.carryAmount)
         if (take > 0) { target.amount -= take; e.carrying[target.resource] = (e.carrying[target.resource] ?? 0) + take; e.carryAmount += take }
         if (target.amount <= 0) target.dead = true
       }
       return
     }
   }
+  // nothing left to mine: hand over whatever is already loaded
+  if (e.carryAmount > 1e-6) deliverLoad(gs, e, dt)
 }
 
 function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
