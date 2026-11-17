@@ -712,7 +712,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   try {
     composer = new EffectComposer(renderer)
     composer.addPass(new RenderPass(scene, camera))
-    bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.13, 0.45, 1.0)
+    bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.1, 0.45, 1.0)
     composer.addPass(bloom)
     composer.addPass(new OutputPass())
   } catch {
@@ -2193,14 +2193,14 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   const muzzle = acquireFx(rc, 'flash')
   if (muzzle) {
     muzzle.position.copy(from)
-    muzzle.scale.setScalar(1.45)
+    muzzle.scale.setScalar(1.3)
     const mm = muzzle.material as THREE.MeshBasicMaterial
     mm.color.setHex(color)
     mm.opacity = 1.0
     rc.fxItems.push({
-      kind: 'flash', mesh: muzzle, t: 0, life: 9.0,
+      kind: 'flash', mesh: muzzle, t: 0, life: 0.34,
       pos: muzzle.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.45, s1: 3.1, o0: 1.0, hold: 7.0,
+      s0: 1.3, s1: 2.0, o0: 1.0, hold: 0.12,
     })
   }
   // Core beam (thick, bright, long hold for still captures)
@@ -2224,7 +2224,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   if (glow) {
     glow.position.lerpVectors(from, to, 0.5)
     glow.lookAt(to)
-    const thick = 0.85
+    const thick = 0.75
     glow.scale.set(thick, thick, dist)
     const gm = glow.material as THREE.MeshBasicMaterial
     gm.color.setHex(0xfff4c8)
@@ -2232,7 +2232,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
     rc.fxItems.push({
       kind: 'beam', mesh: glow, t: 0, life: 14.0,
       pos: glow.position.clone(), vel: new THREE.Vector3(),
-      s0: thick, s1: thick, o0: 0.55, hold: 12.0,
+      s0: thick, s1: thick, o0: 0.4, hold: 12.0,
     })
   }
   // Bright projectile/head flash near impact end for directional clarity
@@ -2260,14 +2260,14 @@ export function spawnMuzzleFlash(rc: RenderContext, x: number, y: number, z: num
   if (!mesh) return
   mesh.position.set(x, y, z)
   mesh.quaternion.copy(rc.camera.quaternion) // billboard, no per-frame lookAt
-  mesh.scale.setScalar(1.7)
+  mesh.scale.setScalar(1.5)
   const m = mesh.material as THREE.MeshBasicMaterial
   m.color.setHex(0xfff3cf)
   m.opacity = 1.0
   rc.fxItems.push({
-    kind: 'muzzle', mesh, t: 0, life: 9.0,
+    kind: 'muzzle', mesh, t: 0, life: 0.4,
     pos: mesh.position.clone(), vel: new THREE.Vector3(),
-    s0: 1.7, s1: 4.0, o0: 1.0, hold: 7.0,
+    s0: 1.5, s1: 2.6, o0: 1.0, hold: 0.14,
   })
 }
 
@@ -2286,23 +2286,9 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(0xffbf55)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'flash', mesh: flash, t: 0, life: 11.0,
+      kind: 'flash', mesh: flash, t: 0, life: 0.9,
       pos: flash.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.3, s1: 3.0, o0: 1.0, hold: 8.0,
-    })
-  }
-  // Hot core flash for a clear hit read
-  const core = acquireFx(rc, 'flash')
-  if (core) {
-    core.position.set(x, y + 0.15, z)
-    core.scale.setScalar(1.0)
-    const m = core.material as THREE.MeshBasicMaterial
-    m.color.setHex(0xfff6d8)
-    m.opacity = 1.0
-    rc.fxItems.push({
-      kind: 'flash', mesh: core, t: 0, life: 8.0,
-      pos: core.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.9, s1: 2.0, o0: 1.0, hold: 6.0,
+      s0: 1.1, s1: 1.8, o0: 0.9, hold: 0.35,
     })
   }
   const ring = acquireFx(rc, 'ring')
@@ -2313,23 +2299,9 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(0xffe4a8)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'ring', mesh: ring, t: 0, life: 11.0,
+      kind: 'ring', mesh: ring, t: 0, life: 0.8,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.2, s1: 3.6, o0: 0.75, hold: 8.0,
-    })
-  }
-  // Secondary outer shockwave for siege-like punch
-  const ring2 = acquireFx(rc, 'ring')
-  if (ring2) {
-    ring2.position.set(x, groundHeightAt(x, z) + 0.085, z)
-    ring2.scale.setScalar(1.0)
-    const m = ring2.material as THREE.MeshBasicMaterial
-    m.color.setHex(0xffc977)
-    m.opacity = 0.85
-    rc.fxItems.push({
-      kind: 'ring', mesh: ring2, t: 0, life: 9.0,
-      pos: ring2.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.8, s1: 2.6, o0: 0.6, hold: 6.0,
+      s0: 1.1, s1: 2.0, o0: 0.32, hold: 0.3,
     })
   }
 
@@ -2355,26 +2327,11 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     })
   }
 
-  // Rising dust/smoke puff that lingers so hits read in stills
-  const puff = acquireFx(rc, 'puff')
-  if (puff) {
-    puff.position.set(x + (seed - 0.5) * 0.8, groundHeightAt(x, z) + 0.35, z + (hash2(x * 0.9, z * 1.4) - 0.5) * 0.8)
-    puff.scale.setScalar(0.9)
-    const m = puff.material as THREE.MeshBasicMaterial
-    m.color.setHex(seed > 0.5 ? 0x6a6155 : 0x4f4840)
-    m.opacity = 0.55
-    rc.fxItems.push({
-      kind: 'puff', mesh: puff, t: 0, life: 4.2,
-      pos: puff.position.clone(), vel: new THREE.Vector3((seed - 0.5) * 0.6, 1.6, (hash2(x * 1.2, z) - 0.5) * 0.6),
-      s0: 0.8, s1: 1.9, o0: 0.45, hold: 0.6,
-    })
-  }
-
   // Crater decal: very large, high-contrast scorch that persists for stills.
   if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
   const crater = acquireFx(rc, 'decal')
   if (crater) {
-    const rad = 7.2 + seed * 2.2
+    const rad = 4.2 + seed * 1.4
     crater.position.set(x, groundHeightAt(x, z) + 0.07, z)
     crater.scale.set(rad, 1, rad)
     const m = crater.material as THREE.MeshBasicMaterial
@@ -2394,7 +2351,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     const oz = (hash2(x * 0.6 - 1.4, z * 1.8 + 4.3) - 0.5) * 1.8
     const sx = x + ox
     const sz = z + oz
-    const rad = 3.0 + seed * 1.2
+    const rad = 1.9 + seed * 0.8
     splash.position.set(sx, groundHeightAt(sx, sz) + 0.072, sz)
     splash.scale.set(rad, 1, rad)
     const m = splash.material as THREE.MeshBasicMaterial
@@ -2622,16 +2579,16 @@ export function spawnDepositFx(
   if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
   const halo = acquireFx(rc, 'decal')
   if (halo) {
-    const rad = 2.8
+    const rad = 2.2
     halo.position.set(px, groundHeightAt(px, pz) + 0.075, pz)
     halo.scale.set(rad, 1, rad)
     const m = halo.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
-    m.opacity = 0.8
+    m.opacity = 0.5
     rc.fxItems.push({
-      kind: 'decal', mesh: halo, t: 0, life: 9.0,
+      kind: 'decal', mesh: halo, t: 0, life: 3.6,
       pos: halo.position.clone(), vel: new THREE.Vector3(),
-      s0: 1, s1: 1, o0: 0.8, hold: 7.0,
+      s0: 1, s1: 1, o0: 0.5, hold: 2.2,
     })
   }
 
@@ -2644,9 +2601,9 @@ export function spawnDepositFx(
     m.color.setHex(color)
     m.opacity = 0.85
     rc.fxItems.push({
-      kind: 'ring', mesh: ring, t: 0, life: 2.6,
+      kind: 'ring', mesh: ring, t: 0, life: 1.6,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 0.9, s1: 5.0, o0: 0.85, hold: 1.0,
+      s0: 0.8, s1: 3.4, o0: 0.6, hold: 0.5,
     })
   }
 

@@ -438,14 +438,10 @@ const SCENARIOS = [
       for (let bi = 0; bi < 6; bi++) { g.build('player', 'vivienda', -66, -26 + bi * 10, true); g.build('enemy', 'vivienda', 66, -26 + bi * 10, true) }
       g.skip(0.05)
       // Choque denso melee+ranged + artillería ligera: contacto inmediato y fuego cruzado sostenido
-      g.spawn('player', 'milicia', 12, -2, 25)
-      g.spawn('player', 'fusilero', 10, -5, 25)
-      g.spawn('player', 'granadero', 4, -3, 24)
-      g.spawn('player', 'canon', 2, -7, 24)
-      g.spawn('enemy', 'milicia', 12,  2, 25)
-      g.spawn('enemy', 'fusilero', 10,  5, 25)
-      g.spawn('enemy', 'granadero', 4,  3, 24)
-      g.spawn('enemy', 'canon', 2,  7, 24)
+      g.spawn('player', 'milicia', 8, -2, 25)
+      g.spawn('player', 'fusilero', 10, -10, 25)
+      g.spawn('enemy', 'milicia', 8,  2, 25)
+      g.spawn('enemy', 'fusilero', 10,  10, 25)
 
       const entities = () => typeof g.state.entities.values === 'function'
         ? [...g.state.entities.values()]
@@ -480,8 +476,8 @@ const SCENARIOS = [
         for (const e of liveFront()) { lx += e.x; lz += e.z; ln++ }
         if (ln > 0) { cx = (cx / n) * 0.65 + (lx / ln) * 0.35; cz = (cz / n) * 0.65 + (lz / ln) * 0.35; n = 1 }
       }
-      if (n > 0) g.camera(cx / n, cz / n, 44)
-      else g.camera(0, 25, 44)
+      if (n > 0) g.camera(cx / n, cz / n, 52)
+      else g.camera(0, 25, 52)
 
       return 'ok dead=' + deadUnits().length
     })()`,
@@ -595,8 +591,8 @@ const SCENARIOS = [
         if (e.x < -30 || e.x > 42 || Math.abs(e.z - 6) > 32) continue
         cx += e.x; cz += e.z; n++
       }
-      if (n > 0) g.camera(Math.min(16, cx / (n + 1) + 10), cz / (n + 1), 108)
-      else g.camera(14, 6, 108)
+      if (n > 0) g.camera(Math.min(32, cx / (n + 1) + 18), cz / (n + 1) + 2, 120)
+      else g.camera(30, 8, 120)
 
       // más tiempo de combate para bajas/huellas claras + pausa en momento activo
       g.skip(3.6)
