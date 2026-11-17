@@ -683,6 +683,52 @@ No alcanza el umbral: el conjunto es competente pero no convence al nivel AoE2 p
 
 ---
 
+# Juez ciego · ciclo-16-combate-ia-hud-densidad · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-16-combate-ia-hud-densidad/ (14/14)
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 5.0 | `03-economia.png`: aldeanos/trabajadores visibles cerca de nodos con barra superior de recursos y población activa; `03c-nodo-agotado.png`: nodo con estado reducido/agotado evidencia consumo, pero no se aprecia un ciclo continuo y denso de carga, depósito y retorno tipo AoE2. |
+| 2 | Combate / counters / proyectiles | 4.0 | `04-combate.png`: grupos enfrentados de distintos bandos con barras de vida y trazas/disparos puntuales; `08-asedio.png`: presencia de unidades pesadas/de asedio en combate, pero sin impactos claros, muertes legibles, contrafuego definido ni counters evidentes. |
+| 3 | Niebla / exploración | 6.0 | `05-fog.png`: diferencia visible entre zonas oscuras no exploradas y área revelada en el mapa; el minimapa refleja el espacio descubierto, aunque el borde y la memoria de exploración son más simples que en AoE2. |
+| 4 | Pathfinding / formaciones | 6.0 | `06c-formacion.png`: unidades alineadas en un bloque reconocible con orientación común y separación relativamente pareja; `04-combate.png`: frentes de choque agrupados sin apelotonamiento extremo, aunque sin variedad de formaciones por rol. |
+| 5 | Tech tree / edades | 5.0 | `09-research.png`: edificio seleccionado muestra opciones de investigación/tecnología; `09b-avance-era.png`: indicador de avance/progreso de era visible; `07-late-game.png` frente a `02-arranque.png`: mayor desarrollo y unidades/estructuras más avanzadas, pero el salto de era no se expresa con fuerza sistémica. |
+| 6 | Contenido y densidad | 5.0 | `03b-nodos.png` y `02-arranque.png`: clusters de árboles y recursos minerales con algunos edificios y terreno despejado; `07-late-game.png`: más ocupación en escena, pero persisten áreas vacías y variación ambiental limitada respecto a AoE2. |
+| 7 | IA legítima | 5.0 | `04-combate.png` y `08-asedio.png`: fuerzas enemigas presentes y en enfrentamiento con composición mixta visible; `07-late-game.png`: base/estructuras y ejército rival en el mapa, aunque desde capturas fijas no se confirma con claridad una economía o plan coordinado sostenido. |
+| 8 | HUD / UX AoE2 | 6.0 | `03-economia.png` y `02-arranque.png`: barra superior con recursos, población y minimapa visibles; `06-ui.png` y `06b-unidades.png`: panel de selección con retrato/estado y tarjeta de comandos con iconos de acción, funcionales pero con menos jerarquía, detalle y contexto que el HUD de AoE2. |
+| 9 | Art direction / diorama isométrico | 6.0 | `01-menu.png`: identidad visual propia en la pantalla de título; `02-arranque.png` y `07-late-game.png`: cámara isométrica consistente, siluetas legibles y paleta coherente, con materiales e iluminación más simples que el acabado de diorama de AoE2 DE. |
+| 10 | Audio / juice | 4.0 | `04-combate.png` y `08-asedio.png`: se observan barras de vida y algunas trazas/disparos durante el combate, pero no hay partículas de impacto, humo, polvo, cadáveres ni reacción visual de peso claramente apreciables en las capturas. |
+
+**Promedio:** 5.20 · **Mínima:** 4.0 · **Dimensiones < 7:** 10
+
+**Veredicto — SORPRENDIDO: NO**
+La propuesta es funcional y legible en lo básico, pero no alcanza el nivel de detalle, peso y densidad de Age of Empires II: Definitive Edition en ninguna dimensión evaluada.
+
+## Top 7 brechas
+1. Combate sin impacto ni resolución legible — `04-combate.png`, `08-asedio.png` (dim. 2, 10) — impide entender claramente bajas, ventaja táctica y peso del enfrentamiento.
+2. Feedback visual/juice insuficiente en acciones y golpes — `04-combate.png`, `07-late-game.png` (dim. 10) — hace que las interacciones se sientan planas y poco satisfactorias.
+3. Economía sin ciclo denso y continuo de aldeanos — `03-economia.png`, `03c-nodo-agotado.png` (dim. 1) — reduce la sensación de base viva y de gestión económica activa.
+4. Progresión tecnológica y de edades poco expresiva en el mundo — `09-research.png`, `09b-avance-era.png`, `07-late-game.png` (dim. 5) — el avance no se percibe como un salto de época claro para el jugador.
+5. Densidad y variedad ambiental limitadas — `02-arranque.png`, `03b-nodos.png`, `07-late-game.png` (dim. 6) — el mapa se siente menos habitado y con menor identidad por zonas.
+6. IA enemiga con intención estratégica poco concluyente — `04-combate.png`, `07-late-game.png` (dim. 7) — no se percibe un plan o presión rival tan creíble como en AoE2.
+7. HUD con anclajes presentes pero poco informativo y acabado — `06-ui.png`, `06b-unidades.png`, `03-economia.png` (dim. 8) — dificulta leer rápidamente acciones, estado y contexto de la selección.
+
+## 5 cambios para el próximo ciclo
+1. Incorporar efectos visibles de proyectil, impacto y baja (destellos, marcas, humo/despojos) en los choques — dimensiones 2, 10 (`04-combate.png`, `08-asedio.png`) — efecto esperado: combates más legibles y con sensación de peso.
+2. Representar con claridad el flujo de trabajo de aldeanos (recolección, carga, entrega y retorno) con mayor cantidad y variedad de tareas — dimensión 1 (`03-economia.png`, `03b-nodos.png`) — efecto esperado: economía viva y comprensible de un vistazo.
+3. Aumentar la densidad y diversidad del mapa con clusters naturales, vegetación, recursos y detalles que definan zonas — dimensión 6 (`02-arranque.png`, `03b-nodos.png`, `07-late-game.png`) — efecto esperado: escenarios más habitados y con lectura de diorama.
+4. Hacer el avance de era/investigación más evidente mediante cambios visuales notorios y estados de progreso destacados — dimensión 5 (`09-research.png`, `09b-avance-era.png`, `07-late-game.png`) — efecto esperado: progresión tecnológica inmediatamente reconocible.
+5. Enriquecer paneles de selección y tarjeta de comandos con información de estado, costos y contexto más explícitos — dimensión 8 (`06-ui.png`, `06b-unidades.png`) — efecto esperado: mejor comprensión y control de unidades/acciones.
+
+## Riesgos / notas
+- La dimensión 10 (audio/juice) se evaluó únicamente por feedback visual observable en capturas fijas, sin evidencia de sonido.
+- La intención y coordinación de la IA (dim. 7) se infiere de forma limitada a partir de posiciones y composiciones estáticas en `04-combate.png`, `07-late-game.png` y `08-asedio.png`.
+- Algunos detalles de UI, bordes de niebla y efectos pequeños pueden estar limitados por la resolución/escala de las capturas proporcionadas.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
