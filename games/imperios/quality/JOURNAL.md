@@ -788,6 +788,60 @@ truncado y el halo/bloom siguen lejos del estándar AoE2 DE.
 
 ---
 
+# Juez ciego · ciclo-18-hud-legibilidad-combate-nodex · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-18-hud-legibilidad-combate-nodex/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** command card a 2 columnas con panel más
+ancho y wrap por palabra (adiós a los cortes a mitad de palabra), panel de selección con
+contexto (rol, contadores del tech de unidad, unidades que produce el edificio), etiquetas
+de nodo más chicas/sobrias (ya no compiten con la acción) y menos FX aditivo de depósito
+(se quitó el flash que bloomía sobre el ayuntamiento). El combate se lee mejor porque el
+glow bajó y los bandos quedan separados por color.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC legible (techo y huella reconocibles), cluster de ingenieros con anillos, granjas con trigo y etiquetas "70"/"170", caminos de tierra y árboles. Persiste algo de brillo/chispas de depósito sobre el TC y los trabajadores siguen leyéndose como blob. |
+| 2 | Combate / counters / proyectiles | 6.0 | `04-combate.png`: bandos claramente separados por color (azul vs rojo) con barras de vida; menos glow que antes. `08-asedio.png`: trazadoras y destellos de impacto convergiendo sobre los edificios. En la melé grande los proyectiles son tenues y las unidades se superponen. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: zonas oscuras no exploradas, memoria en penumbra con siluetas enemigas y terreno visible nítido; minimapa coherente. Transición más simple que AoE2. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con orientación y separación pareja; `07-late-game.png`: frentes agrupados sin apelotonamiento extremo. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada al 39% con "28s restantes", doble lectura (banner + panel) y "Produce: Ingeniero" en contexto; `09-research.png`: investigación teal al 81%. Legibilidad de progreso a la par o mejor que el HUD clásico de AoE2. |
+| 6 | Contenido y densidad | 6.5 | `07-late-game.png`: mapa poblado con base, tropas y recursos; etiquetas de nodo ahora sobrias ("250" en cajas oscuras pequeñas) que no distraen. Persisten zonas abiertas. |
+| 7 | IA legítima | 6.0 | `07-late-game.png`/`08-asedio.png`: fuerzas enemigas con dirección y estructuras rivales; en stills no se confirma una base enemiga completa con producción y defensas. |
+| 8 | HUD / UX AoE2 | 6.5 | `06b-unidades.png`: panel de acciones con posturas "Agresiva/Defensiva/Mantener/No atacar" **sin truncar**, con aro de estado activo (lectura a la par de AoE2). `06-ui.png`: command card a 2 columnas legible, costos con iconos, y panel de selección con contexto (rol/produce). Nombres de tech largos aún se abrevian ("Producción…", "Inteligenc…") y el texto de ayuda se recorta. |
+| 9 | Art direction / diorama isométrico | 6.0 | `01-menu.png`: identidad propia; `02-arranque.png`/`07-late-game.png`: cámara isométrica y paleta coherentes. El halo blanco bajó pero siguen materiales/luz más simples que AoE2 DE. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello, humo/polvo y trazadoras; `04-combate.png`: escena más limpia pero sin feedback de golpe por unidad. Sin audio observable. |
+
+**Promedio:** 6.30 · **Mínima:** 6.0 · **Dimensiones < 7:** 9
+
+**Veredicto — SORPRENDIDO: NO**
+Sube HUD (posturas/nombres legibles) y combate (bandos separados, etiquetas de nodo sobrias),
+pero economía, combate fino, IA y acabado de diorama siguen por debajo de AoE2 DE.
+
+## Top 7 brechas
+1. Combate en melé grande: unidades se superponen y los proyectiles/impactos apenas se leen — `04-combate.png` — no se distingue el resultado del choque.
+2. Economía sin lectura por unidad (carga y ciclo) y con brillo residual sobre el TC — `03-economia.png` — no se siente base viva.
+3. Nombres de tecnologías abreviados y texto de ayuda recortado en el command card — `06-ui.png` — resta acabado al HUD.
+4. IA sin base enemiga completa (producción + defensas) legible — `07-late-game.png` — el rival no se lee como oponente articulado.
+5. Densidad irregular: zonas abiertas y terreno plano — `02-arranque.png`, `07-late-game.png` — menos "habitado" que AoE2.
+6. Materiales/luz de prototipo (techo del renderer 3D) — `02-arranque.png`, `07-late-game.png` — lejos del diorama AoE2 DE.
+7. Niebla con transición simple (sin memoria de edificios tan rica) — `05-fog.png` — por debajo del referente.
+
+## 5 cambios para el próximo ciclo
+1. Legibilidad de combate fino: separar siluetas en la melé y hacer proyectiles/impactos visibles por unidad — Dim 2,10.
+2. Economía por unidad: carga y ruta nodo→depósito visibles y sin glow sobre el TC — Dim 1.
+3. HUD: nombres de tech completos (o tooltip claro) y sin texto recortado — Dim 8.
+4. IA: base enemiga con producción/defensas y oleadas con dirección legible — Dim 7.
+5. Densidad/variación: rellenar vacíos con props temáticos y definir zonas — Dim 6.
+
+## Riesgos / notas
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+- La niebla se describió como gris claro por un lector; el contraste de explorada ya se oscureció, conviene validarlo con más tomas.
+- El "glow" restante sobre el TC se redujo (sin flash aditivo de depósito) pero aún aparece con muchas entregas simultáneas; podría interpretarse como feedback de economía activa.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
