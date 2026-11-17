@@ -17,6 +17,8 @@ const ARRIVE = 0.35
 const HOME_SETTLE = 0.5
 /** Gatherers stand this close to the node they are working. */
 const GATHER_RANGE = 2.6
+/** Delivered loads may be dropped off from this far from a building's edge. */
+const DROPOFF_EDGE_RANGE = 1.5
 /**
  * Tolerance for every range comparison. The approach helpers clamp the last
  * step exactly onto the stop distance, so without it a unit sits on the edge
@@ -386,14 +388,17 @@ function rangeTo(x: number, z: number, t: AnyEntity): number {
 }
 
 /**
- * Walks toward a point: A* + followPath when it is far, a direct clamped step
+ * Walks toward a point: A* + followPath when it is far, a direct step
  * when it is close (so gathering/building approach stays frame-tight).
+ * For building targets the stop distance is measured from the footprint
+ * edge; a full step that overshoots the boundary used to get rejected
+ * outright, leaving units pinned on the blocked cell strip forever.
  */
-function moveTo(gs: GameState, e: UnitEntity, tx: number, tz: number, speed: number, dt: number, stopDist = 0): void {
+function moveTo(gs: GameState, e: UnitEntity, tx: number, tz: number, speed: number, dt: number, stopDist = 0, edgeOf?: AnyEntity): void {
   const homeTarget = e.home != null && Math.abs(tx - e.home.x) < 0.05 && Math.abs(tz - e.home.z) < 0.05
   const goalX = homeTarget ? e.home!.x : tx
   const goalZ = homeTarget ? e.home!.z : tz
-  const d = dist(e.x, e.z, goalX, goalZ)
+  const d = edgeOf && edgeOf.kind === 'building' ? rangeTo(e.x, e.z, edgeOf) : dist(e.x, e.z, goalX, goalZ)
   if (d <= stopDist + RANGE_EPS) { e.path = []; return }
   if (d > stopDist + DIRECT_RANGE) {
     const last = e.path.length > 0 ? e.path[e.path.length - 1] : null
@@ -407,8 +412,14 @@ function moveTo(gs: GameState, e: UnitEntity, tx: number, tz: number, speed: num
   e.path = []
   const sp = Math.min(speed, (d - stopDist) / Math.max(dt, 1e-6))
   const p = moveToward(e.x, e.z, goalX, goalZ, sp, dt)
-  // never walk into a building while closing in
-  if (!isHardBlocked(gs, p.x, p.z)) { e.x = p.x; e.z = p.z }
+  // A direct step into a building footprint must slide along it (and then route
+  // around it) instead of being dropped: otherwise a unit approaching a corner
+  // stays pinned outside the building forever, e.g. when delivering a load.
+  if (!isHardBlocked(gs, p.x, p.z)) { e.x = p.x; e.z = p.z; return }
+  if (!isHardBlocked(gs, p.x, e.z)) { e.x = p.x; return }
+  if (!isHardBlocked(gs, e.x, p.z)) { e.z = p.z; return }
+  const around = findPath(gs, e.x, e.z, goalX, goalZ)
+  if (around.length > 0) { e.path = around; followPath(gs, e, speed, dt) }
 }
 
 /** Nearest friendly site still under construction, at any distance. */
@@ -458,12 +469,14 @@ function deliverLoad(gs: GameState, e: UnitEntity, dt: number): boolean {
   const drop = cached && !cached.dead && cached.kind === 'building'
     ? cached as BuildingEntity
     : findNearestDropoff(gs, e.team, e.x, e.z)
-  if (!drop) { e.dropoffTargetId = undefined; return false }
+  if (!drop) { e.dropoffTargetId = undefined; e.state = 'idle'; return false }
   e.dropoffTargetId = drop.id
   e.state = 'return'
-  const d = dist(e.x, e.z, drop.x, drop.z)
-  if (d > approachRange(drop) + RANGE_EPS) {
-    moveTo(gs, e, drop.x, drop.z, unitSpeed(gs, e), dt, approachRange(drop))
+  // Buildings block whole nav cells past their footprint edge, so the
+  // deposit range is measured from that edge, not from the centre.
+  const d = rangeTo(e.x, e.z, drop)
+  if (d > DROPOFF_EDGE_RANGE + RANGE_EPS) {
+    moveTo(gs, e, drop.x, drop.z, unitSpeed(gs, e), dt, DROPOFF_EDGE_RANGE, drop)
     return true
   }
   e.path = []
@@ -471,7 +484,7 @@ function deliverLoad(gs: GameState, e: UnitEntity, dt: number): boolean {
   const resource = dominantResource(e.carrying)
   for (const [k, v] of Object.entries(e.carrying)) (gs.players[e.team].resources as any)[k] += v as number
   emit(gs, { kind: 'deposit', team: e.team, dropoffId: drop.id, x: drop.x, z: drop.z, amount, resource })
-  e.carrying = {}; e.carryAmount = 0; e.dropoffTargetId = undefined
+  e.carrying = {}; e.carryAmount = 0; e.dropoffTargetId = undefined; e.state = 'gather'
   return false
 }
 
@@ -488,7 +501,8 @@ function stepEngineer(gs: GameState, e: UnitEntity, dt: number): void {
   const moving = e.state === 'move' && e.path.length > 0
   if (!moving && e.carryAmount > 1e-6 && (e.carryAmount >= carryMax - 1e-6 || !nodeUsable)) {
     if (!nodeUsable) e.gatherTargetId = undefined
-    if (!deliverLoad(gs, e, dt)) e.state = 'idle'
+    const inTransit = deliverLoad(gs, e, dt)
+    if (!inTransit) e.state = e.gatherTargetId != null || nodeUsable ? 'gather' : 'idle'
     return
   }
 
