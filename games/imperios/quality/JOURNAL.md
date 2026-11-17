@@ -1008,6 +1008,63 @@ estándar. Promedio estancado en ~6.25.
 
 ---
 
+# Juez ciego · ciclo-22-props-culling-unidades · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-22-props-culling-unidades/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** diagnóstico de fase 4. Se probó la
+cámara ortográfica **con `frustumCulled = false` en los 8 `InstancedMesh`** (hipótesis: su
+bounding sphere está en el origen y el culling los hacía desaparecer). **No alcanzó**: con
+ortográfica **siguen desapareciendo los props instanciados y el render queda lavado/borroso**,
+así que el culling **no** era (la única) causa. Se concluyó que la ortográfica necesita trabajo
+de renderer más profundo y se **revirtió a perspectiva**. Sí se conservó un arreglo real:
+`frustumCulled = false` en `InstancedMesh` (evita que capas de props desaparezcan cuando su
+origen sale del frustum). Además las unidades ahora se dibujan ~12% más grandes para leer
+mejor la silueta a zoom de juego.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC, viviendas, caminos, granjas y etiquetas; cluster de ingenieros. Sin lectura por unidad. |
+| 2 | Combate / counters / proyectiles | 6.0 | `08-asedio.png`: melé con destellos de impacto; `04-combate.png`: unidades algo más grandes pero aún se leen como aglomeración y las trazadoras son tenues. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: desconocido oscuro, memoria en penumbra, visible nítido; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: árboles, rocas, arbustos y cajas visibles alrededor de la base; el lector estima ~20-30% de la densidad de un arranque AoE2. |
+| 7 | IA legítima | 5.5 | `07-late-game.png`: tropas rojas dispersas; base enemiga con producción/defensas aún no legible en el encuadre. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible, posturas sin truncar; techs abreviadas y ayuda recortada. |
+| 9 | Art direction / diorama isométrico | 6.0 | `02-arranque.png`/`07-late-game.png`: cámara y paleta coherentes; render blando/bajo contraste y materiales simples vs AoE2 DE. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello; sin feedback de golpe por unidad. Sin audio. |
+
+**Promedio:** 6.25 · **Mínima:** 5.5 · **Dimensiones < 7:** 9
+
+**Veredicto — SORPRENDIDO: NO**
+La fase 4 ortográfica sigue sin ser viable (props desaparecen aunque se desactive el culling);
+se revirtió. Se conservó un fix de culling y unidades algo más grandes. Promedio ~6.25.
+
+## Top 7 brechas
+1. Fase 4: con ortográfica desaparecen los `InstancedMesh` (props) y lava el render — `03-economia.png` — requiere diagnóstico de renderer más profundo.
+2. Base enemiga no legible — `07-late-game.png` — dim 7.
+3. Melé densa sin lectura por unidad ni trazadoras claras — `04/08` — dim 2,10.
+4. Densidad aún muy por debajo de AoE2 — `02-arranque.png` — dim 6.
+5. Economía sin lectura de carga/ruta por unidad — dim 1.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Materiales/luz de prototipo — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. **Fase 4: aislar por qué los `InstancedMesh` no se dibujan en ortho** con una escena mínima (un InstancedMesh + ground, ortho vs perspective) antes de tocar el juego — Dim 9.
+2. Base enemiga legible en encuadre dedicado — Dim 7.
+3. Melé legible por unidad + trazadoras — Dim 2,10.
+4. Densidad/variación — Dim 6.
+5. HUD sin abreviaturas/recortes — Dim 8.
+
+## Riesgos / notas
+- Fase 4 suma **dos ciclos fallidos** (21 y 22). No reintentar la cámara en el juego sin un repro mínimo aislado: la hipótesis del culling quedó **descartada**.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+- Promedio del loop: 22 ciclos, estancado ~6.2-6.4.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
