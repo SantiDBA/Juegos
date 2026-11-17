@@ -319,7 +319,7 @@ const SCENARIOS = [
         cx = tx * 0.45 + f1.x * 0.55
         cz = tz * 0.45 + f1.z * 0.55
       }
-      g.camera(cx, cz, 54)
+      g.camera(cx, cz, 44)
       g.state.status = 'paused'
 
       const all = engs()
@@ -344,7 +344,7 @@ const SCENARIOS = [
       }
       if (!node) return 'no-node'
       globalThis.__lastNodeId = node.id
-      g.camera(node.x, node.z, 60)
+      g.camera(node.x, node.z, 50)
       g.select([node.id])
       g.gatherNode(node.id, 8)
       return 'ok node=' + node.id
@@ -365,7 +365,7 @@ const SCENARIOS = [
         if (e && e.id === id) {
           e.amount = 10
           amount = e.amount
-          g.camera(e.x, e.z, 55)
+          g.camera(e.x, e.z, 46)
           g.select([id])
           break
         }
@@ -392,7 +392,7 @@ const SCENARIOS = [
       const r = g.research('motor')
       // avanzar lo suficiente para que la barra muestre progreso claro sin completar
       if (r === 'ok') g.skip(6)
-      g.camera(-48, 0, 52)
+      g.camera(-48, 0, 46)
       g.state.status = 'paused'
       return r === 'ok' ? 'ok' : 'research:' + r
     })()`,
@@ -476,8 +476,8 @@ const SCENARIOS = [
         for (const e of liveFront()) { lx += e.x; lz += e.z; ln++ }
         if (ln > 0) { cx = (cx / n) * 0.65 + (lx / ln) * 0.35; cz = (cz / n) * 0.65 + (lz / ln) * 0.35; n = 1 }
       }
-      if (n > 0) g.camera(cx / n, cz / n, 52)
-      else g.camera(0, 25, 52)
+      if (n > 0) g.camera(cx / n, cz / n, 42)
+      else g.camera(0, 25, 42)
 
       return 'ok dead=' + deadUnits().length
     })()`,
@@ -496,7 +496,7 @@ const SCENARIOS = [
       g.state.visionRevealed.player = false
       g.fog()
       // Encuadrar la base enemiga en zona de memoria (no visible ahora).
-      g.camera(55, 0, 62)
+      g.camera(55, 0, 54)
       return 'ok'
     })()`,
     settleMs: SETTLE_MS,
@@ -587,7 +587,7 @@ const SCENARIOS = [
       g.reveal('player')
 
       // encuadre amplio inicial para ver base, refuerzos en ruta y frente
-      g.camera(12, 6, 110)
+      g.camera(12, 6, 96)
       g.skip(5.5)
       // reencuadre dinámico: mantener visible base enemiga activa + ruta + choque
       let cx = 8, cz = 4, n = 0
@@ -596,7 +596,7 @@ const SCENARIOS = [
         if (e.x < -30 || e.x > 42 || Math.abs(e.z - 6) > 32) continue
         cx += e.x; cz += e.z; n++
       }
-      g.camera(28, 4, 100)
+      g.camera(34, 4, 82)
 
       // más tiempo de combate para bajas/huellas claras + pausa en momento activo
       g.skip(3.6)
@@ -613,7 +613,7 @@ const SCENARIOS = [
     js: `(() => {
       const g = window.__imperios
       g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
-      g.camera(-42, 12)
+      g.camera(-42, 12, 48)
       // asegurar margen de población tras escenarios previos con muchas unidades
       g.build('player', 'vivienda', -60, 30, true)
       g.build('player', 'vivienda', -60, 34, true)
@@ -653,7 +653,7 @@ const SCENARIOS = [
       if (squad.length < 3) return 'moved:0/' + squad.length
       const n = g.moveFormation(squad, -35, 12, 'line')
       g.skip(8)              // avanzar y asentarse para que filas/frente queden regulares
-      g.camera(-35, 12, 46)  // reencuadre al destino/formación
+      g.camera(-35, 12, 40)  // reencuadre al destino/formación
       g.state.status = 'paused'
       return n >= 3 ? 'ok' : 'moved:' + n + '/' + squad.length
     })()`,
@@ -737,8 +737,8 @@ const SCENARIOS = [
         if (e.x < 32 || e.x > 58 || e.z < -18 || e.z > 22) continue
         cx += e.x; cz += e.z; n++
       }
-      if (n > 0) g.camera(cx / n, cz / n, 56)
-      else g.camera(47, 2, 56)
+      if (n > 0) g.camera(cx / n, cz / n, 48)
+      else g.camera(47, 2, 48)
       g.fog()
 
       // acumular más huellas y pausar en ráfaga reciente (trazadoras/impactos visibles)
