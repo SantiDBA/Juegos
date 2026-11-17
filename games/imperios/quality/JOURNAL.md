@@ -729,6 +729,65 @@ La propuesta es funcional y legible en lo básico, pero no alcanza el nivel de d
 
 ---
 
+# Juez ciego · ciclo-17-combate-economia-densidad-progreso · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-17-combate-economia-densidad-progreso/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** se detectó y corrigió un bug serio
+del *harness* de capturas que llevaba varios ciclos degradando la medición: varios escenarios
+fijaban `g.state.status = 'paused'` para el still, pero el sim sólo avanza si el estado es
+`'playing'`, así que **todos los escenarios posteriores ejecutaban `g.skip()` como no-op**
+(por eso las barras de era/investigación mostraban 0% y el combate nunca simulaba). Además
+el tope de población (18) recortaba silenciosamente los `spawn` de combate/economía. Se
+re-arma el sim al inicio de cada escenario y se elevan viviendas para el tope. Impactos:
+barras de progreso reales, ejércitos completos, late-game denso. También se domó el glow
+aditivo (beacon/cap del ayuntamiento, FX de depósito/impacto) y el bloom, y se mejoró el
+contraste de la niebla explorada.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: base central legible con TC, viviendas, caminos de tierra, granjas con trigo y lotes marcados; cluster de ~10+ ingenieros junto al TC; recursos con números de rendimiento. No se distingue a zoom de juego qué carga cada trabajador ni se lee el ciclo por unidad como en AoE2. |
+| 2 | Combate / counters / proyectiles | 5.5 | `04-combate.png`: ~25-35 unidades trabadas en contacto (blob azul dominante con algunos rojos); `08-asedio.png`: base enemiga con torres y línea de unidades en marcha. Los proyectiles/estelas e impactos **no** se distinguen con claridad en el still; sin cadáveres ni cráteres legibles. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: zonas no exploradas oscuras, memoria en penumbra y terreno visible nítido; el minimapa refleja lo revelado. El contraste mejoró, pero un lector aún describió el fondo como gris claro y la transición como simple frente a AoE2. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con orientación y separación pareja; `07-late-game.png`: frentes y oleadas agrupadas sin apelotonamiento extremo. Sin variedad de formaciones por rol. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada claramente al 39% con "28s restantes" y doble lectura (banner + panel); `09-research.png`: investigación teal al 81%; `07-late-game.png` con siluetas/materiales de era 4 vs `02-arranque.png`. El salto de era se expresa mejor que antes. |
+| 6 | Contenido y densidad | 6.5 | `07-late-game.png`: mapa muy denso (edificios, bosques, rocas, nodos con etiquetas) y ejércitos; `02-arranque.png`/`03b-nodos.png`: clusters de recursos y vegetación con menos huecos, aunque persisten zonas planas. |
+| 7 | IA legítima | 6.0 | `07-late-game.png` y `08-asedio.png`: base enemiga con producción/defensas y unidades en marcha hacia el frente; se intuye presión. En stills no se confirma un plan sostenido ni economía rival articulada. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: top bar con recursos/población/era, minimapa, panel de selección y command card con costos; barra de progreso de era/investigación prominente. Etiquetas truncadas ("Ingenier", "Balistic", "Manten Camb...") restan acabado. |
+| 9 | Art direction / diorama isométrico | 6.0 | `01-menu.png`: identidad propia; `02-arranque.png`/`07-late-game.png`: cámara isométrica y paleta coherentes. Persiste un halo/bloom blanco en bordes y a veces detrás del TC, y materiales/luz más simples que AoE2 DE. |
+| 10 | Audio / juice | 5.5 | `08-asedio.png`: impactos con destello, humo/polvo y choque de líneas; `04-combate.png`: masa de unidades sin feedback de golpe legible por unidad. Feedback mejoró pero sigue sin peso AoE2 y sin audio observable. |
+
+**Promedio:** 6.20 · **Mínima:** 5.5 · **Dimensiones < 7:** 9
+
+**Veredicto — SORPRENDIDO: NO**
+El ciclo arregla la medición y sube economía, edades y densidad, pero combate/juice, HUD
+truncado y el halo/bloom siguen lejos del estándar AoE2 DE.
+
+## Top 7 brechas
+1. Combate poco legible: la masa de unidades se lee como blob y no se distinguen proyectiles/impactos/bajas — `04-combate.png` — no se entiende quién gana ni por qué.
+2. Halo/bloom blanco lavando bordes y a veces el TC/la acción — `03-economia.png`, `08-asedio.png` — rompe la lectura y baja el acabado.
+3. Economía sin lectura por unidad (estado de carga y ciclo nodo→depósito→vuelta) — `03-economia.png` — no se siente base viva tipo AoE2.
+4. Etiquetas de nodos grandes/brillantes ("250") que compiten con la acción — `08-asedio.png`, `03b-nodos.png` — ruido visual.
+5. HUD con etiquetas truncadas ("Ingenier", "Balistic", "Manten Camb...") — `06-ui.png` — resta jerarquía y acabado.
+6. IA sin intención/plan claramente legible en stills — `07-late-game.png` — el rival no se lee como oponente articulado.
+7. Materiales/luz aún de prototipo (techo del renderer 3D) — `02-arranque.png`, `07-late-game.png` — lejos del diorama AoE2 DE.
+
+## 5 cambios para el próximo ciclo
+1. Afinar más el bloom y el brillo/tamaño de etiquetas de nodos para no lavar la escena — Dim 9,8 — mundo más limpio y legible.
+2. Hacer el combate legible: siluetas separadas, proyectiles/estelas e impactos visibles por unidad y bajas persistentes — Dim 2,10 — choques entendibles y con peso.
+3. Lectura de economía por unidad: carga y ruta nodo→depósito visibles a zoom de juego — Dim 1 — base viva de un vistazo.
+4. HUD sin truncados, con atajos y cola/progreso más ricos — Dim 8 — control y comprensión mejores.
+5. IA con base enemiga productiva, refuerzos y oleadas con dirección legible — Dim 7 — presión rival creíble.
+
+## Riesgos / notas
+- Dim 10 se evalúa solo por feedback visual observable; no hay audio.
+- Un lector describió la niebla como gris claro; el contraste se mejoró (explorada más oscura) pero conviene re-verificar en próximos ciclos.
+- Parte del "glow" percibido puede ser interpretación del modelo sobre terreno fuertemente soleado; se redujo bloom, beacon/cap aditivo y FX de depósito/impacto.
+- El *harness* corregido cambia la medición respecto de ciclos 14-16: los promedios entre esos ciclos y este no son estrictamente comparables (antes el sim no corría en varios escenarios).
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
