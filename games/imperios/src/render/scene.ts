@@ -592,7 +592,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   }
 
   const ghostMaterial = new THREE.MeshBasicMaterial({
-    color: 0x93a4b4, transparent: true, opacity: 0.42, depthWrite: false,
+    color: 0xc8d8ea, transparent: true, opacity: 0.72, depthWrite: false, depthTest: false,
   })
 
   let composer: EffectComposer | null = null
@@ -1682,16 +1682,21 @@ function applyGhost(rc: RenderContext, obj: THREE.Object3D, ghost: boolean): voi
   obj.traverse((c) => {
     const mesh = c as THREE.Mesh
     if (!mesh.isMesh) return
-    if (mesh.name === 'dropoff') return
+    if (mesh.name.startsWith('dropoff')) return
     const ud = mesh.userData
     if (ghost) {
       if (!ud.origMaterial) {
         ud.origMaterial = mesh.material
+        ud.origRenderOrder = mesh.renderOrder
         mesh.material = rc.ghostMaterial
       }
+      // draw above the fog memory veil (overlay renderOrder 100, depthTest off)
+      mesh.renderOrder = 110
     } else if (ud.origMaterial) {
       mesh.material = ud.origMaterial
+      mesh.renderOrder = ud.origRenderOrder ?? 0
       ud.origMaterial = undefined
+      ud.origRenderOrder = undefined
     }
   })
 }

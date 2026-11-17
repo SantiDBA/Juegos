@@ -277,11 +277,19 @@ const SCENARIOS = [
       const g = window.__imperios
       const id = globalThis.__lastNodeId
       if (!id) return 'missing-node'
-      g.skip(20)
       const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
       let amount = -1
-      for (const e of iter) { if (e && e.id === id) { amount = e.amount; g.camera(e.x, e.z, 55); g.select([id]); break } }
+      for (const e of iter) {
+        if (e && e.id === id) {
+          e.amount = 10
+          amount = e.amount
+          g.camera(e.x, e.z, 55)
+          g.select([id])
+          break
+        }
+      }
       if (amount < 0) return 'node-gone'
+      g.skip(1)
       return 'ok amount=' + Math.floor(amount)
     })()`,
     settleMs: SETTLE_MS,
@@ -324,24 +332,44 @@ const SCENARIOS = [
   },
   {
     id: '04-combate',
-    title: 'Combate: choque de milicias + línea de fusileros enemigos a distancia',
+    title: 'Combate: choque frontal de milicias y fusileros a corta distancia con bajas',
     js: `(() => {
       const g = window.__imperios
-      g.spawn('player', 'milicia', 12, -35, 25)
-      g.spawn('player', 'fusilero', 5, -37, 29)
-      g.spawn('enemy', 'milicia', 10, -31, 25)
-      g.spawn('enemy', 'fusilero', 7, -29, 29)
-      g.skip(1.5)
-      // centrar en el choque real en pleno intercambio (trazadoras/impactos visibles)
+      // Fuerzas enfrentadas a 4-6 tiles: contacto/melee inmediato y fusileros ya en rango
+      g.spawn('player', 'milicia', 12, -2, 25)
+      g.spawn('player', 'fusilero', 4, -4, 25)
+      g.spawn('enemy', 'milicia', 12,  2, 25)
+      g.spawn('enemy', 'fusilero', 4,  4, 25)
+
+      const entities = () => typeof g.state.entities.values === 'function'
+        ? [...g.state.entities.values()]
+        : Object.values(g.state.entities)
+      const deadCount = () => entities().filter(e => e && e.dead && e.kind === 'unit').length
+
+      // Avanzar simulación hasta choque real y al menos 2 bajas (cap de seguridad)
+      let dead = 0
+      for (let i = 0; i < 12 && dead < 2; i++) {
+        g.skip(0.5)
+        dead = deadCount()
+      }
+
+      // Centrar cámara en bajas visibles; si aún no hay, en el frente vivo del choque
       let cx = 0, cz = 0, n = 0
-      for (const e of g.state.entities.values()) {
-        if (e.dead || e.kind !== 'unit') continue
-        if (e.utype !== 'milicia' && e.utype !== 'fusilero') continue
-        if (Math.abs(e.x + 33) > 18 || Math.abs(e.z - 27) > 18) continue
+      for (const e of entities()) {
+        if (!e || e.kind !== 'unit' || !e.dead) continue
+        if (Math.abs(e.x) > 20 || Math.abs(e.z - 25) > 20) continue
         cx += e.x; cz += e.z; n++
       }
-      if (n > 0) g.camera(cx / n, cz / n, 50)
-      g.skip(1.8)
+      if (n === 0) {
+        for (const e of entities()) {
+          if (!e || e.kind !== 'unit' || e.dead) continue
+          if (Math.abs(e.x) > 20 || Math.abs(e.z - 25) > 20) continue
+          cx += e.x; cz += e.z; n++
+        }
+      }
+      if (n > 0) g.camera(cx / n, cz / n, 45)
+      else g.camera(0, 25, 45)
+
       g.state.status = 'paused'
       return 'ok'
     })()`,
@@ -349,8 +377,19 @@ const SCENARIOS = [
   },
   {
     id: '05-fog',
-    title: 'Niebla / exploración en era 3',
-    js: `(() => { const g = window.__imperios; g.setEra(3); g.camera(-42, 6, 68); g.skip(2); g.fog(); return 'ok' })()`,
+    title: 'Niebla / exploración en era 3: siluetas recordadas de edificios enemigos',
+    js: `(() => {
+      const g = window.__imperios
+      g.setEra(3)
+      // Marcar edificios enemigos como conocidos y luego cerrar la niebla:
+      // quedan fuera de visión actual pero en memoria (explorados) => ghosts.
+      g.reveal('player')
+      g.state.visionRevealed.player = false
+      g.fog()
+      // Encuadrar la base enemiga en zona de memoria (no visible ahora).
+      g.camera(55, 0, 62)
+      return 'ok'
+    })()`,
     settleMs: SETTLE_MS,
   },
   {
