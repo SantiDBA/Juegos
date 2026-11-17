@@ -216,19 +216,24 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
    as the production bars inside panels. Hidden unless something is running. */
 .prog-wrap {
   position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
-  width: 420px; padding: 7px 10px 8px;
-  background: linear-gradient(180deg, rgba(16,22,32,0.96), rgba(10,14,20,0.92));
-  border: 1px solid rgba(180,210,255,0.3); border-radius: 10px;
+  width: 520px; padding: 8px 12px 9px;
+  background: linear-gradient(180deg, rgba(16,22,32,0.97), rgba(10,14,20,0.94));
+  border: 1px solid rgba(180,210,255,0.32); border-radius: 12px;
   backdrop-filter: blur(10px); display: none; pointer-events: none;
-  box-shadow: 0 10px 26px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .prog-wrap.show { display: block; }
-.prog-wrap .prod-bar { margin-top: 0; max-width: none; height: 9px; background: rgba(255,255,255,0.14); }
+.prog-wrap.is-era { border-color: rgba(255,210,110,0.55); box-shadow: 0 0 0 1px rgba(255,210,110,0.12) inset, 0 12px 30px rgba(0,0,0,0.45), 0 0 18px rgba(212,166,74,0.18); }
+.prog-wrap.is-research { border-color: rgba(120,240,220,0.45); box-shadow: 0 0 0 1px rgba(120,240,220,0.1) inset, 0 12px 30px rgba(0,0,0,0.45), 0 0 16px rgba(79,214,195,0.14); }
+.prog-wrap .prod-bar { margin-top: 0; max-width: none; height: 12px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.12); }
+.prog-wrap .prod-bar-fill { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 10px rgba(255,255,255,0.08); }
 .prog-label {
-  margin-top: 5px; font-size: 11.5px; letter-spacing: .02em; color: #eef5ff;
-  text-align: center; white-space: nowrap; font-weight: 700;
-  overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1px rgba(0,0,0,0.35);
+  margin-top: 6px; font-size: 12.5px; letter-spacing: .02em; color: #f4f9ff;
+  text-align: center; white-space: nowrap; font-weight: 800;
+  overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.45);
 }
+.prog-wrap.is-era .prog-label { color: #ffe7a8; }
+.prog-wrap.is-research .prog-label { color: #d9fff8; }
 .prod-bar-fill.era { background: linear-gradient(90deg, #d4a64a, #ffd783); }
 .prod-bar-fill.research { background: linear-gradient(90deg, #4fd6c3, #a8fff0); }
 
@@ -345,7 +350,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .sel-more { font-size: 11px; color: #b7c8dd; margin-top: 2px; }
 
 .toast { top: 74px; }
-.prog-wrap { top: 58px; width: 440px; }
+.prog-wrap { top: 58px; width: 520px; }
 
 .help { display: none !important; }
 .help-toggle {

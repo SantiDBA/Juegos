@@ -208,9 +208,14 @@ const SCENARIOS = [
   },
   {
     id: '03-economia',
-    title: 'Economía real: ingenieros recolectando, con carga y volviendo a depositar',
+    title: 'Economía real: ciclo denso de aldeanos (recolectando, cargando, entregando y volviendo)',
     js: `(() => {
       const g = window.__imperios
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
+      // Asegurar tope de población: el hook spawn() recorta al tope, así que sin viviendas
+      // los escenarios de combate/economía no llegan a desplegar su fuerza.
+      for (let bi = 0; bi < 6; bi++) { g.build('player', 'vivienda', -66, -26 + bi * 10, true); g.build('enemy', 'vivienda', 66, -26 + bi * 10, true) }
+      g.skip(0.05)
       const getIter = () => typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
       let tc = null
       const nodes = []
@@ -221,92 +226,107 @@ const SCENARIOS = [
       }
       const tx = tc ? tc.x : -55, tz = tc ? tc.z : 0
       nodes.sort((a, b) => ((a.x - tx) ** 2 + (a.z - tz) ** 2) - ((b.x - tx) ** 2 + (b.z - tz) ** 2))
-      const n1 = nodes[0] || null
-      const n2 = nodes[1] || n1
-      const n3 = nodes[2] || n2 || n1
-      const targets = [n1, n2, n3].filter((n, i, a) => n && a.indexOf(n) === i)
+      const pick = (pred) => nodes.find(n => pred(n)) || null
+      const nFood = pick(n => n.resource === 'suministros') || nodes[0] || null
+      const nWood = pick(n => n.resource === 'materiales' && n !== nFood) || nodes[1] || nodes[0] || null
+      const nMine = pick(n => (n.resource === 'minerales' || n.resource === 'combustible') && n !== nFood && n !== nWood) || nodes[2] || nodes[1] || nodes[0] || null
+      const targets = [nFood, nWood, nMine].filter((n, i, a) => n && a.indexOf(n) === i)
 
-      let assigned = 0
-      if (typeof g.assignEconomy === 'function') assigned = g.assignEconomy(10) || 0
+      // base de ingenieros iniciales en economía
+      if (typeof g.assignEconomy === 'function') g.assignEconomy(12)
 
-      // oleada temprana (2-3 nodos cercanos): acumula carga y vuelve hacia el dropoff
-      if (n1) { g.spawn('player', 'ingeniero', 3, tx + 2, tz + 1); if (typeof g.gatherNode === 'function') g.gatherNode(n1.id, 3) }
-      if (n2) { g.spawn('player', 'ingeniero', 2, tx + 2, tz - 1); if (typeof g.gatherNode === 'function') g.gatherNode(n2.id, 2) }
-      if (n3 && n3 !== n1) { g.spawn('player', 'ingeniero', 1, tx + 3, tz); if (typeof g.gatherNode === 'function') g.gatherNode(n3.id, 1) }
-      g.skip(18)
-
-      // oleada media: mezcla de ingenieros en camino (ida/retorno) durante el ciclo
-      if (n2) { g.spawn('player', 'ingeniero', 2, tx + 4, tz + 2); if (typeof g.gatherNode === 'function') g.gatherNode(n2.id, 2) }
-      if (n3 || n1) { const nm = n3 || n1; g.spawn('player', 'ingeniero', 2, tx + 4, tz - 2); if (typeof g.gatherNode === 'function') g.gatherNode(nm.id, 2) }
-      g.skip(8)
-
-      // oleada tardía: permanece recolectando en nodos al pausar
-      if (n1) { g.spawn('player', 'ingeniero', 2, tx + 5, tz + 1); if (typeof g.gatherNode === 'function') g.gatherNode(n1.id, 2) }
-      if (n2 || n3) { const nl = n2 || n3; g.spawn('player', 'ingeniero', 2, tx + 5, tz - 1); if (typeof g.gatherNode === 'function') g.gatherNode(nl.id, 2) }
-      if (n3 && n3 !== n1 && n3 !== n2) { g.spawn('player', 'ingeniero', 1, tx + 6, tz); if (typeof g.gatherNode === 'function') g.gatherNode(n3.id, 1) }
-      g.skip(5)
-
-      const countCarrying = () => {
-        let n = 0
-        for (const e of getIter()) if (e && !e.dead && e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && (e.carryAmount || 0) > 0.5) n++
-        return n
-      }
-      const countGathering = () => {
-        let n = 0
-        for (const e of getIter()) if (e && !e.dead && e.kind === 'unit' && e.team === 'player' && e.utype === 'ingeniero' && !((e.carryAmount || 0) > 0.5) && e.gatherTargetId) n++
-        return n
+      const send = (node, count, ox = 0, oz = 0) => {
+        if (!node || count <= 0) return
+        const ids = g.spawn('player', 'ingeniero', count, tx + 3 + ox, tz + oz) || []
+        if (typeof g.gatherNode === 'function' && ids.length) g.gatherNode(node.id, count)
       }
 
-      // asegurar mezcla mínima: >=5 con carga (retorno/cerca del dropoff) y >=3 recolectando
-      for (let i = 0; i < 8 && countCarrying() < 5; i++) g.skip(2)
-      for (let i = 0; i < 4 && countGathering() < 3; i++) {
-        const ng = targets[i % Math.max(1, targets.length)] || n1
-        if (ng) {
-          g.spawn('player', 'ingeniero', 2, ng.x + 0.6, ng.z + 0.4 + i * 0.25)
-          if (typeof g.gatherNode === 'function') g.gatherNode(ng.id, 2)
+      // 1) grupos en distintos nodos para que arranquen el ciclo
+      send(nFood, 4, 0, 2)
+      send(nWood, 4, 0, -2)
+      send(nMine, 3, 1, 0)
+      g.skip(14)
+
+      // 2) más trabajadores: algunos ya habrán entregado y vuelven; otros siguen en ruta
+      send(nWood, 3, 2, 3)
+      send(nFood, 3, 2, -3)
+      g.skip(7)
+
+      // 3) oleada fresca en nodos para asegurar recolectores activos en el instante de captura
+      send(nMine, 3, 3, 1)
+      send(nWood, 2, 3, -1)
+      send(nFood, 2, 4, 0)
+      g.skip(4)
+
+      const isCarrying = (e) => (e.carryAmount || 0) > 0.5
+      const isGathering = (e) => !isCarrying(e) && !!e.gatherTargetId
+      const isReturning = (e) => isCarrying(e) && !e.gatherTargetId
+      const engs = () => {
+        const out = []
+        for (const e of getIter()) {
+          if (!e || e.dead || e.kind !== 'unit' || e.team !== 'player' || e.utype !== 'ingeniero') continue
+          out.push(e)
+        }
+        return out
+      }
+
+      // refuerzo si faltan estados claros (retorno/carga y recolección simultáneos)
+      for (let i = 0; i < 6; i++) {
+        const list = engs()
+        const ret = list.filter(isReturning).length
+        const car = list.filter(isCarrying).length
+        const gat = list.filter(isGathering).length
+        if (car >= 6 && ret >= 3 && gat >= 5) break
+        if (gat < 5) {
+          const n = targets[i % Math.max(1, targets.length)] || nFood
+          if (n) send(n, 2, 4 + i * 0.3, (i % 2 ? 2 : -2))
         }
         g.skip(3)
       }
+      // empujar una tanda extra para que varios lleguen cargados cerca del TC
+      send(nFood, 2, 1, 4)
+      send(nWood, 2, 1, -4)
+      g.skip(5)
 
-      const carrying = []
-      const gathering = []
-      const others = []
-      for (const e of getIter()) {
-        if (!e || e.dead || e.kind !== 'unit' || e.team !== 'player' || e.utype !== 'ingeniero') continue
-        if ((e.carryAmount || 0) > 0.5) carrying.push(e)
-        else if (e.gatherTargetId) gathering.push(e)
-        else others.push(e)
+      const list = engs()
+      const returning = list.filter(isReturning)
+      const carrying = list.filter(e => isCarrying(e) && !isReturning(e))
+      const gathering = list.filter(isGathering)
+      const others = list.filter(e => !isCarrying(e) && !isGathering(e))
+
+      const nearTc = (a, b) => ((a.x - tx) ** 2 + (a.z - tz) ** 2) - ((b.x - tx) ** 2 + (b.z - tz) ** 2)
+      returning.sort(nearTc)
+      carrying.sort(nearTc)
+      gathering.sort(nearTc)
+
+      // selección representativa de las 3 fases del ciclo
+      const selected = [
+        ...returning.slice(0, 4),
+        ...carrying.slice(0, 2),
+        ...gathering.slice(0, 4),
+        ...others.slice(0, 2),
+      ]
+      if (selected.length) g.select(selected.map(e => e.id))
+
+      // encuadre: TC + ruta + nodos cercanos para ver salida, recolección y retorno
+      const f1 = nFood || nWood || nMine
+      const f2 = nWood || nFood || nMine
+      let cx = tx + 8, cz = tz
+      if (f1 && f2) {
+        cx = tx * 0.38 + f1.x * 0.34 + f2.x * 0.28
+        cz = tz * 0.38 + f1.z * 0.34 + f2.z * 0.28
+      } else if (f1) {
+        cx = tx * 0.45 + f1.x * 0.55
+        cz = tz * 0.45 + f1.z * 0.55
       }
+      g.camera(cx, cz, 54)
+      g.state.status = 'paused'
 
-      // priorizar retornando/cargados cerca del dropoff (TC señalizado) para legibilidad de cargas
-      carrying.sort((a, b) => {
-        const ar = !a.gatherTargetId ? 1 : 0, br = !b.gatherTargetId ? 1 : 0
-        if (ar !== br) return br - ar
-        const da = (a.x - tx) ** 2 + (a.z - tz) ** 2
-        const db = (b.x - tx) ** 2 + (b.z - tz) ** 2
-        return da - db
-      })
-      // mantener recolectores activos en nodos dentro del encuadre
-      gathering.sort((a, b) => ((a.x - tx) ** 2 + (a.z - tz) ** 2) - ((b.x - tx) ** 2 + (b.z - tz) ** 2))
-
-      const focus = [...carrying.slice(0, 6), ...gathering.slice(0, 4), ...others.slice(0, 2)]
-      let cx = tx + 7, cz = tz
-      if (focus.length > 0) {
-        cx = 0; cz = 0
-        for (const e of focus) { cx += e.x; cz += e.z }
-        cx /= focus.length; cz /= focus.length
-      }
-      if (n1) { cx = (cx + n1.x) / 2; cz = (cz + n1.z) / 2 }
-
-      // selección representativa que incluya cargados
-      const selected = [...carrying.slice(0, 4), ...gathering.slice(0, 2), ...others.slice(0, 2)]
-      if (selected.length > 0) g.select(selected.map(e => e.id))
-
-      // encuadre que incluye TC (dropoff), camino y nodos cercanos sin perder legibilidad de cargas
-      g.camera(tx * 0.45 + cx * 0.55, tz * 0.45 + cz * 0.55, 50)
-      g.state.status = 'paused' // congelar para que carga, retorno, camino y recolecta sean legibles en el still
-      const totalEng = carrying.length + gathering.length + others.length
-      return 'ok assigned=' + assigned + ' carrying=' + carrying.length + ' gathering=' + gathering.length + ' totalEng=' + totalEng
+      const all = engs()
+      const cRet = all.filter(isReturning).length
+      const cCar = all.filter(isCarrying).length
+      const cGat = all.filter(isGathering).length
+      return 'ok total=' + all.length + ' carrying=' + cCar + ' returning=' + cRet + ' gathering=' + cGat
     })()`,
     settleMs: 900,
   },
@@ -315,6 +335,7 @@ const SCENARIOS = [
     title: 'Nodos: cantidad restante visible al seleccionar un recurso',
     js: `(() => {
       const g = window.__imperios
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
       let node = null
       for (const e of g.state.entities.values()) {
         if (e.dead || e.kind !== 'resource' || e.amount <= 0) continue
@@ -335,6 +356,7 @@ const SCENARIOS = [
     title: 'Economía: el nodo baja de cantidad mientras los ingenieros recolectan',
     js: `(() => {
       const g = window.__imperios
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
       const id = globalThis.__lastNodeId
       if (!id) return 'missing-node'
       const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
@@ -356,10 +378,11 @@ const SCENARIOS = [
   },
   {
     id: '09-research',
-    title: 'Investigación en curso: barra visible con segundos y nombre de la tecnología',
+    title: 'Investigación en curso: barra de progreso prominente, nombre y tiempo restante visibles',
     js: `(() => {
       const g = window.__imperios
-      g.give(1500) // combustible for Motor de Combustión (350) in a real economy run
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
+      g.give(1500)
       g.setEra(3)
       const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
       let tc = null
@@ -367,86 +390,109 @@ const SCENARIOS = [
       if (tc == null) return 'no-tc'
       g.select([tc])
       const r = g.research('motor')
-      if (r === 'ok') g.skip(1.5) // progreso intermedio visible sin completar la investigación
-      g.camera(-48, 0, 62)
+      // avanzar lo suficiente para que la barra muestre progreso claro sin completar
+      if (r === 'ok') g.skip(6)
+      g.camera(-48, 0, 52)
+      g.state.status = 'paused'
       return r === 'ok' ? 'ok' : 'research:' + r
     })()`,
-    settleMs: 500,
+    settleMs: 600,
   },
   {
     id: '09b-avance-era',
-    title: 'Avance de era en curso: barra dorada con progreso y segundos',
+    title: 'Avance de era en curso: barra dorada prominente con progreso, porcentaje y tiempo',
     js: `(() => {
       const g = window.__imperios
-      g.give(4000)
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
+      // Asegurar tope de población: el hook spawn() recorta al tope, así que sin viviendas
+      // los escenarios de combate/economía no llegan a desplegar su fuerza.
+      for (let bi = 0; bi < 6; bi++) { g.build('player', 'vivienda', -66, -26 + bi * 10, true); g.build('enemy', 'vivienda', 66, -26 + bi * 10, true) }
+      g.skip(0.05)
+      g.give(5000)
       g.setEra(1)
-      g.camera(-48, 0, 62)
+      // algo de contexto económico alrededor para que el avance se lea en una base activa
+      if (typeof g.assignEconomy === 'function') g.assignEconomy(6)
+      g.skip(2)
+      g.camera(-48, 0, 52)
       const iter = typeof g.state.entities.values === 'function' ? g.state.entities.values() : Object.values(g.state.entities)
       let tc = null
       for (const e of iter) { if (e && e.kind === 'building' && e.btype === 'ayuntamiento' && e.team === 'player') { tc = e.id; break } }
       if (tc == null) return 'no-tc'
       g.select([tc])
       const r = g.advanceEra()
-      if (r === 'ok') g.skip(2) // progreso intermedio visible sin completar el avance
+      // progreso intermedio bien visible (barra dorada avanzada) sin completar
+      if (r === 'ok') g.skip(18)
+      g.state.status = 'paused'
       return r === 'ok' ? 'ok' : 'era:' + r
     })()`,
     settleMs: 700,
   },
   {
     id: '04-combate',
-    title: 'Combate: choque frontal melee + fuego ranged con trazadoras, impactos y bajas',
+    title: 'Combate: choque frontal masivo con fuego cruzado, trazadoras, impactos y bajas visibles',
     js: `(() => {
       const g = window.__imperios
-      // Mezcla melee/ranged a corta distancia: contacto inmediato y trazadoras obvias
-      g.spawn('player', 'milicia', 10, -2, 25)
-      g.spawn('player', 'fusilero', 8, -4, 25)
-      g.spawn('player', 'granadero', 2, -3, 24)
-      g.spawn('enemy', 'milicia', 10,  2, 25)
-      g.spawn('enemy', 'fusilero', 8,  4, 25)
-      g.spawn('enemy', 'granadero', 2,  3, 24)
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
+      // Asegurar tope de población: el hook spawn() recorta al tope, así que sin viviendas
+      // los escenarios de combate/economía no llegan a desplegar su fuerza.
+      for (let bi = 0; bi < 6; bi++) { g.build('player', 'vivienda', -66, -26 + bi * 10, true); g.build('enemy', 'vivienda', 66, -26 + bi * 10, true) }
+      g.skip(0.05)
+      // Choque denso melee+ranged + artillería ligera: contacto inmediato y fuego cruzado sostenido
+      g.spawn('player', 'milicia', 12, -2, 25)
+      g.spawn('player', 'fusilero', 10, -5, 25)
+      g.spawn('player', 'granadero', 4, -3, 24)
+      g.spawn('player', 'canon', 2, -7, 24)
+      g.spawn('enemy', 'milicia', 12,  2, 25)
+      g.spawn('enemy', 'fusilero', 10,  5, 25)
+      g.spawn('enemy', 'granadero', 4,  3, 24)
+      g.spawn('enemy', 'canon', 2,  7, 24)
 
       const entities = () => typeof g.state.entities.values === 'function'
         ? [...g.state.entities.values()]
         : Object.values(g.state.entities)
-      const deadCount = () => entities().filter(e => e && e.dead && e.kind === 'unit').length
+      const deadUnits = () => entities().filter(e => e && e.dead && e.kind === 'unit')
+      const liveFront = () => entities().filter(e => e && !e.dead && e.kind === 'unit' && Math.abs(e.x) < 30 && Math.abs(e.z - 25) < 25)
 
-      // Avanzar simulación hasta choque real y bajas (cap de seguridad)
+      // Avanzar hasta choque real con bajas acumuladas (huellas persistentes)
       let dead = 0
-      for (let i = 0; i < 14 && dead < 3; i++) {
+      for (let i = 0; i < 18 && dead < 8; i++) {
         g.skip(0.5)
-        dead = deadCount()
+        dead = deadUnits().length
       }
-      // Dejar correr un poco más SIN pausar para generar ataques/trazadoras recientes,
-      // luego pausar: los FX persistentes (trazadoras/marcas) quedarán visibles en el still.
-      g.skip(0.2)
+      // Seguir un poco más para más bajas/daño antes del instante de captura
+      g.skip(0.6)
+      dead = deadUnits().length
+
+      // Fase final sin pausar: generar ráfaga de ataques/trazadoras recientes
+      // (los FX de impacto/trazadora tienen hold largo y quedarán visibles al pausar)
+      g.skip(0.15)
       g.state.status = 'paused'
 
-      // Centrar cámara en bajas visibles; si aún no hay, en el frente vivo del choque
-      let cx = 0, cz = 0, n = 0
-      for (const e of entities()) {
-        if (!e || e.kind !== 'unit' || !e.dead) continue
-        if (Math.abs(e.x) > 20 || Math.abs(e.z - 25) > 20) continue
-        cx += e.x; cz += e.z; n++
+      // Centrar cámara en el punto más sangriento del frente (bajas + vivos mezclados)
+      let cx = 0, cz = 25, n = 0
+      const focus = deadUnits().filter(e => Math.abs(e.x) < 22 && Math.abs(e.z - 25) < 18)
+      if (focus.length === 0) {
+        for (const e of liveFront()) { cx += e.x; cz += e.z; n++ }
+      } else {
+        for (const e of focus) { cx += e.x; cz += e.z; n++ }
+        // tirar ligeramente hacia el frente vivo para incluir combatientes activos
+        let lx = 0, lz = 0, ln = 0
+        for (const e of liveFront()) { lx += e.x; lz += e.z; ln++ }
+        if (ln > 0) { cx = (cx / n) * 0.65 + (lx / ln) * 0.35; cz = (cz / n) * 0.65 + (lz / ln) * 0.35; n = 1 }
       }
-      if (n === 0) {
-        for (const e of entities()) {
-          if (!e || e.kind !== 'unit' || e.dead) continue
-          if (Math.abs(e.x) > 20 || Math.abs(e.z - 25) > 20) continue
-          cx += e.x; cz += e.z; n++
-        }
-      }
-      if (n > 0) g.camera(cx / n, cz / n, 45)
-      else g.camera(0, 25, 45)
+      if (n > 0) g.camera(cx / n, cz / n, 44)
+      else g.camera(0, 25, 44)
 
-      return 'ok dead=' + dead
+      return 'ok dead=' + deadUnits().length
     })()`,
-    settleMs: 800,
+    settleMs: 850,
   },
   {
     id: '05-fog',
     title: 'Niebla / exploración en era 3: siluetas recordadas de edificios enemigos',
     js: `(() => {
       const g = window.__imperios
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
       g.setEra(3)
       // Marcar edificios enemigos como conocidos y luego cerrar la niebla:
       // quedan fuera de visión actual pero en memoria (explorados) => ghosts.
@@ -467,83 +513,94 @@ const SCENARIOS = [
   },
   {
     id: '07-late-game',
-    title: 'Late game: era 4, base enemiga desarrollada y cruce de fuego activo con bajas',
+    title: 'Late game: era 4, base enemiga desarrollada, oleadas con intención y cruce de fuego activo',
     js: `(() => {
       const g = window.__imperios
-      g.give(4000)
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
+      g.give(5000)
       g.setEra(4)
-      // base propia (población y soporte)
+      // base propia desarrollada
       g.build('player', 'vivienda', -46, -8, true)
       g.build('player', 'vivienda', -46, 8, true)
       g.build('player', 'vivienda', -46, -16, true)
+      g.build('player', 'vivienda', -58, 0, true)
       g.build('player', 'cuartel', -52, -14, true)
+      g.build('player', 'almacen', -52, 14, true)
       g.build('player', 'fabrica', -46, 16, true)
-      // base enemiga desarrollada y activa (producción/defensas visibles)
+      g.build('player', 'torre', -44, 0, true)
+      // base enemiga desarrollada y ACTIVA (producción/defensas/economía visible)
       g.build('enemy', 'vivienda', 46, 10, true)
       g.build('enemy', 'vivienda', 46, -10, true)
       g.build('enemy', 'vivienda', 58, 0, true)
       g.build('enemy', 'vivienda', 58, -16, true)
+      g.build('enemy', 'vivienda', 60, 16, true)
       g.build('enemy', 'cuartel', 50, 16, true)
       g.build('enemy', 'almacen', 50, -14, true)
       g.build('enemy', 'fabrica', 60, 12, true)
       g.build('enemy', 'torre', 44, 0, true)
       g.build('enemy', 'torre', 44, 18, true)
       g.build('enemy', 'torre', 56, -8, true)
-      // defensores posicionados alrededor de la base enemiga (más ranged/cañones)
-      g.spawn('enemy', 'milicia', 4, 45, -2)
-      g.spawn('enemy', 'fusilero', 5, 46, 4)
-      g.spawn('enemy', 'granadero', 2, 47, 1)
-      g.spawn('enemy', 'milicia', 3, 48, -12)
-      g.spawn('enemy', 'fusilero', 4, 53, -10)
-      g.spawn('enemy', 'tanque', 2, 54, 6)
-      g.spawn('enemy', 'canon', 2, 55, -2)
-      // actividad de "producción": grupos recién salidos de cuartel/fábrica con intención
+      // economía enemiga visible trabajando
+      g.spawn('enemy', 'ingeniero', 6, 52, -6)
+      g.spawn('enemy', 'ingeniero', 4, 54, -10)
+      // defensores posicionados alrededor de la base enemiga
+      g.spawn('enemy', 'milicia', 5, 45, -2)
+      g.spawn('enemy', 'fusilero', 6, 46, 4)
+      g.spawn('enemy', 'granadero', 3, 47, 1)
+      g.spawn('enemy', 'milicia', 4, 48, -12)
+      g.spawn('enemy', 'fusilero', 5, 53, -10)
+      g.spawn('enemy', 'tanque', 3, 54, 6)
+      g.spawn('enemy', 'canon', 3, 55, -2)
+      // actividad de "producción": grupos recién salidos de cuartel/fábrica con intención clara
       const prodInf = []
-      prodInf.push(...g.spawn('enemy', 'milicia', 4, 48, 15))
-      prodInf.push(...g.spawn('enemy', 'fusilero', 4, 48, 13))
+      prodInf.push(...g.spawn('enemy', 'milicia', 5, 48, 15))
+      prodInf.push(...g.spawn('enemy', 'fusilero', 5, 48, 13))
       prodInf.push(...g.spawn('enemy', 'granadero', 2, 48, 14))
-      g.moveFormation(prodInf, 28, 10, 'line')
+      g.moveFormation(prodInf, 26, 10, 'line')
       const prodMech = []
-      prodMech.push(...g.spawn('enemy', 'tanque', 2, 57, 11))
+      prodMech.push(...g.spawn('enemy', 'tanque', 3, 57, 11))
       prodMech.push(...g.spawn('enemy', 'canon', 2, 57, 9))
-      g.moveFormation(prodMech, 24, 6, 'wedge')
-      // segunda oleada en ruta desde la base hacia el frente (más fuego a distancia)
+      g.moveFormation(prodMech, 22, 6, 'wedge')
+      // oleada intermedia ya en ruta coordinada hacia el frente
       const routeWave = []
-      routeWave.push(...g.spawn('enemy', 'milicia', 6, 18, -3))
-      routeWave.push(...g.spawn('enemy', 'fusilero', 6, 20, 3))
-      routeWave.push(...g.spawn('enemy', 'granadero', 2, 19, 0))
-      routeWave.push(...g.spawn('enemy', 'tanque', 2, 22, 8))
-      routeWave.push(...g.spawn('enemy', 'canon', 1, 23, 6))
-      g.moveFormation(routeWave, -8, 2, 'line')
-      // ejército propio con cruce de fuego activo (ranged/cañones)
-      g.spawn('player', 'milicia', 8, -38, -2)
-      g.spawn('player', 'fusilero', 8, -38, 4)
-      g.spawn('player', 'granadero', 3, -39, 1)
-      g.spawn('player', 'tanque', 5, -38, 10)
-      g.spawn('player', 'canon', 3, -40, 15)
-      // oleada enemiga compuesta ya presionando/atacando en el frente
+      routeWave.push(...g.spawn('enemy', 'milicia', 6, 16, -2))
+      routeWave.push(...g.spawn('enemy', 'fusilero', 8, 18, 4))
+      routeWave.push(...g.spawn('enemy', 'granadero', 3, 17, 1))
+      routeWave.push(...g.spawn('enemy', 'tanque', 3, 20, 9))
+      routeWave.push(...g.spawn('enemy', 'canon', 2, 21, 6))
+      g.moveFormation(routeWave, -10, 3, 'line')
+      // ejército propio con cruce de fuego activo
+      g.spawn('player', 'milicia', 10, -38, -2)
+      g.spawn('player', 'fusilero', 10, -38, 5)
+      g.spawn('player', 'granadero', 4, -39, 2)
+      g.spawn('player', 'tanque', 6, -38, 11)
+      g.spawn('player', 'canon', 4, -40, 16)
+      // oleada enemiga en contacto/ataque directo en el frente
       const frontWave = []
-      frontWave.push(...g.spawn('enemy', 'milicia', 7, -14, -2))
-      frontWave.push(...g.spawn('enemy', 'fusilero', 7, -12, 4))
-      frontWave.push(...g.spawn('enemy', 'granadero', 2, -13, 1))
-      frontWave.push(...g.spawn('enemy', 'tanque', 4, -10, 10))
-      frontWave.push(...g.spawn('enemy', 'canon', 2, -8, 14))
-      g.moveFormation(frontWave, -34, 6, 'line')
+      frontWave.push(...g.spawn('enemy', 'milicia', 8, -12, -2))
+      frontWave.push(...g.spawn('enemy', 'fusilero', 8, -10, 5))
+      frontWave.push(...g.spawn('enemy', 'granadero', 3, -11, 2))
+      frontWave.push(...g.spawn('enemy', 'tanque', 5, -8, 11))
+      frontWave.push(...g.spawn('enemy', 'canon', 3, -6, 15))
+      g.moveFormation(frontWave, -34, 7, 'line')
       g.reveal('player')
-      // encuadre amplio: base enemiga activa/defendida, oleadas saliendo y choque al frente
-      g.camera(10, 6, 106)
-      g.skip(6.5)
-      // ajustar levemente al eje de avance manteniendo legible la base y la ruta
-      let cx = 0, cz = 0, n = 0
+
+      // encuadre amplio inicial para ver base, refuerzos en ruta y frente
+      g.camera(12, 6, 110)
+      g.skip(5.5)
+      // reencuadre dinámico: mantener visible base enemiga activa + ruta + choque
+      let cx = 8, cz = 4, n = 0
       for (const e of g.state.entities.values()) {
         if (e.dead || e.kind !== 'unit') continue
-        if (e.x < -28 || e.x > 38 || Math.abs(e.z - 6) > 30) continue
+        if (e.x < -30 || e.x > 42 || Math.abs(e.z - 6) > 32) continue
         cx += e.x; cz += e.z; n++
       }
-      if (n > 0) g.camera(Math.min(14, cx / n + 8), cz / n, 102)
-      // más duración para huellas/bajas y pausa justo tras actividad reciente
-      g.skip(3.2)
-      g.skip(0.25)
+      if (n > 0) g.camera(Math.min(16, cx / (n + 1) + 10), cz / (n + 1), 108)
+      else g.camera(14, 6, 108)
+
+      // más tiempo de combate para bajas/huellas claras + pausa en momento activo
+      g.skip(3.6)
+      g.skip(0.2)
       g.state.status = 'paused'
       return 'ok'
     })()`,
@@ -555,6 +612,7 @@ const SCENARIOS = [
     title: 'Unidades + barras de vida: milicias propias seleccionadas',
     js: `(() => {
       const g = window.__imperios
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
       g.camera(-42, 12)
       // asegurar margen de población tras escenarios previos con muchas unidades
       g.build('player', 'vivienda', -60, 30, true)
@@ -590,6 +648,7 @@ const SCENARIOS = [
     title: 'Formación en línea: el mismo grupo, orden de movimiento en line',
     js: `(() => {
       const g = window.__imperios
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
       const squad = (g.state.selectedIds || []).slice()
       if (squad.length < 3) return 'moved:0/' + squad.length
       const n = g.moveFormation(squad, -35, 12, 'line')
@@ -602,74 +661,85 @@ const SCENARIOS = [
   },
   {
     id: '08-asedio',
-    title: 'Asedio real: cruce de fuego activo con cañones, trazadoras y bajas persistentes',
+    title: 'Asedio intenso: cañones, trazadoras cruzadas, impactos y bajas persistentes sobre base defendida',
     js: `(() => {
       const g = window.__imperios
+      g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
+      // Asegurar tope de población: el hook spawn() recorta al tope, así que sin viviendas
+      // los escenarios de combate/economía no llegan a desplegar su fuerza.
+      for (let bi = 0; bi < 6; bi++) { g.build('player', 'vivienda', -66, -26 + bi * 10, true); g.build('enemy', 'vivienda', 66, -26 + bi * 10, true) }
+      g.skip(0.05)
       g.setEra(4)
-      // base enemiga más desarrollada, defendida y con actividad
+      // base enemiga desarrollada, defendida y con actividad visible
       g.build('enemy', 'vivienda', 58, 10, true)
       g.build('enemy', 'vivienda', 58, -10, true)
       g.build('enemy', 'vivienda', 62, 0, true)
+      g.build('enemy', 'vivienda', 62, -16, true)
       g.build('enemy', 'cuartel', 48, 18, true)
       g.build('enemy', 'almacen', 52, 14, true)
       g.build('enemy', 'fabrica', 60, -14, true)
       g.build('enemy', 'torre', 50, -6, true)
       g.build('enemy', 'torre', 50, 8, true)
       g.build('enemy', 'torre', 46, 2, true)
-      // defensores posicionados (más ranged/cañones para cruce activo)
-      g.spawn('enemy', 'milicia', 6, 51, 2)
-      g.spawn('enemy', 'fusilero', 7, 52, -4)
-      g.spawn('enemy', 'granadero', 2, 51, -1)
-      g.spawn('enemy', 'fusilero', 3, 49, 10)
-      g.spawn('enemy', 'tanque', 3, 54, 7)
-      g.spawn('enemy', 'canon', 2, 55, 4)
-      // contraataque saliendo desde la base/cuartel
+      g.build('enemy', 'torre', 54, 14, true)
+      // defensores posicionados con fuego a distancia y artillería
+      g.spawn('enemy', 'milicia', 7, 51, 2)
+      g.spawn('enemy', 'fusilero', 8, 52, -4)
+      g.spawn('enemy', 'granadero', 3, 51, -1)
+      g.spawn('enemy', 'fusilero', 4, 49, 10)
+      g.spawn('enemy', 'tanque', 4, 54, 7)
+      g.spawn('enemy', 'canon', 3, 55, 4)
+      // contraataque saliendo desde la base/cuartel (intención defensiva)
       const counter = []
-      counter.push(...g.spawn('enemy', 'milicia', 4, 48, 16))
-      counter.push(...g.spawn('enemy', 'fusilero', 3, 46, 15))
-      g.moveFormation(counter, 42, 6, 'line')
-      // fuerza atacante con presión sostenida y más fuego ranged/cañones
-      g.spawn('player', 'tanque', 5, 40, 0)
-      g.spawn('player', 'milicia', 8, 39, 6)
-      g.spawn('player', 'canon', 4, 37, -4)
-      g.spawn('player', 'fusilero', 7, 38, 10)
-      g.spawn('player', 'granadero', 2, 39, 8)
+      counter.push(...g.spawn('enemy', 'milicia', 5, 48, 16))
+      counter.push(...g.spawn('enemy', 'fusilero', 4, 46, 15))
+      counter.push(...g.spawn('enemy', 'granadero', 2, 47, 17))
+      g.moveFormation(counter, 41, 7, 'line')
+      // fuerza atacante con presión sostenida y artillería pesada
+      g.spawn('player', 'tanque', 6, 39, 0)
+      g.spawn('player', 'milicia', 10, 38, 6)
+      g.spawn('player', 'canon', 5, 36, -4)
+      g.spawn('player', 'fusilero', 9, 37, 10)
+      g.spawn('player', 'granadero', 3, 38, 8)
       g.reveal('player')
-      g.skip(5.5)
-      // daño visible de asedio en curso (estructuras/tropas heridas, sin destruir todo)
+
+      // dejar que el asedio se desarrolle y acumule bajas/huellas
+      g.skip(5.0)
+      // daño visible de asedio en curso (estructuras y tropas heridas, sin aniquilar todo)
       const iter = typeof g.state.entities.values === 'function' ? [...g.state.entities.values()] : Object.values(g.state.entities)
       for (const e of iter) {
         if (!e || e.dead) continue
-        if (e.kind === 'building' && e.team === 'enemy' && e.x >= 44 && e.x <= 56 && e.z >= -10 && e.z <= 12) {
+        if (e.kind === 'building' && e.team === 'enemy' && e.x >= 44 && e.x <= 64 && e.z >= -18 && e.z <= 20) {
           if (e.btype === 'torre' || e.btype === 'almacen' || e.btype === 'vivienda') {
-            e.hp = Math.max(1, Math.floor(e.maxHp * 0.45))
-          } else if (e.btype === 'cuartel') {
-            e.hp = Math.max(1, Math.floor(e.maxHp * 0.6))
+            e.hp = Math.max(1, Math.floor(e.maxHp * 0.42))
+          } else if (e.btype === 'cuartel' || e.btype === 'fabrica') {
+            e.hp = Math.max(1, Math.floor(e.maxHp * 0.58))
           }
         }
-        if (e.kind === 'unit' && e.x >= 36 && e.x <= 54 && e.z >= -8 && e.z <= 14) {
+        if (e.kind === 'unit' && e.x >= 34 && e.x <= 56 && e.z >= -10 && e.z <= 20) {
           if (e.team === 'enemy' && (e.utype === 'milicia' || e.utype === 'fusilero' || e.utype === 'granadero')) {
-            e.hp = Math.max(1, Math.floor(e.maxHp * 0.55))
+            e.hp = Math.max(1, Math.floor(e.maxHp * 0.5))
           }
           if (e.team === 'player' && (e.utype === 'milicia' || e.utype === 'fusilero')) {
-            e.hp = Math.max(1, Math.floor(e.maxHp * 0.7))
+            e.hp = Math.max(1, Math.floor(e.maxHp * 0.65))
           }
         }
       }
-      // centrar en el asedio/cruce de fuego activo (ambos bandos)
+
+      // centrar en el cruce de fuego activo (ambos bandos y base defendida)
       let cx = 0, cz = 0, n = 0
       for (const e of g.state.entities.values()) {
         if (e.dead || e.kind !== 'unit') continue
-        if (e.x < 34 || e.x > 56 || e.z < -16 || e.z > 20) continue
+        if (e.x < 32 || e.x > 58 || e.z < -18 || e.z > 22) continue
         cx += e.x; cz += e.z; n++
       }
-      if (n > 0) g.camera(cx / n, cz / n, 54)
-      else g.camera(47, 2, 54)
+      if (n > 0) g.camera(cx / n, cz / n, 56)
+      else g.camera(47, 2, 56)
       g.fog()
-      // algo más de duración para huellas/bajas, manteniendo unidades vivas visibles
-      g.skip(3.0)
-      // pausa justo tras actividad reciente (FX persistentes mostrarán trazadoras/marcas)
-      g.skip(0.25)
+
+      // acumular más huellas y pausar en ráfaga reciente (trazadoras/impactos visibles)
+      g.skip(3.2)
+      g.skip(0.2)
       g.state.status = 'paused'
       return 'ok'
     })()`,

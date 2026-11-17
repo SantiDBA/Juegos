@@ -276,9 +276,12 @@ export function updateTopBar(ui: UIRefs, gs: GameState): void {
   }
   const clamped = Math.max(0, Math.min(100, pct))
   ui.progWrap.classList.add('show')
+  ui.progWrap.classList.toggle('is-era', kind === 'era')
+  ui.progWrap.classList.toggle('is-research', kind === 'research')
   ui.progFill.style.width = `${clamped.toFixed(1)}%`
   ui.progFill.className = `prod-bar-fill ${kind === 'era' ? 'era' : 'research'}`
-  const progText = `${label} · ${Math.floor(clamped)}% · ${secsLeft}s restantes`
+  const icon = kind === 'era' ? '⏫' : '🔬'
+  const progText = `${icon} ${label} · ${Math.floor(clamped)}% completado · ${secsLeft}s restantes`
   if (ui.progLabel.textContent !== progText) {
     ui.progLabel.textContent = progText
   }
@@ -414,7 +417,7 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
   if (acts.children.length === 0) {
     const span = document.createElement('div')
     span.className = 'actions-empty'
-    span.textContent = 'Seleccioná unidades o edificios para ver acciones.'
+    span.textContent = 'Seleccioná unidades o edificios para ver acciones y costos.'
     acts.appendChild(span)
   }
 }
@@ -459,7 +462,7 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
               <span class="sel-portrait" aria-hidden="true">${icon}</span>
               <div>
                 <div class="sel-title">${d.name}</div>
-                <div class="sel-sub">${teamLabel(e.team as Team)} · ${d.role === 'economy' ? 'Economía' : 'Militar'} · ${e.utype}</div>
+                <div class="sel-sub">${teamLabel(e.team as Team)} · ${d.role === 'economy' ? 'Economía' : 'Militar'} · ${e.utype} · Daño ${d.damage ?? 0} · Alcance ${d.range ?? 0}</div>
               </div>
             </div>
             <div class="sel-hpnum">${Math.ceil(e.hp)}/${e.maxHp} HP</div>
@@ -527,7 +530,7 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
               <span class="sel-portrait" aria-hidden="true">${icon}</span>
               <div>
                 <div class="sel-title">${d.name}</div>
-                <div class="sel-sub">${teamLabel(e.team as Team)} · Edificio · ${status}</div>
+                <div class="sel-sub">${teamLabel(e.team as Team)} · Edificio · ${status} · ${d.produces && d.produces.length ? `Produce: ${d.produces.length} tipos` : 'Estructura'}</div>
               </div>
             </div>
             <div class="sel-hpnum">${Math.ceil(e.hp)}/${e.maxHp} HP</div>
