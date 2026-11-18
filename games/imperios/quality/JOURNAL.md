@@ -2335,6 +2335,67 @@ puntaje de dim 9 no se mueve por el bajo contraste del suelo.
 
 ---
 
+# Juez ciego · ciclo-45-contraste-suelo · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-45-contraste-suelo/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** dim 9 — contraste **de valor** del suelo.
+- `cLow` más oscuro (0x3d5a2c) y `cHigh` más claro (0x9c8b62) en la rampa por altura.
+- Bandas de valor a escala de tile en los colores de vértice (fbm 0.09 + octava 0.21).
+- Y donde de verdad se ve: la **textura de detalle del suelo** (periodo ~12 u, repetida 30x) pasó
+  de `0.9 ± 0.11` a `0.88 ± 0.23`, con más rango en el speckle.
+
+**Medición propia:** sd de luminancia en el disco de juego, `02-arranque`: **21.7 (c44) → 22.1 (c45)**
+(+2%). Las tres variantes probadas (bandas de período largo, bandas de tile, detalle del mapa)
+mueven la estadística muy poco: en este render la varianza del suelo está dominada por props/luz
+y comprimida por el tone mapping.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`: chips con tarea y recurso. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: sin cambios. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`. |
+| 9 | Art direction / diorama isométrico | 7.5 | `03-economia.png`: "clara variación de valor, NO un tono plano uniforme" — primero en 4/10 y ahora 5/10 de legibilidad de terreno en dos lecturas independientes. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`. Sin audio. |
+
+**Promedio:** 6.95 · **Mínima:** 6.5 · **Dimensiones < 7:** 3
+
+**Veredicto — SORPRENDIDO: NO**
+Primer movimiento en 3 ciclos (+0.05). El juez cambió su descripción del suelo de "near-uniform,
+low contrast" a "clear dark/light value variation, not a near-uniform flat tone".
+
+## Top 7 brechas
+1. Suelo desaturado y con poco contraste macro (el valor sigue comprimido) — dim 9/3.
+2. Texto de chip truncado por el panel y el botón "?" — dim 1/8.
+3. Formaciones poco variadas por rol — dim 4.
+4. Zonas abiertas en late-game — dim 6.
+5. Materiales/luz simples — dim 9.
+6. Juice sin audio — dim 10.
+7. Unidades al borde de techos azules — dim 2.
+
+## 5 cambios para el próximo ciclo
+1. Chip de tarea sin truncar (dos líneas o panel más ancho) — dim 1/8.
+2. Variedad de formaciones por rol — dim 4.
+3. Rellenar huecos de late-game — dim 6.
+4. Subir la saturación del suelo (el valor ya está, falta el tono) — dim 9.
+5. Estela corta de proyectil — dim 10.
+
+## Riesgos / notas
+- **45 ciclos.** Promedio **6.95** (+0.05). Dim 9 pasa a 7.5.
+- **Hallazgo útil:** en este render la varianza del suelo casi no responde a cambios en los colores
+  de vértice (sd +2% en tres variantes); la palanca real es la textura de detalle y, sobre todo,
+  el **tone mapping** (ACES, exposición 0.93), que comprime el rango. Si hace falta más contraste
+  macro, hay que tocar exposición/tone mapping, no la paleta.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
