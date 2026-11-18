@@ -1569,6 +1569,61 @@ sigue algo confusa y el promedio se mantiene en el máximo (6.45).
 
 ---
 
+# Juez ciego · ciclo-32-bando-saturado · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-32-bando-saturado/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** subir la **saturación de bando** en
+todas las eras. La paleta de era se mezcla ahora **70 %** hacia el color del equipo en los
+**techos** (38 % en cuerpos) y la **cúpula del ayuntamiento** se tiñe 50 % del color del
+equipo. Objetivo: que los techos sean el "read" dominante de propiedad, blue vs red, como AoE2.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC, viviendas, granjas, rocas y suelo moteado; ingenieros como grupo. |
+| 2 | Combate / counters / proyectiles | 6.5 | `04-combate.png`: melé limpia, bandos por color y anillos. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: props y suelo moteado; ~20-30 % de la densidad de AoE2. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: **techos fuertemente por bando** (propios rosados/azules, enemigos naranja/rojo); la base enemiga se identifica al instante. El juez lo puntúa ~8/10 para color de bando. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 7.0 | `07-late-game.png`: tipos legibles por silueta + color de bando dominante; materiales aún simples. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: chispas/estelas y despojos. Sin audio. |
+
+**Promedio:** 6.55 · **Mínima:** 6.0 · **Dimensiones < 7:** 7
+
+**Veredicto — SORPRENDIDO: NO**
+El color de bando en los techos resolvió la legibilidad de la base enemiga en late-game
+(dim 7 sube a 7). Nuevo máximo (6.55), pero combate fino, densidad, economía y HUD siguen < 7.
+
+## Top 7 brechas
+1. Unidades chicas/aglomeradas en la melé — `04-combate.png` — dim 2.
+2. Sin feedback de golpe puntual por unidad — dim 10.
+3. Economía sin lectura de carga/ruta por unidad — dim 1.
+4. Densidad por debajo de AoE2 — dim 6.
+5. HUD: techs abreviadas y ayuda recortada — dim 8.
+6. En arranque (era 1) el bando se lee más débil que en late-game — `02-arranque.png` — dim 7.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Separación/contraste de silueta de unidades (dim 2).
+2. Feedback de golpe puntual sin acumular (dim 10).
+3. Densidad/variación (dim 6).
+4. HUD sin abreviaturas (dim 8).
+5. Reforzar bando en era 1 (banda de base más visible) — dim 7.
+
+## Riesgos / notas
+- **32 ciclos.** Promedio 6.45 → **6.55**: nuevo máximo. **Aprendizaje clave:** teñir los
+  **techos** fuerte por equipo (70 %) es lo que hace legible la propiedad de la base; el tinte
+  suave (24-42 %) no alcanzaba.
+- Cuidado: fuerte tinte de techo reduce la diferenciación por era; compensar con las piezas de
+  era (cúpula/mástiles/franjas) que ya existen.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
