@@ -3003,18 +3003,20 @@ export function spawnDepositFx(
 function fxMaterial(kind: FxKind): THREE.Material {
   switch (kind) {
     case 'beam':
-      // normal blending: many simultaneous tracers must not stack into a white web
-      return new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, depthWrite: false, toneMapped: false })
+      // normal blending: many simultaneous tracers must not stack into a white web.
+      // depthTest OFF: a tracer sits near ground level and the terrain is displaced, so
+      // with depth testing on the streak was drawn *under* the ground and never seen.
+      return new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, depthWrite: false, depthTest: false, toneMapped: false })
     case 'flash':
-      // normal blending: overlapping hit flashes must not sum to white
-      return new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, depthWrite: false, toneMapped: false })
+      // normal blending: overlapping hit flashes must not sum to white (same depth note)
+      return new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, depthWrite: false, depthTest: false, toneMapped: false })
     case 'ring':
       return new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })
     case 'muzzle':
       return new THREE.MeshBasicMaterial({ color: 0xfff0c6, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false })
     case 'spark':
       // normal blending: hundreds of additive sparks were stacking into a bright cloud
-      return new THREE.MeshBasicMaterial({ color: 0xffd06a, transparent: true, depthWrite: false, toneMapped: false })
+      return new THREE.MeshBasicMaterial({ color: 0xffd06a, transparent: true, depthWrite: false, depthTest: false, toneMapped: false })
     case 'decal':
       // a scorch/mark: slight polygon offset keeps it off the terrain
       return new THREE.MeshBasicMaterial({

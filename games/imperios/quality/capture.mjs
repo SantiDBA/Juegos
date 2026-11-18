@@ -68,6 +68,12 @@ const DEFAULT_URL = 'http://localhost:5173/games/imperios/'
 const BIN = process.env.AGENT_BROWSER || 'agent-browser'
 const SETTLE_MS = Number(process.env.CAPTURE_SETTLE_MS ?? 600)
 const TIMEOUT_MS = Number(process.env.CAPTURE_TIMEOUT_MS ?? 120_000)
+/**
+ * CAPTURE_ZOOM: re-encuadra cada toma a esa distancia de cámara conservando el
+ * objetivo del escenario. Sirve para comparar la MISMA escena a distinto zoom sin
+ * tocar los escenarios: es la única variable del test de zoom.
+ */
+const ZOOM = process.env.CAPTURE_ZOOM ? Number(process.env.CAPTURE_ZOOM) : null
 const INTRO_CAMERA_MS = 1900 // duración real de la intro de cámara de startGame()
 const PHASE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 
@@ -467,6 +473,9 @@ const SCENARIOS = [
       g.spawn('player', 'fusilero', 10, -4, 25)
       g.spawn('enemy', 'milicia', 8,  2, 25)
       g.spawn('enemy', 'fusilero', 10,  4, 25)
+      // Los de alcance se plantan: si avanzan, terminan disparando desde distancia de
+      // melé y la trazadora mide 2 unidades (un muñón), no una línea.
+      for (const e of [...g.state.entities.values()]) { if (e && e.kind === 'unit' && e.utype === 'fusilero') e.stance = 'standground' }
 
       const entities = () => typeof g.state.entities.values === 'function'
         ? [...g.state.entities.values()]
@@ -491,6 +500,7 @@ const SCENARIOS = [
       g.spawn('player', 'fusilero', 4, -3, 23)
       g.spawn('enemy', 'milicia', 3, 6, 22)
       g.spawn('enemy', 'fusilero', 4, 3, 23)
+      for (const e of [...g.state.entities.values()]) { if (e && e.kind === 'unit' && e.utype === 'fusilero') e.stance = 'standground' }
       g.skip(0.8)
       // Se deja el sim CORRIENDO durante el settle: los fx (trazadoras, impactos) los
       // emite el render loop, no skip(), así que pausar deja el frame sin fuego. Antes
@@ -910,8 +920,11 @@ async function main() {
         if (out) log(`    → ${short(out, 160)}`)
         await sleep(sc.settleMs)
       }
+      if (ZOOM) {
+        evalJs('(() => { const g = window.__imperios; g.camera(g.render.target.x, g.render.target.z, ' + ZOOM + '); return "ok" })()', { allowFail: true })
+      }
       if (sc.id === '04-combate') {
-        const diag = evalJs("(() => { const g = window.__imperios; const fx = g.render.fxItems || []; const ents = [...g.state.entities.values()]; const near = ents.filter(e => e && !e.dead && e.kind === 'unit' && Math.hypot(e.x - g.render.target.x, e.z - g.render.target.z) < 30); return 'cam=' + g.render.target.x.toFixed(1) + ',' + g.render.target.z.toFixed(1) + ' dist=' + g.render.camDist.toFixed(0) + ' near=' + near.length + ' beam=' + fx.filter(f => f.kind === 'beam').length + ' status=' + g.state.status + ' pop=' + g.state.players.player.pop + '/' + g.state.players.player.popCap })()")
+        const diag = evalJs("(() => { const g = window.__imperios; const fx = g.render.fxItems || []; const ents = [...g.state.entities.values()]; const near = ents.filter(e => e && !e.dead && e.kind === 'unit' && Math.hypot(e.x - g.render.target.x, e.z - g.render.target.z) < 30); const beams = fx.filter(f => f.kind === 'beam'); const lens = beams.map(f => f.mesh.scale.z); return 'lenMax=' + (lens.length ? Math.max(...lens).toFixed(1) : '0') + ' lenMed=' + (lens.length ? (lens.reduce((a, b) => a + b, 0) / lens.length).toFixed(1) : '0') + ' cam=' + g.render.target.x.toFixed(1) + ',' + g.render.target.z.toFixed(1) + ' dist=' + g.render.camDist.toFixed(0) + ' near=' + near.length + ' beam=' + fx.filter(f => f.kind === 'beam').length + ' status=' + g.state.status + ' pop=' + g.state.players.player.pop + '/' + g.state.players.player.popCap })()")
         log(`    · diag al disparar la foto: ${diag}`)
       }
       created.push(shot(`${sc.id}.png`))
