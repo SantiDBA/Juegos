@@ -2649,7 +2649,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   if (mesh) {
     mesh.position.lerpVectors(from, to, 0.5)
     mesh.lookAt(to) // geometry runs along +Z, so this aims the streak
-    const thick = 0.34
+    const thick = 0.42
     mesh.scale.set(thick, thick, dist)
     const m = mesh.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
@@ -2665,7 +2665,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   if (glow) {
     glow.position.lerpVectors(from, to, 0.5)
     glow.lookAt(to)
-    const thick = 0.5
+    const thick = 0.62
     glow.scale.set(thick, thick, dist)
     const gm = glow.material as THREE.MeshBasicMaterial
     gm.color.setHex(0xfff4c8)
@@ -2673,7 +2673,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
     rc.fxItems.push({
       kind: 'beam', mesh: glow, t: 0, life: 2.0,
       pos: glow.position.clone(), vel: new THREE.Vector3(),
-      s0: thick, s1: thick, o0: 0.22, hold: 1.1,
+      s0: thick, s1: thick, o0: 0.32, hold: 1.1,
     })
   }
 }
@@ -2705,6 +2705,22 @@ export function spawnMuzzleFlash(rc: RenderContext, x: number, y: number, z: num
  */
 export function spawnImpact(rc: RenderContext, x: number, y: number, z: number): void {
   const seed = hash2(x * 0.7, z * 1.3)
+
+  // Bright core at the point of impact. It has to HOLD long enough to survive the
+  // ~0.85 s capture settle, or the still shows sparks with no visible hit.
+  const core = acquireFx(rc, 'flash')
+  if (core) {
+    core.position.set(x, y, z)
+    core.scale.setScalar(1.5)
+    const cm = core.material as THREE.MeshBasicMaterial
+    cm.color.setHex(0xfff0c0)
+    cm.opacity = 1.0
+    rc.fxItems.push({
+      kind: 'flash', mesh: core, t: 0, life: 0.75,
+      pos: core.position.clone(), vel: new THREE.Vector3(),
+      s0: 1.5, s1: 2.3, o0: 1.0, hold: 0.3,
+    })
+  }
 
   // Sparks/debris: 10-12 per hit, deterministic count/spread from the impact point.
   const sparks = 7 + Math.floor(seed * 2)

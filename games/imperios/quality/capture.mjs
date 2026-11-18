@@ -472,7 +472,10 @@ const SCENARIOS = [
       g.spawn('enemy', 'milicia', 3, 6, 22)
       g.spawn('enemy', 'fusilero', 3, 13, 23)
       g.skip(0.8)
-      // pausa justo tras actividad
+      // Pausa justo tras actividad. Los fx los emite el render loop, así que con el
+      // sim pausado el still congela el último frame REAL, que ya tiene trazadoras
+      // vivas (life 2.0 s con hold 1.1 s): dejarlo 'playing' durante el settle hace
+      // que la cámara se pierda y el frame acabe mostrando la base, no el frente.
       g.skip(0.15)
       g.state.status = 'paused'
 
