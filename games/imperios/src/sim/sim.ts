@@ -4,7 +4,7 @@ import { dist, moveToward } from '../core/utils'
 import { applyTech, buildingsOfTeam, findNearestDropoff, FORMATION_SPACING, getEntity, recomputePop, spawnUnit, unitsOfTeam, type GameState } from './state'
 import { emit } from './events'
 import { stepAI } from './ai'
-import { nearestVisibleEnemy, stepVision } from './vision'
+import { nearestVisibleEnemy, rangeToEntity, stepVision } from './vision'
 import { isBlocked, isHardBlocked, markNavDirty, resolveBlocked } from './navgrid'
 import { findPath } from './path'
 import type { AnyEntity, BuildingEntity, ResourceEntity, UnitEntity } from '../core/types'
@@ -274,7 +274,7 @@ function stepUnits(gs: GameState, dt: number): void {
 
     if (e.targetId) {
       const t = getEntity(gs, e.targetId)
-      if (!t || t.dead || t.team === e.team || t.kind === 'resource') e.targetId = undefined
+      if (!t || t.dead || t.team === e.team || t.kind === 'resource') { e.targetId = undefined; e.ordered = false }
     }
 
     // auto-acquire by stance; an explicit move order keeps the unit on its route
@@ -283,7 +283,7 @@ function stepUnits(gs: GameState, dt: number): void {
       const holdMove = e.state === 'move' && e.path.length > 0
       if (radius > 0 && !holdMove && (e.state === 'idle' || e.state === 'move' || e.state === 'attack')) {
         const tgt = nearestVisibleEnemy(gs, e.team, e.x, e.z, radius)
-        if (tgt) { e.targetId = tgt.id; e.state = 'attack' }
+        if (tgt) { e.targetId = tgt.id; e.ordered = false; e.state = 'attack' }
       }
     }
 
@@ -404,12 +404,9 @@ function approachRange(t: AnyEntity): number {
  * stands outside the footprint and melee range has to be measured from it,
  * not from the footprint centre.
  */
+/** Edge distance to a target; the single implementation lives in vision.ts. */
 function rangeTo(x: number, z: number, t: AnyEntity): number {
-  if (t.kind !== 'building') return dist(x, z, t.x, t.z)
-  const s = BUILDING_DEFS[t.btype].size
-  const dx = Math.max(0, Math.abs(x - t.x) - s.x / 2)
-  const dz = Math.max(0, Math.abs(z - t.z) - s.z / 2)
-  return Math.hypot(dx, dz)
+  return rangeToEntity(x, z, t)
 }
 
 /**
@@ -637,7 +634,10 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
       e.targetId = undefined; e.chaseT = 0; e.chaseD = undefined; e.path = []
       return
     }
-    if (e.home) {
+    if (e.home && !e.ordered) {
+      // An explicit attack order must be able to close on a distant building; the
+      // stance leash only restrains targets the unit acquired on its own (with it,
+      // a defensive squad ordered onto a building stood in `attack` forever).
       const leash = e.stance === 'defensive' ? DEFENSIVE_LEASH : FORMATION_SPACING * 3.2
       if (hdHome > leash) {
         e.path = findPath(gs, e.x, e.z, e.home.x, e.home.z)

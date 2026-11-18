@@ -489,6 +489,7 @@ export function commandAttack(gs: GameState, ids: number[], targetId: number): v
   const tgt = getEntity(gs, targetId)
   for (const e of playerUnits(gs, ids)) {
     e.targetId = targetId
+    e.ordered = true
     e.state = 'attack'
     e.patrol = undefined
     // the defensive leash measures from wherever the order was issued

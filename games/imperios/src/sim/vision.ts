@@ -161,16 +161,31 @@ export function isExplored(gs: GameState, team: Team, x: number, z: number): boo
  */
 export function nearestVisibleEnemy(gs: GameState, team: Team, x: number, z: number, range: number): AnyEntity | null {
   let best: AnyEntity | null = null
-  let bestD = range * range
+  let bestD = range
   for (const e of gs.entities.values()) {
     if (e.dead || e.team === team || e.kind === 'resource') continue
-    const d = (e.x - x) ** 2 + (e.z - z) ** 2
+    // Measured to the FOOTPRINT EDGE, like the attack range: a big building's centre
+    // is several units away from an adjacent attacker, so centre-based acquisition
+    // made a defensive unit standing against a building never acquire it at all.
+    const d = rangeToEntity(x, z, e)
     if (d >= bestD) continue
     if (!isVisible(gs, team, e.x, e.z)) continue
     bestD = d
     best = e
   }
   return best
+}
+
+/**
+ * Distance from a point to an entity's reachable footprint: buildings are big, so
+ * everything that compares against an attack range has to measure to the edge.
+ */
+export function rangeToEntity(x: number, z: number, e: AnyEntity): number {
+  if (e.kind !== 'building') return Math.hypot(e.x - x, e.z - z)
+  const s = BUILDING_DEFS[e.btype].size
+  const dx = Math.max(0, Math.abs(x - e.x) - s.x / 2)
+  const dz = Math.max(0, Math.abs(z - e.z) - s.z / 2)
+  return Math.hypot(dx, dz)
 }
 
 /** Enemy buildings of `ofTeam` this team can see right now. */

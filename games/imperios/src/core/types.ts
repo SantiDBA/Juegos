@@ -118,6 +118,8 @@ export interface UnitEntity extends BaseEntity {
   stance: Stance
   /** Anchor for the defensive leash, refreshed on every order. */
   home?: Vec2
+  /** Target came from an explicit order: chases anywhere, ignoring the stance leash. */
+  ordered?: boolean
   patrol?: PatrolOrder
   /** Seconds until the next chase repath (staggered per unit id). */
   repathT?: number

@@ -644,6 +644,11 @@ if (import.meta.hot) {
       setSelection(gs, ids)
       return ids
     },
+    /** Explicit attack order (same path as a right-click on an enemy). */
+    attack: (ids: number[], targetId: number) => {
+      commandAttack(gs, ids, targetId)
+      return (gs.entities.get(targetId) ? 'ok' : 'no-target')
+    },
     /** Formation move for an explicit id list (wedge/box/line). */
     moveFormation: (ids: number[], x: number, z: number, formation: Formation = 'wedge') => {
       return commandMoveFormation(gs, ids, { x, z }, formation)
