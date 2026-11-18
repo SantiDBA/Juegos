@@ -1426,9 +1426,13 @@ function buildingBase(x: number, z: number, h: number, color: number, teamC: num
   const base = new THREE.Mesh(new THREE.BoxGeometry(x, h, z), mat(color, { roughness: 0.88, metalness: 0.05 }))
   base.name = 'body'
   base.position.y = h / 2; base.castShadow = true; base.receiveShadow = true; g.add(base)
-  const trim = new THREE.Mesh(new THREE.BoxGeometry(x + 0.12, 0.16, z + 0.12), paintMat(teamC, 0.5, 0.15))
+  // Bold team-coloured band: ownership has to read at a glance (whose base is this).
+  const trim = new THREE.Mesh(
+    new THREE.BoxGeometry(x + 0.16, 0.42, z + 0.16),
+    new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.22, roughness: 0.5, metalness: 0.2 }),
+  )
   trim.name = 'teamTrim'
-  trim.position.y = Math.min(h - 0.15, h * 0.7); g.add(trim)
+  trim.position.y = Math.min(h - 0.25, h * 0.62); trim.castShadow = true; g.add(trim)
   return g
 }
 
@@ -1568,6 +1572,19 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
     flagPole.position.set(-0.5, 9.1, -0.4); g.add(flagPole)
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.12, side: THREE.DoubleSide }))
     flag.position.set(-0.12, 9.45, -0.4); g.add(flag)
+  }
+  // Ownership flag on the buildings that define a base (kept off torres: they
+  // already carry one), so an enemy compound is unmistakably the other side's.
+  if (b.btype === 'ayuntamiento' || b.btype === 'cuartel' || b.btype === 'fabrica') {
+    const flagTop = b.btype === 'ayuntamiento' ? 7.0 : b.btype === 'cuartel' ? 4.6 : 4.4
+    const off = Math.max(sz.x, sz.z) * 0.34
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 6), mat(0x2b2b2b))
+    pole.position.set(off, flagTop, -off); pole.castShadow = true; g.add(pole)
+    const flag = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.5, 0.9),
+      new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.28, side: THREE.DoubleSide, roughness: 0.55 }),
+    )
+    flag.position.set(off + 0.78, flagTop + 0.8, -off); g.add(flag)
   }
   if (BUILDING_DEFS[b.btype]?.dropoff) {
     const r = Math.max(sz.x, sz.z) * 0.4
@@ -1770,12 +1787,15 @@ function applyEraDetails(obj: THREE.Object3D, e: AnyEntity, era: number): void {
     // Palette progression by era so the jump is readable without HUD (within 3D ceiling)
     if (o._eraPalette !== era) {
       o._eraPalette = era
+      const teamHue = new THREE.Color(TEAM_COLORS[e.team])
       const recolor = (name: string, color: number, emissive = 0x000000, ei = 0) => {
         const mesh = obj.getObjectByName(name) as THREE.Mesh | undefined
         if (!mesh) return
         const own = (mesh.userData.origMaterial ?? mesh.material) as THREE.MeshStandardMaterial
         if (own && (own as any).isMeshStandardMaterial) {
-          own.color.setHex(color)
+          // Lerp the era palette toward the team hue so a late-era base still reads
+          // as "whose" it is (otherwise both sides go blue-grey at era 4).
+          own.color.setHex(color).lerp(teamHue, 0.24)
           if ('emissive' in own) { own.emissive.setHex(emissive); own.emissiveIntensity = ei }
           if ('metalness' in own) own.metalness = Math.max(own.metalness ?? 0, era >= 3 ? 0.18 : era >= 2 ? 0.1 : 0.05)
           if ('roughness' in own) own.roughness = era >= 4 ? Math.min(own.roughness ?? 0.8, 0.48) : era >= 3 ? Math.min(own.roughness ?? 0.8, 0.62) : (own.roughness ?? 0.8)
