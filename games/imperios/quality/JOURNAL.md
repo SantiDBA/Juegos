@@ -1858,6 +1858,63 @@ combate fino, juice, economía por unidad, niebla/formaciones.
 
 ---
 
+# Juez ciego · ciclo-37-juice-impacto · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-37-juice-impacto/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** juice de impacto.
+- Chispas de impacto: de 5-6 a 7-8 por golpe y con vida 2.4 s (así sobreviven al settle de
+  captura, que corre ~0.85 s de render antes del screenshot).
+- **Marca mínima persistente** en el suelo por impacto (radio 0.42-0.64, opacidad 0.55): marca
+  dónde pegaron, deliberadamente mucho más chica que los cráteres viejos (radio 2.6) que se
+  fusionaban en un disco oscuro.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.5 | `03-economia.png`: economía viva (32 portadores / 15 recolectando); crate cambia de forma por recurso. |
+| 2 | Combate / counters / proyectiles | 6.5 | `04-combate.png`: bandos en contacto; melé limpia (sin disco/nube). |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: densidad tipo "Arabia de AoE2". |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: base enemiga identificable por bando. |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`: etiquetas completas, ayuda visible, costos con iconos. |
+| 9 | Art direction / diorama isométrico | 7.0 | siluetas + color de bando. |
+| 10 | Audio / juice | 6.0 | `04-combate.png`/`08-asedio.png`: el juez ve chispas/estelas tenues y marcas chicas, pero **no cambia la lectura de juice** (sin audio). |
+
+**Promedio:** 6.70 · **Mínima:** 6.0 · **Dimensiones < 7:** 5
+
+**Veredicto — SORPRENDIDO: NO**
+Las chispas/marcas de impacto son reales pero sutiles en stills; la dimensión juice (sin audio
+observable) queda en 6.0 y el promedio no se mueve (6.70).
+
+## Top 7 brechas
+1. Juice: el feedback de golpe no se lee con peso en stills — `04/08` — dim 10.
+2. Unidades chicas/aglomeradas en la melé — `04-combate.png` — dim 2.
+3. Detalle de carga/depósito por recurso — `03-economia.png` — dim 1.
+4. Niebla con transición simple — dim 3.
+5. Formaciones poco variadas por rol — dim 4.
+6. Zonas abiertas en late-game — dim 6.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Feedback de golpe más legible **sin acumular**: p. ej. un "impact pip" breve y nítido por
+   unidad golpeada (tamaño fijo, 1 por unidad, vida corta) — dim 10.
+2. Contraste de silueta de unidades en melé (contorno oscuro o base más marcada) — dim 2.
+3. Depósito señalizado por recurso (halo con forma/ícono) — dim 1.
+4. Transición de niebla más rica — dim 3.
+5. Rellenar huecos de late-game — dim 6.
+
+## Riesgos / notas
+- **37 ciclos.** Promedio 6.70 (sin cambio). Dim 10 es la más difícil: sin audio y con
+  capturas estáticas que esperan ~0.85 s, los efectos deben ser **nítidos y persistentes a la
+  vez**, lo que choca con no acumular. La próxima idea viable es un marcador por unidad (no
+  partículas) que persista un rato corto.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
