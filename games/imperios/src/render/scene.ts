@@ -2267,6 +2267,17 @@ const CARRY_COLORS: Record<ResourceKey, number> = {
   minerales: 0xe8f4ff,
 }
 
+/**
+ * Load silhouette per resource, so the *shape* says which resource is carried
+ * (logs are long, fuel drums are tall, ore is small) and not only the colour.
+ */
+const CARRY_SHAPE: Record<ResourceKey, [number, number, number]> = {
+  materiales: [1.55, 0.7, 0.8],
+  suministros: [1.0, 1.0, 1.0],
+  combustible: [0.85, 1.35, 0.85],
+  minerales: [0.75, 0.8, 0.75],
+}
+
 const CARRY_GLYPH: Record<ResourceKey, string> = {
   suministros: '🌾',
   materiales: '🪵',
@@ -2319,8 +2330,10 @@ function syncCargo(u: UnitEntity, obj: THREE.Object3D, moving: boolean, t: numbe
   if (!carrying) return
   const fill = Math.min(1, u.carryAmount / (UNIT_DEFS[u.utype]?.carry ?? 20))
   const returning = carrying && !u.gatherTargetId
-  cargo.scale.setScalar(1.0 + 0.45 * fill + (returning ? 0.12 : 0))
   const key = dominantCarry(u.carrying)
+  const shape = CARRY_SHAPE[key]
+  const base = 1.0 + 0.45 * fill + (returning ? 0.12 : 0)
+  cargo.scale.set(base * shape[0], base * shape[1], base * shape[2])
   const resColor = CARRY_COLORS[key]
   if (cargo.userData.resKey !== key) cargo.userData.resKey = key
 

@@ -88,7 +88,7 @@ export function createUI(root: HTMLElement): UIRefs {
     <div class="leftpanel">
       <h3>Acciones</h3>
       <div id="actions" class="actions command-card"></div>
-      <div class="left-hint">Seleccioná un Ayuntamiento o Cuartel para producir. Seleccioná un Ingeniero y usá los botones de construcción.</div>
+      <div class="left-hint">Seleccioná un edificio o un Ingeniero.</div>
     </div>
     <div class="bottombar"><div id="selection-info" class="selection-info">Sin selección. Clic izq: seleccionar · Clic der: mover/recolectar/atacar.</div></div>
     <div class="idle-wrap" id="idle-wrap">
@@ -190,14 +190,17 @@ function clampPct(v: number): number {
 }
 
 function shortEntityLabel(name: string): string {
+  // Keep names readable: the command card wraps up to two lines, so only shorten
+  // when a name really would not fit (before this cut at 11 chars, which turned
+  // "Producción en Cadena" into "Producción…").
   const clean = name.replace(/^Investigación:\s*/i, '').replace(/^Avance:\s*/i, '').trim()
-  if (clean.length <= 11) return clean
+  if (clean.length <= 24) return clean
   const parts = clean.split(/\s+/)
   if (parts.length >= 2) {
     const compact = `${parts[0]} ${parts[1][0]}.`
-    if (compact.length <= 12) return compact
+    if (compact.length <= 25) return compact
   }
-  return clean.slice(0, 10) + '…'
+  return clean.slice(0, 23) + '…'
 }
 
 function teamLabel(team: Team): string {
