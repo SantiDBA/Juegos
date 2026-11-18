@@ -529,18 +529,18 @@ const SCENARIOS = [
       g.build('player', 'almacen', -52, 14, true)
       g.build('player', 'fabrica', -46, 16, true)
       g.build('player', 'torre', -44, 0, true)
-      // base enemiga desarrollada y ACTIVA (producción/defensas/economía visible)
-      g.build('enemy', 'vivienda', 46, 10, true)
-      g.build('enemy', 'vivienda', 46, -10, true)
-      g.build('enemy', 'vivienda', 58, 0, true)
-      g.build('enemy', 'vivienda', 58, -16, true)
-      g.build('enemy', 'vivienda', 60, 16, true)
-      g.build('enemy', 'cuartel', 50, 16, true)
-      g.build('enemy', 'almacen', 50, -14, true)
-      g.build('enemy', 'fabrica', 60, 12, true)
-      g.build('enemy', 'torre', 44, 0, true)
-      g.build('enemy', 'torre', 44, 18, true)
-      g.build('enemy', 'torre', 56, -8, true)
+      // Base enemiga COMPACTA y legible: producción + línea de torres alrededor del TC (55,0)
+      g.build('enemy', 'cuartel', 45, 9, true)
+      g.build('enemy', 'cuartel', 45, -9, true)
+      g.build('enemy', 'fabrica', 58, 11, true)
+      g.build('enemy', 'almacen', 58, -11, true)
+      g.build('enemy', 'vivienda', 47, 17, true)
+      g.build('enemy', 'vivienda', 47, -17, true)
+      g.build('enemy', 'vivienda', 62, 0, true)
+      g.build('enemy', 'torre', 41, 0, true)
+      g.build('enemy', 'torre', 41, 14, true)
+      g.build('enemy', 'torre', 49, -19, true)
+      g.build('enemy', 'torre', 61, 15, true)
       // economía enemiga visible trabajando
       g.spawn('enemy', 'ingeniero', 6, 52, -6)
       g.spawn('enemy', 'ingeniero', 4, 54, -10)
@@ -586,8 +586,8 @@ const SCENARIOS = [
       g.moveFormation(frontWave, -34, 7, 'line')
       g.reveal('player')
 
-      // encuadre amplio inicial para ver base, refuerzos en ruta y frente
-      g.camera(12, 6, 96)
+      // encuadre inicial: base enemiga + oleadas + frente
+      g.camera(32, 2, 90)
       g.skip(5.5)
       // reencuadre dinámico: mantener visible base enemiga activa + ruta + choque
       let cx = 8, cz = 4, n = 0
@@ -596,7 +596,7 @@ const SCENARIOS = [
         if (e.x < -30 || e.x > 42 || Math.abs(e.z - 6) > 32) continue
         cx += e.x; cz += e.z; n++
       }
-      g.camera(34, 4, 82)
+      g.camera(48, 0, 76)
 
       // más tiempo de combate para bajas/huellas claras + pausa en momento activo
       g.skip(3.6)
