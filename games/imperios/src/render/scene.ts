@@ -2644,12 +2644,32 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
       s0: 1.3, s1: 2.0, o0: 1.0, hold: 0.12,
     })
   }
+  // Dark backing rail, drawn UNDER the bright core (renderOrder): a warm streak over
+  // tan dirt/roofs has no contrast of its own — this is the dark edge that makes it
+  // read, the same trick AoE2 arrows use.
+  const back = acquireFx(rc, 'beam')
+  if (back) {
+    back.position.lerpVectors(from, to, 0.5)
+    back.lookAt(to)
+    const thick = 0.78
+    back.scale.set(thick, thick, dist)
+    back.renderOrder = 150
+    const bm = back.material as THREE.MeshBasicMaterial
+    bm.color.setHex(0x140f08)
+    bm.opacity = 0.8
+    rc.fxItems.push({
+      kind: 'beam', mesh: back, t: 0, life: 2.0,
+      pos: back.position.clone(), vel: new THREE.Vector3(),
+      s0: thick, s1: thick, o0: 0.8, hold: 1.1,
+    })
+  }
   // Core beam (thick, bright, long hold for still captures)
   const mesh = acquireFx(rc, 'beam')
   if (mesh) {
+    mesh.renderOrder = 151
     mesh.position.lerpVectors(from, to, 0.5)
     mesh.lookAt(to) // geometry runs along +Z, so this aims the streak
-    const thick = 0.42
+    const thick = 0.55
     mesh.scale.set(thick, thick, dist)
     const m = mesh.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
@@ -2665,7 +2685,8 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   if (glow) {
     glow.position.lerpVectors(from, to, 0.5)
     glow.lookAt(to)
-    const thick = 0.62
+    glow.renderOrder = 152
+    const thick = 0.44
     glow.scale.set(thick, thick, dist)
     const gm = glow.material as THREE.MeshBasicMaterial
     gm.color.setHex(0xfff4c8)

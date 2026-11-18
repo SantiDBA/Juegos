@@ -170,8 +170,24 @@ function evalExpect(js, expected, label) {
 }
 
 /** Captura de viewport al directorio de la fase. */
+/**
+ * La foto tiene que ser del estado ACTUAL de la página. `screenshot` devuelve el
+ * último frame confirmado por el compositor, y en headless puede quedar atrás: se
+ * escribía un marcador en el DOM y no aparecía en la imagen (los escenarios parecían
+ * mostrar la base de otro escenario). Esperar dos ticks de rAF fuerza a que la página
+ * pinte después del último cambio antes de disparar la foto.
+ */
+function syncFrame() {
+  const res = evalJs(
+    "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r('ok'))))",
+    { allowFail: true },
+  )
+  return res
+}
+
 function shot(fileName) {
   const file = join(SHOTS_DIR, fileName)
+  syncFrame()
   run(['screenshot', file])
   log(`  ✓ ${fileName}`)
   return file
@@ -484,6 +500,7 @@ const SCENARIOS = [
 
       // Encuadre fijo sobre el frente: ambas líneas (±13) entran en cuadro
       g.camera(0, 25, 48)
+
 
       return 'ok dead=' + deadUnits().length
     })()`,
