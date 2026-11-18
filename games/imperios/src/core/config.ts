@@ -24,7 +24,7 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
     sight: 18, cost: { suministros: 50 }, trainTime: 16, era: 1, role: 'economy', gatherRate: 10, carry: 20,
   },
   milicia: {
-    type: 'milicia', name: 'Milicia Industrial', hp: 70, speed: 5.0, range: 1.7, damage: 9, attackCooldown: 1.1,
+    type: 'milicia', name: 'Milicia Industrial', hp: 70, speed: 5.0, range: 2.3, damage: 9, attackCooldown: 1.1,
     sight: 16, cost: { suministros: 60, materiales: 20 }, trainTime: 18, era: 1, role: 'infantry',
     counters: 'Económica y versátil; débil ante fuego a distancia.',
   },
@@ -34,12 +34,12 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
     counters: 'Fuerte vs infantería; débil ante vehículos.',
   },
   blindado: {
-    type: 'blindado', name: 'Blindado Ligero', hp: 170, speed: 6.6, range: 2.0, damage: 16, attackCooldown: 1.5,
+    type: 'blindado', name: 'Blindado Ligero', hp: 170, speed: 6.6, range: 2.7, damage: 16, attackCooldown: 1.5,
     sight: 18, cost: { combustible: 90, materiales: 60 }, trainTime: 30, era: 2, role: 'vehicle',
     counters: 'Rápido y fuerte vs fusileros; débil ante concentración y artillería.',
   },
   granadero: {
-    type: 'granadero', name: 'Granadero', hp: 85, speed: 4.6, range: 2.2, damage: 10, attackCooldown: 1.5,
+    type: 'granadero', name: 'Granadero', hp: 85, speed: 4.6, range: 2.7, damage: 10, attackCooldown: 1.5,
     sight: 15, cost: { suministros: 70, materiales: 30 }, trainTime: 22, era: 1, role: 'infantry',
     counters: 'Fuerte vs infantería y edificios; débil a distancia.',
   },

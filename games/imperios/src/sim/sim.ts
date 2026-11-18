@@ -163,10 +163,10 @@ function stepBuildings(gs: GameState, dt: number): void {
 const VEHICLES = new Set<string>(['blindado', 'cazacarros', 'canon', 'mlrs', 'tanque', 'tanque_autonomo'])
 
 function unitRadius(utype: string): number {
-  if (utype === 'ingeniero') return 0.75
+  if (utype === 'ingeniero') return 0.8
   if (utype === 'dron') return 0.9
   if (VEHICLES.has(utype)) return 1.45
-  return 0.85
+  return 1.0
 }
 
 /** True when a unit is converging/holding a formation/home slot; keeps formation while fighting near its slot. */
@@ -213,7 +213,7 @@ function stepUnits(gs: GameState, dt: number): void {
       const d2 = dx * dx + dz * dz
       if (d2 < minDist * minDist && d2 > 0.001) {
         const d = Math.sqrt(d2)
-        const push = (minDist - d) * 0.5
+        const push = (minDist - d) * 0.58
         // standground units hold their tile: the neighbour absorbs the whole push
         const aHolds = a.stance === 'standground'
         const bHolds = b.stance === 'standground'

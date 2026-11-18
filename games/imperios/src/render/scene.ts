@@ -96,9 +96,6 @@ const FX_LIVE_CAP: Record<FxKind, number> = {
   rubble: 320,
 }
 
-/** Lifetime of a crater, and how long it holds full opacity before fading. */
-const CRATER_LIFE = 320
-const CRATER_HOLD = 300
 const WRECK_LIFE = 320
 const WRECK_HOLD = 300
 const RUBBLE_LIFE = 320
@@ -2465,42 +2462,6 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     })
   }
 
-  // Crater decal: very large, high-contrast scorch that persists for stills.
-  if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
-  const crater = acquireFx(rc, 'decal')
-  if (crater) {
-    const rad = 2.6 + seed * 0.9
-    crater.position.set(x, groundHeightAt(x, z) + 0.07, z)
-    crater.scale.set(rad, 1, rad)
-    const m = crater.material as THREE.MeshBasicMaterial
-    m.color.setHex(seed > 0.5 ? 0x0d0906 : 0x14100b)
-    m.opacity = 1.0
-    rc.fxItems.push({
-      kind: 'decal', mesh: crater, t: 0, life: CRATER_LIFE,
-      pos: crater.position.clone(), vel: new THREE.Vector3(),
-      s0: 1, s1: 1, o0: 1.0, hold: CRATER_HOLD,
-    })
-  }
-  // Secondary splash decal: dark splatter so each impact leaves an extra visible mark.
-  if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
-  const splash = acquireFx(rc, 'decal')
-  if (splash) {
-    const ox = (hash2(x * 1.7 + 3.1, z * 0.9 - 2.2) - 0.5) * 1.8
-    const oz = (hash2(x * 0.6 - 1.4, z * 1.8 + 4.3) - 0.5) * 1.8
-    const sx = x + ox
-    const sz = z + oz
-    const rad = 1.2 + seed * 0.5
-    splash.position.set(sx, groundHeightAt(sx, sz) + 0.072, sz)
-    splash.scale.set(rad, 1, rad)
-    const m = splash.material as THREE.MeshBasicMaterial
-    m.color.setHex(seed > 0.45 ? 0x0b0806 : 0x120e09)
-    m.opacity = 0.98
-    rc.fxItems.push({
-      kind: 'decal', mesh: splash, t: 0, life: CRATER_LIFE,
-      pos: splash.position.clone(), vel: new THREE.Vector3(),
-      s0: 1, s1: 1, o0: 0.98, hold: CRATER_HOLD,
-    })
-  }
 }
 
 /** Grey smoke rising from a wounded building's roof (presentation only). */
@@ -2536,7 +2497,7 @@ export function spawnDeathFx(
 ): void {
   const y = groundHeightAt(x, z)
   // smoke first: this is the part that reads instantly as "something died"
-  const puffs = entity === 'building' ? 14 : 7
+  const puffs = entity === 'building' ? 14 : 0
   for (let i = 0; i < puffs; i++) {
     const mesh = acquireFx(rc, 'puff')
     if (!mesh) break
