@@ -459,25 +459,19 @@ const SCENARIOS = [
       g.skip(0.6)
       dead = deadUnits().length
 
-      // Fase final sin pausar: generar ráfaga de ataques/trazadoras recientes
-      // (los FX de impacto/trazadora tienen hold largo y quedarán visibles al pausar)
+      // Refuerzos frescos de ambos bandos: garantiza que azul y rojo estén presentes
+      // y disparando en el instante de la captura (no sólo el bando que quedó vivo).
+      g.spawn('player', 'milicia', 3, -6, 22)
+      g.spawn('player', 'fusilero', 3, -13, 23)
+      g.spawn('enemy', 'milicia', 3, 6, 22)
+      g.spawn('enemy', 'fusilero', 3, 13, 23)
+      g.skip(1.2)
+      // pausa justo tras actividad (impactos con hold 2s siguen visibles en el still)
       g.skip(0.15)
       g.state.status = 'paused'
 
-      // Centrar cámara en el punto más sangriento del frente (bajas + vivos mezclados)
-      let cx = 0, cz = 25, n = 0
-      const focus = deadUnits().filter(e => Math.abs(e.x) < 22 && Math.abs(e.z - 25) < 18)
-      if (focus.length === 0) {
-        for (const e of liveFront()) { cx += e.x; cz += e.z; n++ }
-      } else {
-        for (const e of focus) { cx += e.x; cz += e.z; n++ }
-        // tirar ligeramente hacia el frente vivo para incluir combatientes activos
-        let lx = 0, lz = 0, ln = 0
-        for (const e of liveFront()) { lx += e.x; lz += e.z; ln++ }
-        if (ln > 0) { cx = (cx / n) * 0.65 + (lx / ln) * 0.35; cz = (cz / n) * 0.65 + (lz / ln) * 0.35; n = 1 }
-      }
-      if (n > 0) g.camera(cx / n, cz / n, 42)
-      else g.camera(0, 25, 42)
+      // Encuadre fijo sobre el frente: ambas líneas (±13) entran en cuadro
+      g.camera(0, 25, 48)
 
       return 'ok dead=' + deadUnits().length
     })()`,

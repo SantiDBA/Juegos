@@ -1148,7 +1148,7 @@ function teamStripe(g: THREE.Group, teamC: number, w: number, y: number, z: numb
 }
 
 export function createMeshForEntity(e: AnyEntity): THREE.Object3D {
-  if (e.kind === 'unit') { const g = createUnitMesh(e); g.scale.setScalar(1.35); return g }
+  if (e.kind === 'unit') { const g = createUnitMesh(e); g.scale.setScalar(1.5); return g }
   if (e.kind === 'building') return createBuildingMesh(e)
   return createResourceMesh(e)
 }
@@ -1399,6 +1399,19 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xff8866, emissive: 0xff5533, emissiveIntensity: 1.3 }))
     eye.position.set(0, -0.02, 0.48); g.add(eye)
     teamStripe(g, teamC, 0.5, 0.16, -0.3)
+  }
+  // Team-coloured crest for foot units: a small plume/standard that makes the
+  // side readable at game zoom without resorting to emissive glow.
+  const crestRole = UNIT_DEFS[u.utype]?.role
+  if (crestRole === 'infantry' || crestRole === 'ranged') {
+    const crest = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.42, 6), paintMat(teamC, 0.4, 0.2))
+    crest.name = 'crest'
+    crest.position.set(0, 1.62, -0.02)
+    crest.castShadow = true
+    g.add(crest)
+    const crestTip = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), paintMat(teamC, 0.35, 0.25))
+    crestTip.position.set(0, 1.86, -0.02)
+    g.add(crestTip)
   }
   const sel = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 28), new THREE.MeshBasicMaterial({ color: 0x7dffb2, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }))
   sel.rotation.x = -Math.PI / 2; sel.position.y = 0.06; sel.name = 'sel'; sel.visible = false; g.add(sel)
@@ -2040,8 +2053,6 @@ export function syncEntityMesh(
   // facing and simple animation
   const prev = rc.prevPos.get(e.id)
   if (e.kind === 'unit') {
-    // Slightly larger unit meshes read better at game zoom (silhouettes vs AoE2).
-    obj.scale.setScalar(1.12)
     const u = e as UnitEntity
     if (prev) {
       const dx = e.x - prev.x, dz = e.z - prev.z
@@ -2373,7 +2384,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   if (mesh) {
     mesh.position.lerpVectors(from, to, 0.5)
     mesh.lookAt(to) // geometry runs along +Z, so this aims the streak
-    const thick = 0.6
+    const thick = 0.34
     mesh.scale.set(thick, thick, dist)
     const m = mesh.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
@@ -2381,7 +2392,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
     rc.fxItems.push({
       kind: 'beam', mesh, t: 0, life: 14.0,
       pos: mesh.position.clone(), vel: new THREE.Vector3(),
-      s0: thick, s1: thick, o0: 1.0, hold: 12.0,
+      s0: thick, s1: thick, o0: 0.9, hold: 8.0,
     })
   }
   // Glow sheath for extra readability at game zoom
@@ -2389,7 +2400,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   if (glow) {
     glow.position.lerpVectors(from, to, 0.5)
     glow.lookAt(to)
-    const thick = 0.75
+    const thick = 0.5
     glow.scale.set(thick, thick, dist)
     const gm = glow.material as THREE.MeshBasicMaterial
     gm.color.setHex(0xfff4c8)
@@ -2397,7 +2408,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
     rc.fxItems.push({
       kind: 'beam', mesh: glow, t: 0, life: 14.0,
       pos: glow.position.clone(), vel: new THREE.Vector3(),
-      s0: thick, s1: thick, o0: 0.4, hold: 12.0,
+      s0: thick, s1: thick, o0: 0.22, hold: 12.0,
     })
   }
   // Bright projectile/head flash near impact end for directional clarity
@@ -2451,9 +2462,9 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(0xffbf55)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'flash', mesh: flash, t: 0, life: 1.7,
+      kind: 'flash', mesh: flash, t: 0, life: 3.0,
       pos: flash.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.2, s1: 2.3, o0: 0.95, hold: 0.75,
+      s0: 1.0, s1: 1.5, o0: 0.4, hold: 1.4,
     })
   }
   const ring = acquireFx(rc, 'ring')
@@ -2464,9 +2475,9 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(0xffe4a8)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'ring', mesh: ring, t: 0, life: 1.6,
+      kind: 'ring', mesh: ring, t: 0, life: 2.4,
       pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.2, s1: 2.6, o0: 0.45, hold: 0.7,
+      s0: 1.1, s1: 1.9, o0: 0.25, hold: 1.1,
     })
   }
 
@@ -2496,7 +2507,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
   if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
   const crater = acquireFx(rc, 'decal')
   if (crater) {
-    const rad = 4.2 + seed * 1.4
+    const rad = 2.6 + seed * 0.9
     crater.position.set(x, groundHeightAt(x, z) + 0.07, z)
     crater.scale.set(rad, 1, rad)
     const m = crater.material as THREE.MeshBasicMaterial
@@ -2516,7 +2527,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     const oz = (hash2(x * 0.6 - 1.4, z * 1.8 + 4.3) - 0.5) * 1.8
     const sx = x + ox
     const sz = z + oz
-    const rad = 1.9 + seed * 0.8
+    const rad = 1.2 + seed * 0.5
     splash.position.set(sx, groundHeightAt(sx, sz) + 0.072, sz)
     splash.scale.set(rad, 1, rad)
     const m = splash.material as THREE.MeshBasicMaterial
@@ -2797,11 +2808,13 @@ export function spawnDepositFx(
 function fxMaterial(kind: FxKind): THREE.Material {
   switch (kind) {
     case 'beam':
-      return new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
+      // normal blending: many simultaneous tracers must not stack into a white web
+      return new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, depthWrite: false, toneMapped: false })
     case 'flash':
-      return new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
+      // normal blending: overlapping hit flashes must not sum to white
+      return new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, depthWrite: false, toneMapped: false })
     case 'ring':
-      return new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false })
+      return new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })
     case 'muzzle':
       return new THREE.MeshBasicMaterial({ color: 0xfff0c6, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false })
     case 'spark':
