@@ -455,9 +455,39 @@ function addDensityProps(scene: THREE.Scene): void {
   scene.add(groves)
 
   // Subtle field/farm strips near supply areas and routes (visual only, deterministic).
+  // Hard-edged crop rectangles were reading as "construction-paper cutouts" over
+  // the ground (and made the fog look like hard polygons). One canvas gives every
+  // strip a feathered oval edge plus ploughed furrows, so it melts into the terrain.
+  const fieldTex = (() => {
+    const size = 128
+    const c = document.createElement('canvas')
+    c.width = c.height = size
+    const ctx = c.getContext('2d')!
+    const img = ctx.createImageData(size, size)
+    for (let y = 0; y < size; y++) {
+      const furrow = 0.86 + 0.14 * Math.sin(y * 0.62)
+      for (let x = 0; x < size; x++) {
+        const dx = (x + 0.5) / size * 2 - 1
+        const dy = (y + 0.5) / size * 2 - 1
+        const r = Math.sqrt(dx * dx + dy * dy)
+        const k = THREE.MathUtils.clamp((1 - r) / 0.34, 0, 1)
+        const a = Math.pow(k * k * (3 - 2 * k), 1.15)
+        const v = Math.round(255 * furrow)
+        const o = (y * size + x) * 4
+        img.data[o] = v; img.data[o + 1] = v; img.data[o + 2] = v
+        img.data[o + 3] = Math.round(a * 255)
+      }
+    }
+    ctx.putImageData(img, 0, 0)
+    const tex = new THREE.CanvasTexture(c)
+    tex.minFilter = THREE.LinearFilter
+    tex.magFilter = THREE.LinearFilter
+    tex.generateMipmaps = false
+    return tex
+  })()
   const fieldMats = [
-    new THREE.MeshBasicMaterial({ color: 0x7a8a3a, transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1.4, polygonOffsetUnits: -1.4 }),
-    new THREE.MeshBasicMaterial({ color: 0xb7a44a, transparent: true, opacity: 0.2, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1.4, polygonOffsetUnits: -1.4 }),
+    new THREE.MeshBasicMaterial({ map: fieldTex, color: 0x7a8a3a, transparent: true, opacity: 0.3, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1.4, polygonOffsetUnits: -1.4 }),
+    new THREE.MeshBasicMaterial({ map: fieldTex, color: 0xb7a44a, transparent: true, opacity: 0.28, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1.4, polygonOffsetUnits: -1.4 }),
   ]
   const fields: Array<[number, number, number, number, number]> = [
     [-40, -20, 4.8, 3.2, 0], [-36, -22, 4.2, 3.0, 1], [-42, -16, 4.4, 3.0, 0], [-34, -24, 4.0, 2.8, 1], [-20, -38, 5.4, 3.4, 0], [-38, -18, 3.6, 2.6, 1],
@@ -599,7 +629,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   const pos = groundGeo.attributes.position as THREE.BufferAttribute
   const colors: number[] = []
   const cLow = new THREE.Color(0x4a6b35)
-  const cMid = new THREE.Color(0x6b7a42)
+  const cMid = new THREE.Color(0x77803c)
   const cHigh = new THREE.Color(0x8a7d5a)
   const cDirt = new THREE.Color(0x7a6240)
   const cRock = new THREE.Color(0x8a8a82)
@@ -621,7 +651,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
     const patch = fbm(x * 0.06 + 20, y * 0.06 - 7)
     const patch2 = fbm(x * 0.15 + 50, y * 0.15 + 30)
     const patch3 = fbm(x * 0.035 - 12, y * 0.035 + 18)
-    c.offsetHSL((patch - 0.5) * 0.05 + (patch3 - 0.5) * 0.025, (patch - 0.5) * 0.08 + (patch3 - 0.5) * 0.04, (patch2 - 0.5) * 0.08 + (patch3 - 0.5) * 0.05)
+    c.offsetHSL((patch - 0.5) * 0.085 + (patch3 - 0.5) * 0.04, (patch - 0.5) * 0.135 + (patch3 - 0.5) * 0.065, (patch2 - 0.5) * 0.135 + (patch3 - 0.5) * 0.08)
     const ao = THREE.MathUtils.clamp(0.72 + (h + 2.0) * 0.06 - slope * 0.3 + (patch3 - 0.5) * 0.05, 0.5, 1.0)
     c.multiplyScalar(ao)
     colors.push(c.r, c.g, c.b)
