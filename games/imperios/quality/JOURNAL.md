@@ -2953,6 +2953,45 @@ fusileros del escenario, `lenMax` pasó de **2.01 a 8.0 u** (≈116 px a `dist 4
 
 ---
 
+# Ciclo 56 · el "bug de VFX" era MI medición · 2026-11-17
+
+**Corrección del ciclo 55.** En el ciclo 55 concluí que "los meshes de VFX no se dibujan" a partir
+de una prueba con material magenta, opacidad 1 y grosor 3.0 que dejaba 0 píxeles magenta. **Esa
+prueba estaba mal diseñada**: `spawnTracer` hace `m.color.setHex(color)` en **cada disparo**, así que
+el magenta del material nunca llegaba al frame. Conclusión retirada.
+
+**Lo que sí se midió (aislamiento completo):**
+
+| Prueba | Resultado |
+|---|---|
+| Un mesh de cada tipo de fx, magenta, creado a mano | **Los 6 se dibujan**: beam 10136 px, flash 10152, puff 9692, spark 5732, ring 5008, muzzle 1568 |
+| `spawnTracer` por el camino real, con color magenta explícito | **812 px** ≈ 90% del área teórica de una línea de 8 u × 0.55 |
+| Grupo de fx | identidad (scale 1,1,1; pos 0,0,0), layers 1 = layers de cámara, en la misma escena |
+
+No hay bug de render: el pipeline dibuja los tracers correctamente. Lo que falla es que **~8 px de
+línea cálida sobre tierra tostada no le llegan al juez de visión**.
+
+**Cambio que quedó** (contraste, con base en la medición):
+- Riel inferior a negro pleno (`0x000000`, opacidad 0.92) y núcleo afinado a 0.42 u: borde oscuro
+  real debajo de la línea clara, el truco de las flechas de AoE2.
+- `TRACER_GUN` de `0xffd27a` → `0xfff3c4` (más cerca del blanco).
+
+**Lección de método (la importante):** cuando la prueba de aislamiento modifica un material que el
+código **sobrescribe en cada uso**, la prueba mide otra cosa. Antes de declarar "no se dibuja", hay
+que verificar que el valor de prueba sobreviva hasta el render. Costó dos ciclos.
+
+## Riesgos / notas
+- **56 ciclos.** Promedio 7.10 sin cambio (dim 10 sigue 6.5).
+- La causa del techo de dim 10 queda identificada con evidencia: **el efecto se dibuja, el
+  instrumento no lo resuelve** a 1280x577. El zoom está descartado (ciclo 55) y el bug de render
+  no existe (este ciclo). O sea: no hay evidencia que justifique reescribir el renderer.
+- Hooks temporales de diagnóstico (`fxprobe`, `fxclear`, `tracerProbe`) retirados tras usarlos.
+  Se exportó `FxKind` desde `render/scene.ts`.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
