@@ -84,22 +84,39 @@ function startGame(): void {
   gs.status = 'playing'
   ui.overlay.classList.add('hidden')
   ui.overlay.innerHTML = ''
-  // Camera intro: start high and far, ease to player base
+  // Camera intro: start high and far, ease to player base. Cancellable on purpose:
+  // it runs on rAF, so in a throttled/headless page a late frame used to fire AFTER
+  // a scripted camera setup and yank the view back to the base (any capture that set
+  // its own framing was silently overwritten).
   rc.target.set(0, 0, 0)
   rc.camDist = 120
-  const startT = performance.now()
-  const introDuration = 1800
-  function introCam() {
-    const elapsed = performance.now() - startT
-    const t = Math.min(1, elapsed / introDuration)
-    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-    rc.target.x = -48 * ease
-    rc.target.z = 4 * ease
-    rc.camDist = 120 - 55 * ease
-    updateCamera(rc)
-    if (t < 1) requestAnimationFrame(introCam)
-  }
+  introStartT = performance.now()
+  introActive = true
   introCam()
+}
+
+let introActive = false
+let introRaf = 0
+let introStartT = 0
+const INTRO_MS = 1800
+
+/** Stops the intro pan. Called by any manual camera control, including dev hooks. */
+function stopIntro(): void {
+  introActive = false
+  if (introRaf) { cancelAnimationFrame(introRaf); introRaf = 0 }
+}
+
+function introCam(): void {
+  if (!introActive) return
+  const elapsed = performance.now() - introStartT
+  const t = Math.min(1, elapsed / INTRO_MS)
+  const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+  rc.target.x = -48 * ease
+  rc.target.z = 4 * ease
+  rc.camDist = 120 - 55 * ease
+  updateCamera(rc)
+  if (t < 1) introRaf = requestAnimationFrame(introCam)
+  else stopIntro()
 }
 
 function bindUI(): void {
@@ -283,6 +300,7 @@ window.addEventListener('resize', () => resize(rc))
 
 function updateCameraControls(dt: number): void {
   const speed = 45 * dt
+  if (keys.size > 0) stopIntro()
   const forward = new THREE.Vector3(Math.cos(rc.camYaw), 0, Math.sin(rc.camYaw))
   const right = new THREE.Vector3(-forward.z, 0, forward.x)
   if (keys.has('w')) rc.target.addScaledVector(forward, -speed)
@@ -297,6 +315,7 @@ function updateCameraControls(dt: number): void {
   updateCamera(rc)
 }
 canvas.addEventListener('wheel', (e) => {
+  stopIntro()
   rc.camDist = Math.max(25, Math.min(120, rc.camDist + e.deltaY * 0.03))
   updateCamera(rc)
 }, { passive: true })
@@ -306,6 +325,7 @@ function bindMinimap(): void {
   let mmDown = false
 
   const jumpTo = (clientX: number, clientY: number) => {
+    stopIntro()
     const rect = mm.getBoundingClientRect()
     const x = ((clientX - rect.left) / rect.width) * MAP_SIZE - MAP_SIZE / 2
     const z = ((clientY - rect.top) / rect.height) * MAP_SIZE - MAP_SIZE / 2
@@ -656,12 +676,13 @@ if (import.meta.hot) {
     },
     /** Pans (and optionally zooms) the camera for a framed capture. */
     camera: (x: number, z: number, dist?: number) => {
+      stopIntro()
       rc.target.set(x, 0, z)
       if (dist != null) rc.camDist = Math.max(25, Math.min(120, dist))
       updateCamera(rc)
     },
     /** Pans the camera to a world point (alias of `camera` without zoom). */
-    focus: (x: number, z: number, dist?: number) => { devFocus(x, z, dist); return 'ok' },
+    focus: (x: number, z: number, dist?: number) => { stopIntro(); devFocus(x, z, dist); return 'ok' },
     /** Orders every idle engineer to the nearest resource node. */
     gatherAll: (team: Team = 'player') => devGatherAll(team),
     /** Spawns `n` engineers around the town hall and puts them to work. */

@@ -444,10 +444,13 @@ const SCENARIOS = [
       for (let bi = 0; bi < 6; bi++) { g.build('player', 'vivienda', -66, -26 + bi * 10, true); g.build('enemy', 'vivienda', 66, -26 + bi * 10, true) }
       g.skip(0.05)
       // Choque denso melee+ranged + artillería ligera: contacto inmediato y fuego cruzado sostenido
+      // Los fusileros tienen alcance 8.5: a 20 u entre líneas se acercaban a pie y el
+      // fuego llegaba tarde (o nunca). A 8 u ya están en alcance y disparan desde el
+      // primer instante, que es lo que la toma tiene que mostrar.
       g.spawn('player', 'milicia', 8, -2, 25)
-      g.spawn('player', 'fusilero', 10, -10, 25)
+      g.spawn('player', 'fusilero', 10, -4, 25)
       g.spawn('enemy', 'milicia', 8,  2, 25)
-      g.spawn('enemy', 'fusilero', 10,  10, 25)
+      g.spawn('enemy', 'fusilero', 10,  4, 25)
 
       const entities = () => typeof g.state.entities.values === 'function'
         ? [...g.state.entities.values()]
@@ -467,17 +470,17 @@ const SCENARIOS = [
 
       // Refuerzos frescos de ambos bandos: garantiza que azul y rojo estén presentes
       // y disparando en el instante de la captura (no sólo el bando que quedó vivo).
+      // Refuerzos DE ALCANCE: a 6 u entre líneas, ya disparando cuando llega la captura.
       g.spawn('player', 'milicia', 3, -6, 22)
-      g.spawn('player', 'fusilero', 3, -13, 23)
+      g.spawn('player', 'fusilero', 4, -3, 23)
       g.spawn('enemy', 'milicia', 3, 6, 22)
-      g.spawn('enemy', 'fusilero', 3, 13, 23)
+      g.spawn('enemy', 'fusilero', 4, 3, 23)
       g.skip(0.8)
-      // Pausa justo tras actividad. Los fx los emite el render loop, así que con el
-      // sim pausado el still congela el último frame REAL, que ya tiene trazadoras
-      // vivas (life 2.0 s con hold 1.1 s): dejarlo 'playing' durante el settle hace
-      // que la cámara se pierda y el frame acabe mostrando la base, no el frente.
-      g.skip(0.15)
-      g.state.status = 'paused'
+      // Se deja el sim CORRIENDO durante el settle: los fx (trazadoras, impactos) los
+      // emite el render loop, no skip(), así que pausar deja el frame sin fuego. Antes
+      // esto "perdía la cámara" porque la intro de startGame() la pisaba por rAF; ahora
+      // la intro es cancelable y los escenarios mandan.
+      g.state.status = 'playing'
 
       // Encuadre fijo sobre el frente: ambas líneas (±13) entran en cuadro
       g.camera(0, 25, 48)
@@ -889,6 +892,10 @@ async function main() {
         const out = sc.js ? evalExpect(sc.js, 'ok', sc.id) : ''
         if (out) log(`    → ${short(out, 160)}`)
         await sleep(sc.settleMs)
+      }
+      if (sc.id === '04-combate') {
+        const diag = evalJs("(() => { const g = window.__imperios; const fx = g.render.fxItems || []; const ents = [...g.state.entities.values()]; const near = ents.filter(e => e && !e.dead && e.kind === 'unit' && Math.hypot(e.x - g.render.target.x, e.z - g.render.target.z) < 30); return 'cam=' + g.render.target.x.toFixed(1) + ',' + g.render.target.z.toFixed(1) + ' dist=' + g.render.camDist.toFixed(0) + ' near=' + near.length + ' beam=' + fx.filter(f => f.kind === 'beam').length + ' status=' + g.state.status + ' pop=' + g.state.players.player.pop + '/' + g.state.players.player.popCap })()")
+        log(`    · diag al disparar la foto: ${diag}`)
       }
       created.push(shot(`${sc.id}.png`))
     }
