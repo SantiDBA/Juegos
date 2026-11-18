@@ -2148,6 +2148,64 @@ el contorno no.
 
 ---
 
+# Juez ciego · ciclo-42-economia-tareas · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-42-economia-tareas/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** dim 1 — hacer legible la economía **por
+unidad**, que era lo que el juez pedía explícitamente ("no task/carry field, no drop-off
+indicator, no resource legend text").
+- **Tarea por unidad en el panel de selección**: el segundo renglón de cada chip pasa de un
+  genérico "Aliado" a la tarea real, con verbo + recurso e ícono tintado por recurso:
+  "Recolecta Materiales", "Lleva Suministros", "Construye", "Ataca", "Se mueve", "Inactivo".
+  El bando sigue leyéndose por el borde de color del chip.
+- **Leyenda de recursos en la barra superior**: cada contador ahora muestra su nombre visible
+  (Suministros, Materiales, Combustible, Minerales, Población, Tiempo) además del ícono.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`: "Lleva Suministros / Recolecta Materiales / Inactivo" por chip y barra con nombres; "comparable o mejor para comparar 12 unidades de un vistazo". |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`: sin cambios respecto del ciclo 41. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles pero transición plana. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: densidad tipo "Arabia". |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: propiedad por color de techo. |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`: etiquetas completas, ayuda visible. |
+| 9 | Art direction / diorama isométrico | 7.0 | siluetas + color de bando. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`: hit-pips visibles. Sin audio. |
+
+**Promedio:** 6.90 · **Mínima:** 6.5 · **Dimensiones < 7:** 3
+
+**Veredicto — SORPRENDIDO: NO**
+Dim 1 sube a 7 y por primera vez quedan solo 3 dimensiones por debajo. El juez pide ahora precisión
+fina: nombres de recurso sin truncar (los chips se cortan contra el borde del panel y el botón "?").
+
+## Top 7 brechas
+1. Texto de chip truncado/clipeado por el panel y el botón de ayuda — dim 1/8.
+2. Niebla con transición plana (sin borde suave) — dim 3.
+3. Formaciones poco variadas por rol — dim 4.
+4. Zonas abiertas en late-game — dim 6.
+5. Materiales/luz simples — dim 9.
+6. Juice sin audio — dim 10.
+7. Unidades al borde de techos azules — dim 2.
+
+## 5 cambios para el próximo ciclo
+1. Transición de niebla con borde suave/feather — dim 3.
+2. Chip de tarea más ancho o en dos líneas sin truncar — dim 1/8.
+3. Variedad de formaciones por rol — dim 4.
+4. Rellenar huecos de late-game — dim 6.
+5. Estela corta de proyectil — dim 10.
+
+## Riesgos / notas
+- **42 ciclos.** Promedio **6.90** (+0.10). Dim 1 = 7 por primera vez.
+- Lección: la HUD es la palanca barata y medible que queda; el mundo 3D está en su techo
+  (dim 9/6 estancadas) mientras el panel de selección todavía admite detalle real de AoE2.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
