@@ -2206,6 +2206,73 @@ fina: nombres de recurso sin truncar (los chips se cortan contra el borde del pa
 
 ---
 
+# Juez ciego · ciclo-43-niebla-suave · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-43-niebla-suave/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** dim 3 — niebla con transición suave y
+textura de nubes, sin reescribir los tres estados (esa reescritura ya falló en el ciclo 18).
+- El repintado ahora lee el grid a resolución gruesa (1 téxel por tile), lo **difumina ahí mismo**
+  con 6 pasadas separables 1-2-1 (feather de ~4-6 tiles) y recién después lo sube con bilineal.
+  Diffuminar en 90x90 en vez de 360x360 es lo que hace barato un feather ancho.
+- **Textura de nubes** de 2 octavas (value noise tileable, L=18 + L=44) modulando el alfa del velo.
+- Bug encontrado y corregido: un ajuste de medio téxel dejaba el factor de interpolación en 0
+  siempre → el upsample era *nearest* (bordes duros, justo lo que reportaba el juez).
+
+**Medición propia (no del juez) — la niebla SÍ quedó suave:**
+- Máscara cruda (`g.render.fogTexture.image`): el alfa transiciona a lo largo de ~4-6 tiles, no en
+  un escalón; el alfa del velo varía 108-253 por las nubes.
+- Render (`agent-browser screenshot` + perfil de luminancia en Python): hay transiciones de niebla
+  suaves, pero el frame tiene **14.6 acantilados de luminancia (>60/255) por fila**: son los
+  **parches duros de color del terreno**, no la niebla. La niebla se lee como "polígonos duros"
+  porque el terreno debajo ya es duro.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`: sin cambios respecto del ciclo 42. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`: sin cambios. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: el juez puntúa 4/10 ("bordes duros, sin textura"); el probe muestra feather y nubes, pero el terreno duro de abajo domina la lectura. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`. |
+| 9 | Art direction / diorama isométrico | 7.0 | parches duros de terreno, ver nota. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`. Sin audio. |
+
+**Promedio:** 6.90 · **Mínima:** 6.5 · **Dimensiones < 7:** 3
+
+**Veredicto — SORPRENDIDO: NO**
+Sin cambio. La niebla mejoró de forma medible pero el juez no la distingue de los parches duros del
+terreno: **el techo de dim 3 no es la niebla, es el terreno**.
+
+## Top 7 brechas
+1. Parches de color del terreno con bordes de 1 píxel (afecta dim 3 y dim 9) — 14.6 acantilados/fila.
+2. Texto de chip truncado por el panel y el botón "?" — dim 1/8.
+3. Formaciones poco variadas por rol — dim 4.
+4. Zonas abiertas en late-game — dim 6.
+5. Materiales/luz simples — dim 9.
+6. Juice sin audio — dim 10.
+7. Unidades al borde de techos azules — dim 2.
+
+## 5 cambios para el próximo ciclo
+1. Suavizar el borde entre parches de terreno (mezcla de color entre tiles vecinos) — dim 3/9.
+2. Chip de tarea sin truncar — dim 1/8.
+3. Variedad de formaciones por rol — dim 4.
+4. Rellenar huecos de late-game — dim 6.
+5. Estela corta de proyectil — dim 10.
+
+## Riesgos / notas
+- **43 ciclos.** Promedio 6.90 (sin cambio). Dim 3 sigue en 6.5.
+- **Corolario importante**: el juez de visión lee "polígonos duros" y los atribuye a la niebla,
+  pero la medición dice que son los parches del terreno. Antes de volver a tocar la niebla hay que
+  suavizar el terreno (o la medición se repetirá).
+- El feather y las nubes quedan; son baratos (90x90 por repintado a 5 Hz).
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
