@@ -1741,6 +1741,67 @@ ahora sí se traba en pelea y no en freeze. El promedio visual se mantiene en el
 
 ---
 
+# Juez ciego · ciclo-35-carga-legible · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-35-carga-legible/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** economía por unidad.
+- **Bug de escenario detectado:** el log nuevo de `capture.mjs` mostró que `03-economia`
+  pausaba con `carrying=2 returning=0 gathering=4` y **47 ingenieros ociosos** — nadie
+  trabajaba en el still. Se arregló: `gatherAll()` pone a trabajar a todos y los **portadores se
+  aseguran al final** (sin skips posteriores que los vacíen). Ahora: `carrying=32 returning=4
+  gathering=15`.
+- **Carga más legible**: caja de carga más grande, **placa superior blanca** (contraste sobre
+  el trigo/verde), y **anillo blanco en los pies** del portador (lee "cargado" aunque la caja
+  quede tapada). Se bajó la caja de 3.05 a 2.35 (dejó de flotar).
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.5 | `03-economia.png`: ahora hay **economía viva** (32 portadores, 15 recolectando, 2 ociosos) con ida/vuelta visible; el detalle por unidad (qué recurso) sigue débil. |
+| 2 | Combate / counters / proyectiles | 6.5 | `04-combate.png`: bandos en contacto real peleando. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: densidad tipo "Arabia de AoE2". |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: base enemiga identificable por bando. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`: command card legible; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 7.0 | siluetas + color de bando. |
+| 10 | Audio / juice | 6.0 | chispas/estelas; sin audio. |
+
+**Promedio:** 6.65 · **Mínima:** 6.0 · **Dimensiones < 7:** 6
+
+**Veredicto — SORPRENDIDO: NO**
+La economía ahora se ve trabajando de verdad (antes el escenario pausaba con 47 ociosos) y la
+carga tiene marcas de alto contraste. Nuevo máximo (6.65), pero el detalle por unidad y el HUD
+siguen < 7.
+
+## Top 7 brechas
+1. Detalle de carga por recurso todavía débil (todos los crates se parecen) — `03-economia.png` — dim 1.
+2. Unidades chicas/aglomeradas en la melé — `04-combate.png` — dim 2.
+3. Sin feedback de golpe puntual por unidad — dim 10.
+4. HUD: techs abreviadas y ayuda recortada — dim 8.
+5. Zonas abiertas en late-game — dim 6.
+6. Bando más débil en era 1 — dim 7.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Diferenciar el crate por recurso (forma/símbolo además del color) — dim 1.
+2. Feedback de golpe puntual sin acumular — dim 10.
+3. Silueta/contraste de unidades en melé — dim 2.
+4. HUD sin abreviaturas — dim 8.
+5. Rellenar huecos de late-game — dim 6.
+
+## Riesgos / notas
+- **35 ciclos.** Promedio 6.60 → **6.65**: nuevo máximo (serie 6.40→6.45→6.55→6.60→6.65).
+- **Aprendizaje:** el `03-economia` medía mal hace varios ciclos (47 ociosos, 2 portadores). El
+  log de resultados por escenario en `capture.mjs` fue clave para detectarlo; conviene mirarlo.
+- El lector ciego es inconsistente con los crates entre corridas (a veces los ve, a veces no):
+  el color de recurso + blanco de alto contraste ayuda, pero el detalle por unidad sigue flojo.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
