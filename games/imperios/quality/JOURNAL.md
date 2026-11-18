@@ -1277,6 +1277,62 @@ se reconocen y suben arte/IA. Sigue lejos de AoE2 en combate, densidad y diferen
 
 ---
 
+# Juez ciego · ciclo-27-edificios-diferenciados · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-27-edificios-diferenciados/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** segunda pasada de siluetas para separar
+los tipos que faltaban:
+- **Cuartel**: techo a dos aguas (pirámide) en vez de losa plana + **muro de patio** al frente.
+- **Fábrica**: chimeneas más altas y gruesas con **remates claros** + chimenea de venteo.
+- **Almacén**: **tinglado inclinado** con postes al frente (lee como galpón bajo).
+- **Torre**: se bajó un poco (7.0→6.2) para reducir oclusión conservando el chapitel.
+También se arregló un **bug de captura**: `06-ui` no movía la cámara y quedaba encuadrando la
+base enemiga en niebla (venía de `05-fog`); ahora encuadra el TC del jugador.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC con cúpula, viviendas, granjas, rocas y suelo moteado; ingenieros como grupo. |
+| 2 | Combate / counters / proyectiles | 6.0 | `08-asedio.png`: melé con destellos; trazadoras tenues. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: props y suelo moteado; ~20-30 % de la densidad de AoE2. |
+| 7 | IA legítima | 6.0 | `07-late-game.png`: ahora se reconocen TC con cúpula, cuarteles con techo a dos aguas y torretas, fábrica con chimeneas y torres con chapitel. La base **enemiga** sigue leyéndose sobre todo por el minimapa y el combate apenas se distingue. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`: TC del jugador ahora encuadrado (dome visible) con panel de selección y command card claros; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 7.0 | `07-late-game.png`: **el tipo de edificio se lee de un vistazo** por silueta (cúpula / techo a dos aguas + torretas / chimeneas / chapitel / tinglado). Materiales todavía simples, footprints algo parecidos. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello; sin feedback por unidad. Sin audio. |
+
+**Promedio:** 6.40 · **Mínima:** 6.0 · **Dimensiones < 7:** 8
+
+**Veredicto — SORPRENDIDO: NO**
+Segundo salto seguido: el juez ahora **distingue los tipos de edificio** por silueta (arte 9 sube
+a 7). Sigue lejos en combate, densidad y legibilidad de la base enemiga/combate.
+
+## Top 7 brechas
+1. Base **enemiga** sigue sin leerse en el viewport (sólo minimapa) — `07-late-game.png` — dim 7.
+2. Combate sin lectura por unidad ni trazadoras claras — `04/08` — dim 2,10.
+3. Footprints de edificios aún parecidos; materiales simples — dim 9.
+4. Economía sin lectura de carga/ruta por unidad — dim 1.
+5. Densidad aún por debajo de AoE2 — dim 6.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Unidades se leen como "badges" más que siluetas — dim 2.
+
+## 5 cambios para el próximo ciclo
+1. Base enemiga legible en el viewport (encuadre + color/techo distinto por bando) — Dim 7.
+2. Unidades como siluetas (no badges) + feedback de golpe — Dim 2,10.
+3. Variar footprints y materiales por tipo — Dim 9.
+4. Densidad/variación — Dim 6.
+5. HUD sin abreviaturas/recortes — Dim 8.
+
+## Riesgos / notas
+- **27 ciclos.** Promedio 6.20 → 6.25 → 6.30 → **6.40**: dos subas seguidas tras validar la hipótesis "arte/silueta". La línea de siluetas es la que rinde; seguir por ahí.
+- Se corrigió un bug de captura (06-ui encuadraba la base enemiga en niebla).
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
