@@ -485,18 +485,22 @@ const SCENARIOS = [
   },
   {
     id: '05-fog',
-    title: 'Niebla / exploración en era 3: siluetas recordadas de edificios enemigos',
+    title: 'Niebla / exploración: visto ahora, recordado y sin explorar en la misma toma',
     js: `(() => {
       const g = window.__imperios
       g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
       g.setEra(3)
-      // Marcar edificios enemigos como conocidos y luego cerrar la niebla:
-      // quedan fuera de visión actual pero en memoria (explorados) => ghosts.
-      g.reveal('player')
-      g.state.visionRevealed.player = false
-      g.fog()
-      // Encuadrar la base enemiga en zona de memoria (no visible ahora).
-      g.camera(55, 0, 54)
+      // NO usar reveal(): marca TODO el mapa como explorado y entonces no se ve el
+      // negro inexplorado (el escenario mostraba la niebla mal desde siempre).
+      // Un explorador real deja las tres capas en una sola toma: el círculo de
+      // visión actual (claro), el corredor recordado por donde pasó (velo) y el
+      // resto sin explorar (negro).
+      const scout = g.spawn('player', 'fusilero', 1, 26, 26)[0]
+      if (scout == null) return 'no-scout'
+      g.moveFormation([scout], 58, -8, 'box')
+      g.skip(9)              // a mitad de camino: deja corredor explorado detrás
+      g.camera(46, 10, 58)
+      g.state.status = 'paused'
       return 'ok'
     })()`,
     settleMs: SETTLE_MS,
