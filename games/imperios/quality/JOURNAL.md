@@ -1676,6 +1676,71 @@ máximo (6.60). Siguen < 7 combate fino, juice, economía y HUD.
 
 ---
 
+# Juez ciego · ciclo-34-arreglos-unidades · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-34-arreglos-unidades/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** ciclo de **arreglos de gameplay
+reportados por el usuario**, no de arte.
+- **Unidades trabadas en combate ("tiemblan y no atacan")**: causa raíz encontrada con un probe
+  aislado vía el dev hook — la separación empujaba hacia atrás exactamente lo que la unidad
+  avanzaba (no hay pathing unidad-unidad), así que quedaba en equilibrio sin llegar al rango y
+  oscilando `attack`↔`idle` (el "temblor" es el bob del estado attack). Fix: la separación ya no
+  empuja en contra del objetivo para unidades que están yendo a atacar (queda casi todo el
+  componente lateral), + watchdog que suelta el objetivo si está trabada cerca y no progresa.
+- **Ingeniero que no iba a construir**: `tryPlaceBuilding` creaba la obra sin asignar
+  constructor. Ahora elige el ingeniero seleccionado (o el más cercano sin carga) y lo manda a
+  construir al instante.
+- **Lista de ociosos**: ahora sólo lista unidades realmente ociosas (sin objetivo de combate,
+  recolección, depósito ni carga), así no aparecen las que están recolectando o construyendo.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: ingenieros trabajando; la lista de ociosos ya no los cuenta. |
+| 2 | Combate / counters / proyectiles | 6.5 | `04-combate.png`: **azul y rojo en contacto real** peleando junto al edificio (antes quedaban separados/trabados). |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: densidad tipo "Arabia de AoE2". |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: base enemiga identificable por color de bando. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`: command card legible; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 7.0 | siluetas + color de bando dominante. |
+| 10 | Audio / juice | 6.0 | chispas/estelas; sin audio. |
+
+**Promedio:** 6.60 · **Mínima:** 6.0 · **Dimensiones < 7:** 6
+
+**Veredicto — SORPRENDIDO: NO**
+Ciclo de corrección de gameplay (combate trabado, constructor, lista de ociosos): el combate
+ahora sí se traba en pelea y no en freeze. El promedio visual se mantiene en el máximo (6.60).
+
+## Top 7 brechas
+1. Unidades chicas/aglomeradas en la melé — `04-combate.png` — dim 2.
+2. Sin feedback de golpe puntual por unidad — dim 10.
+3. Economía sin lectura de carga/ruta por unidad — dim 1.
+4. HUD: techs abreviadas y ayuda recortada — dim 8.
+5. Zonas abiertas en late-game — dim 6.
+6. Bando más débil en era 1 — dim 7.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Feedback de golpe puntual sin acumular — dim 10.
+2. Separación/contraste de silueta de unidades — dim 2.
+3. Economía por unidad (carga/ruta) — dim 1.
+4. Rellenar huecos de late-game — dim 6.
+5. HUD sin abreviaturas — dim 8.
+
+## Riesgos / notas
+- **34 ciclos.** Promedio 6.60 (sin cambio; el ciclo fue de corrección de gameplay).
+- **Bug de combate resuelto**: se diagnosticó con un probe aislado usando el dev hook
+  (spawn de unidades + lectura de hp/estado/path). El "temblor" era el bob del estado `attack`
+  mientras la separación anulaba el avance. Lección: en RTS sin avoidance unidad-unidad, la
+  separación no debe oponerse al vector hacia el objetivo.
+- Se agregó `place()` al dev hook (solo dev) para QA de colocación de obras.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
