@@ -565,7 +565,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 0.94
+  renderer.toneMappingExposure = 0.93
 
   const scene = new THREE.Scene()
   scene.background = new THREE.Color(0xbfd6eb)
@@ -578,7 +578,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
 
   const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x4a3f2d, 0.45)
   scene.add(hemi)
-  const sun = new THREE.DirectionalLight(0xffe7c2, 2.0)
+  const sun = new THREE.DirectionalLight(0xffe7c2, 1.9)
   sun.position.set(120, 55, 80)
   sun.castShadow = true
   sun.shadow.mapSize.set(2048, 2048)
@@ -750,6 +750,8 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   scene.add(markers)
   const fx = new THREE.Group()
   scene.add(fx)
+  // DIAGNOSTIC: ?nofx hides all VFX to isolate render artifacts
+  if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('nofx')) fx.visible = false
 
   // --- Fog of war overlay ------------------------------------------------
   // A second mesh sharing the ground geometry, lifted 1 unit so it hugs every
@@ -826,7 +828,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   try {
     composer = new EffectComposer(renderer)
     composer.addPass(new RenderPass(scene, camera))
-    bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.1, 0.45, 1.0)
+    bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.08, 0.45, 1.05)
     composer.addPass(bloom)
     composer.addPass(new OutputPass())
   } catch {
@@ -2390,9 +2392,9 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
     m.color.setHex(color)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'beam', mesh, t: 0, life: 14.0,
+      kind: 'beam', mesh, t: 0, life: 2.0,
       pos: mesh.position.clone(), vel: new THREE.Vector3(),
-      s0: thick, s1: thick, o0: 0.9, hold: 8.0,
+      s0: thick, s1: thick, o0: 0.9, hold: 1.1,
     })
   }
   // Glow sheath for extra readability at game zoom
@@ -2406,23 +2408,9 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
     gm.color.setHex(0xfff4c8)
     gm.opacity = 0.55
     rc.fxItems.push({
-      kind: 'beam', mesh: glow, t: 0, life: 14.0,
+      kind: 'beam', mesh: glow, t: 0, life: 2.0,
       pos: glow.position.clone(), vel: new THREE.Vector3(),
-      s0: thick, s1: thick, o0: 0.22, hold: 12.0,
-    })
-  }
-  // Bright projectile/head flash near impact end for directional clarity
-  const head = acquireFx(rc, 'flash')
-  if (head) {
-    head.position.lerpVectors(from, to, 0.88)
-    head.scale.setScalar(1.1)
-    const hm = head.material as THREE.MeshBasicMaterial
-    hm.color.setHex(0xfffde8)
-    hm.opacity = 0.95
-    rc.fxItems.push({
-      kind: 'flash', mesh: head, t: 0, life: 8.0,
-      pos: head.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.1, s1: 2.4, o0: 0.95, hold: 6.0,
+      s0: thick, s1: thick, o0: 0.22, hold: 1.1,
     })
   }
 }
@@ -2454,41 +2442,15 @@ export function spawnMuzzleFlash(rc: RenderContext, x: number, y: number, z: num
  */
 export function spawnImpact(rc: RenderContext, x: number, y: number, z: number): void {
   const seed = hash2(x * 0.7, z * 1.3)
-  const flash = acquireFx(rc, 'flash')
-  if (flash) {
-    flash.position.set(x, y, z)
-    flash.scale.setScalar(1.6)
-    const m = flash.material as THREE.MeshBasicMaterial
-    m.color.setHex(0xffbf55)
-    m.opacity = 1.0
-    rc.fxItems.push({
-      kind: 'flash', mesh: flash, t: 0, life: 3.0,
-      pos: flash.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.0, s1: 1.5, o0: 0.4, hold: 1.4,
-    })
-  }
-  const ring = acquireFx(rc, 'ring')
-  if (ring) {
-    ring.position.set(x, groundHeightAt(x, z) + 0.08, z)
-    ring.scale.setScalar(1.4)
-    const m = ring.material as THREE.MeshBasicMaterial
-    m.color.setHex(0xffe4a8)
-    m.opacity = 1.0
-    rc.fxItems.push({
-      kind: 'ring', mesh: ring, t: 0, life: 2.4,
-      pos: ring.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.1, s1: 1.9, o0: 0.25, hold: 1.1,
-    })
-  }
 
   // Sparks/debris: 10-12 per hit, deterministic count/spread from the impact point.
-  const sparks = 10 + Math.floor(seed * 3)
+  const sparks = 5 + Math.floor(seed * 2)
   for (let i = 0; i < sparks; i++) {
     const mesh = acquireFx(rc, 'spark')
     if (!mesh) break
     const ang = (i / sparks) * Math.PI * 2 + (x + z) * 0.9
     const spread = 4.8 + (i % 3) * 1.7
-    const size = 0.13 + ((i % 3) * 0.045)
+    const size = 0.1 + ((i % 3) * 0.03)
     mesh.position.set(x, y, z)
     mesh.rotation.set(0, ang, 0)
     mesh.scale.setScalar(size)
@@ -2649,56 +2611,6 @@ export function spawnDeathFx(
       })
     }
   } else {
-    // large, high-contrast ground stain so fallen units remain readable in stills
-    if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
-    const stain = acquireFx(rc, 'decal')
-    if (stain) {
-      const rad = 7.2 + seed * 1.8
-      stain.position.set(x, groundHeightAt(x, z) + 0.07, z)
-      stain.scale.set(rad, 1, rad)
-      const m = stain.material as THREE.MeshBasicMaterial
-      m.color.setHex(team === 'enemy' ? 0x6b1010 : 0x2b1250)
-      m.opacity = 1.0
-      rc.fxItems.push({
-        kind: 'decal', mesh: stain, t: 0, life: WRECK_LIFE,
-        pos: stain.position.clone(), vel: new THREE.Vector3(),
-        s0: 1, s1: 1, o0: 1.0, hold: WRECK_HOLD,
-      })
-    }
-
-    // unmistakable body marker on the exact fall spot (persistent, high contrast)
-    if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
-    const marker = acquireFx(rc, 'decal')
-    if (marker) {
-      const rad = 3.2 + seed * 0.7
-      marker.position.set(x, groundHeightAt(x, z) + 0.074, z)
-      marker.scale.set(rad, 1, rad)
-      const m = marker.material as THREE.MeshBasicMaterial
-      m.color.setHex(team === 'enemy' ? 0xff6666 : 0x93deff)
-      m.opacity = 1.0
-      rc.fxItems.push({
-        kind: 'decal', mesh: marker, t: 0, life: WRECK_LIFE,
-        pos: marker.position.clone(), vel: new THREE.Vector3(),
-        s0: 1, s1: 1, o0: 1.0, hold: WRECK_HOLD,
-      })
-    }
-    // secondary "fallen body" dark patch for extra readability
-    if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
-    const patch = acquireFx(rc, 'decal')
-    if (patch) {
-      const rad = 2.2 + seed * 0.6
-      patch.position.set(x + (seed - 0.5) * 0.5, groundHeightAt(x, z) + 0.073, z + (hash2(x, z) - 0.5) * 0.5)
-      patch.scale.set(rad, 1, rad)
-      const m = patch.material as THREE.MeshBasicMaterial
-      m.color.setHex(0x0f0c09)
-      m.opacity = 0.95
-      rc.fxItems.push({
-        kind: 'decal', mesh: patch, t: 0, life: WRECK_LIFE,
-        pos: patch.position.clone(), vel: new THREE.Vector3(),
-        s0: 1, s1: 1, o0: 0.95, hold: WRECK_HOLD,
-      })
-    }
-
     // larger, more contrasted wreck silhouette (persistent)
     if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
     const mesh = acquireFx(rc, 'wreck')
@@ -2818,7 +2730,8 @@ function fxMaterial(kind: FxKind): THREE.Material {
     case 'muzzle':
       return new THREE.MeshBasicMaterial({ color: 0xfff0c6, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false })
     case 'spark':
-      return new THREE.MeshBasicMaterial({ color: 0xffd06a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
+      // normal blending: hundreds of additive sparks were stacking into a bright cloud
+      return new THREE.MeshBasicMaterial({ color: 0xffd06a, transparent: true, depthWrite: false, toneMapped: false })
     case 'decal':
       // a scorch/mark: slight polygon offset keeps it off the terrain
       return new THREE.MeshBasicMaterial({
