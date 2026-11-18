@@ -628,9 +628,9 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   const groundGeo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, seg, seg)
   const pos = groundGeo.attributes.position as THREE.BufferAttribute
   const colors: number[] = []
-  const cLow = new THREE.Color(0x4a6b35)
+  const cLow = new THREE.Color(0x3d5a2c)
   const cMid = new THREE.Color(0x77803c)
-  const cHigh = new THREE.Color(0x8a7d5a)
+  const cHigh = new THREE.Color(0x9c8b62)
   const cDirt = new THREE.Color(0x7a6240)
   const cRock = new THREE.Color(0x8a8a82)
   for (let i = 0; i < pos.count; i++) {
@@ -652,8 +652,12 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
     const patch2 = fbm(x * 0.15 + 50, y * 0.15 + 30)
     const patch3 = fbm(x * 0.035 - 12, y * 0.035 + 18)
     c.offsetHSL((patch - 0.5) * 0.085 + (patch3 - 0.5) * 0.04, (patch - 0.5) * 0.135 + (patch3 - 0.5) * 0.065, (patch2 - 0.5) * 0.135 + (patch3 - 0.5) * 0.08)
+    // Broad value bands: ground types must differ in LUMINANCE, not just hue,
+    // or the whole field reads as one flat tone from camera distance.
+    const band = fbm(x * 0.09 + 5, y * 0.09 - 9)
+    const band2 = fbm(x * 0.21 - 31, y * 0.21 + 17)
     const ao = THREE.MathUtils.clamp(0.72 + (h + 2.0) * 0.06 - slope * 0.3 + (patch3 - 0.5) * 0.05, 0.5, 1.0)
-    c.multiplyScalar(ao)
+    c.multiplyScalar(ao * (0.78 + 0.4 * band) * (0.9 + 0.2 * band2))
     colors.push(c.r, c.g, c.b)
   }
   groundGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
@@ -674,10 +678,10 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
         // overkill; RepeatWrapping tolerates the seam at this fine scale)
         const n = valueNoise(x * 0.08, y * 0.08) * 0.55 + valueNoise(x * 0.31 + 40, y * 0.31 - 12) * 0.45
         const s = hash2(x * 1.7, y * 2.3)
-        let v = 0.9 + (n - 0.5) * 0.22
-        if (s > 0.88) v -= 0.18       // dirt/gravel speck
-        else if (s < 0.09) v += 0.09  // light blade highlight
-        v = Math.max(0.6, Math.min(1.0, v))
+        let v = 0.88 + (n - 0.5) * 0.46
+        if (s > 0.88) v -= 0.24       // dirt/gravel speck
+        else if (s < 0.09) v += 0.13  // light blade highlight
+        v = Math.max(0.5, Math.min(1.14, v))
         const o = (y * N + x) * 4
         const g = Math.round(v * 255)
         img.data[o] = g
