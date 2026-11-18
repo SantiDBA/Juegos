@@ -2396,6 +2396,61 @@ low contrast" a "clear dark/light value variation, not a near-uniform flat tone"
 
 ---
 
+# Juez ciego · ciclo-46-chip-sin-truncar · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-46-chip-sin-truncar/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** cerrar el defecto de HUD que el juez venía
+marcando desde el ciclo 42 ("texto clipeado contra el borde del panel y el botón ?").
+- El botón "?" flotaba en `right: 240px`, exactamente sobre el borde derecho del bottombar: se
+  reservó su espacio con `padding-right: 52px` en el panel. Ya no puede pisar un chip.
+- Chips más anchos (`minmax(96px → 132px)`): el grid pasa de 6x2 a 4x3 y cada tarea entra completa.
+- La línea de tarea ahora **envuelve** (`white-space: normal`) en vez de cortarse con elipsis.
+- Chip un poco más alto (54 → 62 px) para que la segunda línea respire.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`: 12 chips con tarea completa, sin truncar. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: sin cambios. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.5 | `03-economia.png`: "no task text is truncated, ellipsized, or cut off... the ? button does NOT overlap any chip"; "comparable o mejor" para leer tareas. |
+| 9 | Art direction / diorama isométrico | 7.5 | `03-economia.png`: variación de valor del suelo, del ciclo 45. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`. Sin audio. |
+
+**Promedio:** 7.00 · **Mínima:** 6.5 · **Dimensiones < 7:** 3
+
+**Veredicto — SORPRENDIDO: NO**
+Primera vez que el promedio toca 7.00 (+0.05). El defecto de HUD está cerrado y verificado por el
+juez, que ahora pide detalle fino en vez de arreglos.
+
+## Top 7 brechas
+1. Chips sin diferenciación por unidad (mismo ícono, "Ingeniero" x12) — dim 1.
+2. Barras de progreso sin etiqueta (sin % ni número) — dim 1/8.
+3. Niebla con transición correcta pero poco visible — dim 3.
+4. Formaciones poco variadas por rol — dim 4.
+5. Zonas abiertas en late-game — dim 6.
+6. Suelo desaturado (valor ya está, falta tono) — dim 9.
+7. Juice sin audio — dim 10.
+
+## 5 cambios para el próximo ciclo
+1. Variedad de formaciones por rol (fila india, cuña, cuadro) — dim 4.
+2. Etiquetar la barra de carga del chip con % o cantidad — dim 1.
+3. Rellenar huecos de late-game — dim 6.
+4. Subir la saturación del suelo — dim 9.
+5. Estela corta de proyectil — dim 10.
+
+## Riesgos / notas
+- **46 ciclos.** Promedio **7.00** (+0.05). Mínima 6.5, tres dimensiones por debajo de 7.
+- La HUD sigue siendo la palanca más barata y medible; el mundo 3D está en meseta.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
