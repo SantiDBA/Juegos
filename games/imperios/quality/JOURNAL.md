@@ -1396,6 +1396,68 @@ choque y el promedio no se mueve (6.40).
 
 ---
 
+# Juez ciego · ciclo-29-impacto-sin-brillo · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-29-impacto-sin-brillo/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** ciclo de **diagnóstico y limpieza de
+VFX** para el "halo" que tapa la melé.
+- Se agregó un flag de diagnóstico **`?nofx`** (oculta `rc.fx`) y se capturó con y sin FX:
+  **con `?nofx` el centro del combate queda limpio** (se ven la línea azul y las unidades rojas
+  con sus anillos) ⇒ los artefactos **son efectos**, no terreno/bloom/mesh.
+- Se descartó de forma definitiva el bloom/exposición (con bloom en 0 seguía el problema).
+- Cambios aplicados: se **quitaron** el flash y el anillo de impacto y el "head flash" de las
+  trazadoras; los **sparks** pasaron a blending normal y son menos/chicos; se **quitaron** las
+  calcomanías de muerte de unidad (mancha/marcador/parche) que se fusionaban en un disco oscuro;
+  trazadoras con vida corta (1.1 s de hold); iluminación restaurada (sol 1.9, exposición 0.93,
+  bloom 0.08).
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC con cúpula, viviendas, granjas, rocas y suelo moteado; ingenieros como grupo. |
+| 2 | Combate / counters / proyectiles | 6.0 | `04-combate.png`: bandos distinguibles por color y anillos; **el juez sigue reportando oscurecimiento en la melé** (una mancha clara/oscura sobre el choque) aunque ya no hay rings/flash cabeza ni calcomanías de muerte. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: props y suelo moteado; ~20-30 % de la densidad de AoE2. |
+| 7 | IA legítima | 6.0 | `07-late-game.png`: tipos de edificio reconocibles; base enemiga poco legible en el viewport. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible, posturas sin truncar; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 7.0 | `07-late-game.png`: tipos legibles por silueta; unidades más grandes con cresta. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos/estelas; sin feedback por unidad. Sin audio. |
+
+**Promedio:** 6.40 · **Mínima:** 6.0 · **Dimensiones < 7:** 8
+
+**Veredicto — SORPRENDIDO: NO**
+Se aisló y acotó el problema de VFX (con `?nofx` el combate se ve limpio), pero la melé en los
+stills sigue leyéndose mal y el promedio no se mueve (6.40).
+
+## Top 7 brechas
+1. La melé sigue leyéndose mal en stills aun sin rings/flash/calcomanías — `04-combate.png` — dim 2,10.
+2. Base enemiga poco legible en el viewport — `07-late-game.png` — dim 7.
+3. Sin feedback de golpe por unidad — `04-combate.png` — dim 10.
+4. Economía sin lectura de carga/ruta por unidad — dim 1.
+5. Densidad por debajo de AoE2 — dim 6.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Combatir la Ileíbilidad de la melé por **separación de unidades** (spacing/line holding) en vez de VFX — Dim 2,10.
+2. Base enemiga legible en el viewport — Dim 7.
+3. Densidad/variación — Dim 6.
+4. HUD sin abreviaturas — Dim 8.
+5. (Fase 4 sólo con repro aislado.) — Dim 9.
+
+## Riesgos / notas
+- **29 ciclos.** Promedio 6.40 (sin movimiento). El diagnóstico `?nofx` deja claro que los
+  artefactos son VFX; tras quitarlos, la melé **igual** se lee mal ⇒ el problema restante es la
+  **densidad/aglomeración de unidades** y la escala, no los efectos. La próxima palanca debe ser
+  spacing/formaciones en contacto, no más tuning de VFX.
+- Se dejó el flag `?nofx` (útil para diagnosticar) y se descartó definitivamente bloom/exposición.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
