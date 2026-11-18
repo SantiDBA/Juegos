@@ -1516,6 +1516,59 @@ pero unidades chicas/aglomeradas, base enemiga y densidad siguen lejos de AoE2.
 
 ---
 
+# Juez ciego · ciclo-31-base-por-bando · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-31-base-por-bando/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** **propiedad de edificios por bando**.
+- Banda de equipo mucho más gruesa y **emisiva** en la base de cada edificio (antes era un filo de 0.16).
+- **Bandera de bando** (mástil + paño del color del equipo) sobre ayuntamiento, cuartel y fábrica.
+- La paleta de era se **mezcla 24 % hacia el color del equipo**, porque en era 4 ambos bandos
+  caían a gris-azulado y se perdía de quién era cada base.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC con cúpula, viviendas, granjas, rocas y suelo moteado; ingenieros como grupo. |
+| 2 | Combate / counters / proyectiles | 6.5 | `04-combate.png`: melé limpia (sin disco/nube), bandos por color y anillos. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: props y suelo moteado; ~20-30 % de la densidad de AoE2. |
+| 7 | IA legítima | 6.0 | `02-arranque.png`: la propiedad se lee clarísima (TC azul con banda/bandera; hut roja). `07-late-game.png`: banda roja en edificios enemigos y azul en propios, pero a zoom de juego el tinte de era 4 aún confunde; el juez pide más contraste de bando. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 7.0 | `07-late-game.png`: tipos legibles por silueta y edificios marcados por bando. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: chispas/estelas y despojos. Sin audio. |
+
+**Promedio:** 6.45 · **Mínima:** 6.0 · **Dimensiones < 7:** 8
+
+**Veredicto — SORPRENDIDO: NO**
+La propiedad de edificios ahora se lee en el arranque (banda+bandera por bando), pero en era 4
+sigue algo confusa y el promedio se mantiene en el máximo (6.45).
+
+## Top 7 brechas
+1. A zoom de juego, el tinte de era 4 aún hace dudar de quién es cada base — `07-late-game.png` — dim 7,9.
+2. Unidades chicas/aglomeradas en la melé — `04-combate.png` — dim 2.
+3. Sin feedback de golpe puntual por unidad — dim 10.
+4. Economía sin lectura de carga/ruta por unidad — dim 1.
+5. Densidad por debajo de AoE2 — dim 6.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Más contraste de bando (tinte de techo/cuerpo más saturado por equipo en todas las eras) — Dim 7,9.
+2. Separación/contraste de silueta de unidades — Dim 2.
+3. Feedback de golpe puntual (chispa corta por impacto, sin acumular) — Dim 10.
+4. Densidad/variación — Dim 6.
+5. HUD sin abreviaturas — Dim 8.
+
+## Riesgos / notas
+- **31 ciclos.** Promedio 6.45 (máximo, sin cambio). Bandas+banderas de bando funcionan (se ve
+  clarísimo en arranque); el problema restante es saturación del tinte en era 4 y la escala.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
