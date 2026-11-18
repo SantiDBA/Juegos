@@ -8,7 +8,7 @@ import { advance } from './sim/loop'
 import { forceVisionUpdate, isExplored, isVisible, revealAll } from './sim/vision'
 import {
   createRender, groundHeightAt, paintFog, removeEntityMesh, renderFrame, resize,
-  spawnDeathFx, spawnDepositFx, spawnImpact, spawnMuzzleFlash, spawnTracer, syncEntityMesh, updateCamera,
+  flashHitPip, spawnDeathFx, spawnDepositFx, spawnImpact, spawnMuzzleFlash, spawnTracer, syncEntityMesh, updateCamera,
 } from './render/scene'
 import type { EntityVisibility } from './render/scene'
 import { createUI, renderActions, showEnd, showToast, updateIdleList, updateMinimap, updateSelectionInfo, updateTopBar } from './ui/ui'
@@ -437,6 +437,7 @@ function drainSimEvents(): void {
       const dmg = ev as any
       if (!seen(dmg.x, dmg.z)) continue
       spawnImpact(rc, dmg.x, groundHeightAt(dmg.x, dmg.z) + 1.0, dmg.z)
+      flashHitPip(rc, dmg.target)
     } else if (k === 'death') {
       const death = ev as any
       if (!seen(death.x, death.z)) continue

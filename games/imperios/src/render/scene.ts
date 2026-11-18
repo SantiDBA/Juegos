@@ -21,6 +21,8 @@ export interface RenderContext {
   entityMeshes: Map<number, THREE.Object3D>
   hpBars: Map<number, THREE.Sprite>
   prevPos: Map<number, { x: number; z: number }>
+  /** Per-entity "just got hit" pip timers (seconds remaining). One pip per unit. */
+  hitPips: Map<number, number>
   sun: THREE.DirectionalLight
   fill: THREE.DirectionalLight
   hemi: THREE.HemisphereLight
@@ -837,7 +839,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
 
   const rc: RenderContext = {
     renderer, scene, camera, canvas, ground, grid, selectionRing, placementGhost,
-    entityMeshes: new Map(), hpBars: new Map(), prevPos: new Map(),
+    entityMeshes: new Map(), hpBars: new Map(), prevPos: new Map(), hitPips: new Map(),
     sun, fill, hemi, clock: new THREE.Clock(), raycaster: new THREE.Raycaster(),
     target: new THREE.Vector3(-48, 0, 4),
     camYaw: Math.PI * 0.25, camPitch: Math.PI / 3.25, camDist: 72,
@@ -2117,6 +2119,25 @@ export function syncEntityMesh(
     // Economy legibility: the load on an engineer's back is the only thing that
     // tells a glance "this one is working". Colour = the resource it holds.
     if (u.utype === 'ingeniero') syncCargo(u, obj, moving, t)
+    // Per-unit hit pip: one small star above the unit for ~1s after damage.
+    const pipT = rc.hitPips.get(e.id)
+    if (pipT != null) {
+      let pip = obj.userData.hitPip as THREE.Sprite | undefined
+      if (!pip) { pip = makeHitPip(); obj.add(pip); obj.userData.hitPip = pip }
+      const rem = pipT - dt
+      if (rem <= 0) { rc.hitPips.delete(e.id); pip.visible = false }
+      else {
+        rc.hitPips.set(e.id, rem)
+        const k = rem / HIT_PIP_TIME
+        pip.visible = true
+        const s = 1.5 + 1.1 * (1 - k)
+        pip.scale.set(s, s, 1)
+        ;(pip.material as THREE.SpriteMaterial).opacity = Math.min(1, k * 2.2)
+      }
+    } else {
+      const pip = obj.userData.hitPip as THREE.Sprite | undefined
+      if (pip) pip.visible = false
+    }
   } else if (e.kind === 'building') {
     const b = e as BuildingEntity
     if (!b.built) {
@@ -2388,6 +2409,54 @@ function syncCargo(u: UnitEntity, obj: THREE.Object3D, moving: boolean, t: numbe
   cargo.rotation.z = sway * 0.12
   cargo.position.x = sway * 0.04
   cargo.position.y = baseY + (moving ? Math.abs(sway) * 0.06 : pulse * 0.06) + (returning ? 0.14 : 0)
+}
+
+/** How long a unit keeps its "got hit" pip (long enough to survive capture settle). */
+const HIT_PIP_TIME = 1.4
+
+let _hitPipTex: THREE.CanvasTexture | null = null
+function hitPipTexture(): THREE.CanvasTexture {
+  if (_hitPipTex) return _hitPipTex
+  const S = 64
+  const c = document.createElement('canvas')
+  c.width = c.height = S
+  const ctx = c.getContext('2d')!
+  ctx.clearRect(0, 0, S, S)
+  ctx.translate(S / 2, S / 2)
+  ctx.fillStyle = 'rgba(255,238,180,0.95)'
+  for (let i = 0; i < 4; i++) {
+    ctx.save(); ctx.rotate((i / 4) * Math.PI * 2)
+    ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(0, -27); ctx.lineTo(4, 0); ctx.closePath(); ctx.fill()
+    ctx.restore()
+  }
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath(); ctx.arc(0, 0, 7.5, 0, Math.PI * 2); ctx.fill()
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.needsUpdate = true
+  _hitPipTex = tex
+  return tex
+}
+
+function makeHitPip(): THREE.Sprite {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: hitPipTexture(), color: 0xffffff, transparent: true, opacity: 1,
+    depthTest: false, depthWrite: false, toneMapped: false,
+  }))
+  sp.name = 'hitPip'
+  sp.scale.set(1.6, 1.6, 1)
+  sp.position.set(0, 2.35, 0)
+  sp.renderOrder = 520
+  sp.visible = false
+  return sp
+}
+
+/**
+ * Flags the unit that just took damage. A single crisp star per entity (not a
+ * particle) reads the hit in stills without hundreds of quads accumulating.
+ */
+export function flashHitPip(rc: RenderContext, id: number): void {
+  rc.hitPips.set(id, HIT_PIP_TIME)
 }
 
 export function removeEntityMesh(rc: RenderContext, id: number): void {
