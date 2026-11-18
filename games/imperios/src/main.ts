@@ -415,7 +415,7 @@ function visibilityOf(observer: Team | null, e: AnyEntity): EntityVisibility {
   return 'hidden'
 }
 
-const TRACER_GUN = 0xffd27a
+const TRACER_GUN = 0xfff3c4
 const TRACER_SHELL = 0xff9a3c
 const TRACER_TOWER = 0xffe9b0
 

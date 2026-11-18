@@ -52,7 +52,7 @@ export interface RenderContext {
   fogCtx: CanvasRenderingContext2D
 }
 
-type FxKind = 'beam' | 'flash' | 'ring' | 'puff' | 'muzzle' | 'spark' | 'decal' | 'wreck' | 'rubble'
+export type FxKind = 'beam' | 'flash' | 'ring' | 'puff' | 'muzzle' | 'spark' | 'decal' | 'wreck' | 'rubble'
 
 interface FxItem {
   kind: FxKind
