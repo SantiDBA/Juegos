@@ -7,10 +7,10 @@ import type { Rng } from '../core/rng'
 import type { AnyEntity, BuildingEntity, BuildingType, PlayerBonuses, ResourceEntity, Resources, Stance, Team, UnitEntity, UnitType, Vec2 } from '../core/types'
 import type { SimEvent } from './events'
 
-export type Formation = 'line' | 'box' | 'wedge'
+export type Formation = 'line' | 'box' | 'wedge' | 'ranks'
 
 /** World-space gap between two units in a formation slot. */
-export const FORMATION_SPACING = 2.05
+export const FORMATION_SPACING = 2.67
 
 export interface PlayerState {
   team: Team
@@ -353,6 +353,18 @@ export function formationSlots(count: number, formation: Formation, from: Vec2, 
       const depth = (row - (rows - 1) / 2) * FORMATION_SPACING
       slots.push({ x: target.x + px * along + dx * depth, z: target.z + pz * along + dz * depth })
     }
+  } else if (formation === 'ranks') {
+    // Rows stacked front-to-back, index 0 in the FRONT rank: lets roles be layered
+    // (melee up front, ranged behind, support at the back) instead of all in one row.
+    const cols = Math.max(1, Math.ceil(Math.sqrt(count)))
+    const rows = Math.ceil(count / cols)
+    for (let i = 0; i < count; i++) {
+      const row = Math.floor(i / cols)
+      const col = i % cols
+      const along = (col - (cols - 1) / 2) * FORMATION_SPACING
+      const depth = ((rows - 1) / 2 - row) * FORMATION_SPACING
+      slots.push({ x: target.x + px * along + dx * depth, z: target.z + pz * along + dz * depth })
+    }
   } else {
     // wedge: the first unit holds the tip, the rest fan out in pairs behind it (compact, readable)
     slots.push({ x: target.x, z: target.z })
@@ -372,16 +384,25 @@ export function formationSlots(count: number, formation: Formation, from: Vec2, 
  * so the whole squad does not stack on a single waypoint. Units are paired with
  * slots by their frontage projection, which keeps them from crossing over.
  */
+/** Battlefield rank of a unit: 0 fights in front, higher numbers stand further back. */
+function unitRank(u: any): number {
+  const role = UNIT_DEFS[u.utype]?.role
+  if (role === 'infantry') return 0
+  if (role === 'vehicle') return 1
+  if (role === 'ranged') return 2
+  return 3 // economy / support
+}
+
 export function commandMoveFormation(
   gs: GameState,
   ids: number[],
   target: Vec2,
   formation: Formation = 'box',
   attackMove = false,
-): void {
+): number {
   const units = playerUnits(gs, ids)
-  if (units.length === 0) return
-  if (units.length === 1) { commandMove(gs, [units[0].id], target, attackMove); return }
+  if (units.length === 0) return 0
+  if (units.length === 1) { commandMove(gs, [units[0].id], target, attackMove); return 1 }
 
   let cx = 0, cz = 0
   for (const u of units) { cx += u.x; cz += u.z }
@@ -391,12 +412,21 @@ export function commandMoveFormation(
   const len = Math.hypot(dx, dz) || 1
   dx /= len; dz /= len
   const frontage = (x: number, z: number): number => x * -dz + z * dx
-  const order = units.map((u, i) => ({ i, p: frontage(u.x, u.z) })).sort((a, b) => a.p - b.p)
+  const depthOf = (x: number, z: number): number => x * dx + z * dz
+
+  // Pair slots with units BY ROLE, not by who happens to be furthest forward:
+  // melee takes the front rank, ranged the next, support the back. Without this the
+  // whole squad forms one undifferentiated block and the formation is unreadable.
+  const order = units
+    .map((u, i) => ({ i, rank: unitRank(u), p: frontage(u.x, u.z) }))
+    .sort((a, b) => (a.rank - b.rank) || (a.p - b.p))
   const slots = formationSlots(units.length, formation, { x: cx, z: cz }, target)
+    .map((s, i) => ({ s, i, d: depthOf(s.x, s.z) }))
+    .sort((a, b) => (b.d - a.d) || (a.i - b.i))
 
   for (let s = 0; s < order.length && s < slots.length; s++) {
     const u = units[order[s].i]
-    const slot = slots[s]
+    const slot = slots[s].s
     u.path = findPath(gs, u.x, u.z, slot.x, slot.z)
     u.state = attackMove ? 'attack' : 'move'
     u.targetId = undefined
@@ -406,6 +436,7 @@ export function commandMoveFormation(
     u.home = { x: slot.x, z: slot.z }
     u.repathT = 0
   }
+  return Math.min(order.length, slots.length)
 }
 
 /**
@@ -416,7 +447,9 @@ export function commandMove(gs: GameState, ids: number[], target: Vec2, attackMo
   const units = playerUnits(gs, ids)
   if (units.length === 0) return
   if (!append && units.length > 1) {
-    commandMoveFormation(gs, units.map(u => u.id), target, 'box', attackMove)
+    // Mixed armies move in ranked lines so roles stack instead of merging into a blob.
+    const roles = new Set(units.map(u => UNIT_DEFS[u.utype]?.role))
+    commandMoveFormation(gs, units.map(u => u.id), target, roles.size > 1 ? 'ranks' : 'box', attackMove)
     return
   }
   for (const e of units) {

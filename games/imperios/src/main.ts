@@ -646,7 +646,7 @@ if (import.meta.hot) {
     },
     /** Formation move for an explicit id list (wedge/box/line). */
     moveFormation: (ids: number[], x: number, z: number, formation: Formation = 'wedge') => {
-      commandMoveFormation(gs, ids, { x, z }, formation)
+      return commandMoveFormation(gs, ids, { x, z }, formation)
       return ids.length
     },
     /** Pans (and optionally zooms) the camera for a framed capture. */

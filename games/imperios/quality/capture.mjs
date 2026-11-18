@@ -645,17 +645,27 @@ const SCENARIOS = [
   },
   {
     id: '06c-formacion',
-    title: 'Formación en línea: el mismo grupo, orden de movimiento en line',
+    title: 'Formación en filas por rol: infantería al frente, fusileros detrás, ingenieros al fondo',
     js: `(() => {
       const g = window.__imperios
       g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
-      const squad = (g.state.selectedIds || []).slice()
-      if (squad.length < 3) return 'moved:0/' + squad.length
-      const n = g.moveFormation(squad, -35, 12, 'line')
-      g.skip(8)              // avanzar y asentarse para que filas/frente queden regulares
-      g.camera(-35, 12, 40)  // reencuadre al destino/formación
+      // Tope de población: sin viviendas el hook spawn() recorta el despliegue.
+      for (let bi = 0; bi < 4; bi++) g.build('player', 'vivienda', -66, 2 + bi * 8, true)
+      g.skip(0.05)
+      g.setEra(3)
+      const ids = []
+      ids.push(...g.spawn('player', 'milicia', 6, -48, 2))
+      ids.push(...g.spawn('player', 'fusilero', 5, -48, 7))
+      ids.push(...g.spawn('player', 'ingeniero', 3, -48, 12))
+      if (ids.length < 6) return 'spawn-only:' + ids.length
+      g.select(ids)
+      const n = g.moveFormation(ids, -30, 14, 'ranks')
+      // Justo en tránsito: en cuanto llegan al destino la separación los dispersa y la
+      // formación deja de leerse. El destino lejano garantiza que sigan marchando.
+      g.skip(1)
+      g.camera(-42, 6, 24)  // cerca: a distancia lejana las filas no se leen a este zoom
       g.state.status = 'paused'
-      return n >= 3 ? 'ok' : 'moved:' + n + '/' + squad.length
+      return n >= 6 ? 'ok' : 'moved:' + n + '/' + ids.length
     })()`,
     settleMs: 900,
   },
