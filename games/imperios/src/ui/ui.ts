@@ -613,7 +613,10 @@ export function updateIdleList(ui: UIRefs, gs: GameState): void {
   for (const e of gs.entities.values() as any) {
     if (!e || e.dead) continue
     if (e.kind !== 'unit' || e.team !== 'player') continue
+    // Only genuinely idle: not moving, gathering, returning, building or fighting.
     if (e.state !== 'idle') continue
+    if (e.targetId != null || e.gatherTargetId != null || e.dropoffTargetId != null) continue
+    if ((e.carryAmount || 0) > 0.01) continue
     const d = UNIT_DEFS[e.utype as UnitType]
     idle.push({
       id: e.id,

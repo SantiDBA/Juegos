@@ -628,6 +628,8 @@ if (import.meta.hot) {
     },
     /** Starts the era advance and reports whether it landed. */
     advanceEra: () => tryAdvanceEra(gs) ? 'ok' : 'fail',
+    /** Places a player building as if clicked (QA): returns 'ok' or the failure. */
+    place: (type: BuildingType, x: number, z: number) => tryPlaceBuilding(gs, type, x, z) ? 'ok' : 'fail',
     setEra: (era: number) => {
       gs.players.player.era = Math.max(1, Math.min(4, era))
       gs.players.enemy.era = gs.players.player.era

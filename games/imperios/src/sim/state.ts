@@ -240,6 +240,29 @@ export function tryPlaceBuilding(gs: GameState, type: BuildingType, x: number, z
   if (blocker === 'occupied') { gs.toast = { msg: 'Espacio ocupado', t: 2 }; return false }
   spend(p.resources, def.cost)
   spawnBuilding(gs, 'player', type, x, z, false)
+
+  // Send an engineer to build it immediately: a freshly placed site must not sit
+  // there while its owner "idles". Prefer the selected engineer, then the nearest
+  // one without a load (so an economy trip is not wasted mid-carry).
+  const engineers = unitsOfTeam(gs, 'player').filter(u => u.utype === 'ingeniero')
+  const selected = engineers.find(u => gs.selectedIds.includes(u.id) && u.carryAmount < 1)
+  const noLoad = engineers.filter(u => u.carryAmount < 1)
+  const pool = selected ? [selected] : (noLoad.length > 0 ? noLoad : engineers)
+  let builder: UnitEntity | null = null
+  let bestD = Infinity
+  for (const u of pool) {
+    const d = dist(u.x, u.z, x, z)
+    if (d < bestD) { bestD = d; builder = u }
+  }
+  if (builder) {
+    builder.state = 'build'
+    builder.gatherTargetId = undefined
+    builder.dropoffTargetId = undefined
+    builder.targetId = undefined
+    builder.patrol = undefined
+    builder.path = []
+  }
+
   gs.toast = { msg: `${def.name} en construcción`, t: 2 }
   return true
 }

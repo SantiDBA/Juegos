@@ -121,6 +121,10 @@ export interface UnitEntity extends BaseEntity {
   patrol?: PatrolOrder
   /** Seconds until the next chase repath (staggered per unit id). */
   repathT?: number
+  /** Seconds spent chasing a target without closing the distance (attack watchdog). */
+  chaseT?: number
+  /** Last distance to the chase target, to detect progress. */
+  chaseD?: number
   /** Watchdog: the waypoint currently being driven to, plus the closest approach. */
   wpRef?: Vec2
   wpBest?: number

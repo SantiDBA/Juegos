@@ -202,6 +202,27 @@ function attenuateAwayFromHome(e: UnitEntity, dx: number, dz: number): { dx: num
   return { dx: dx - ax * dot * (1 - keepAway), dz: dz - az * dot * (1 - keepAway) }
 }
 
+/**
+ * Units advancing toward a combat target must not be shoved backwards by their
+ * own allies: A* only knows the static nav grid, so a crowded melee has no
+ * unit-vs-unit avoidance and the separation push can cancel a unit's forward
+ * step exactly (the unit freezes in `attack`, bobbing, never reaching range).
+ * Keep most of the component that points away from the goal (lateral spread),
+ * drop most of the one that pushes back.
+ */
+function attenuateAwayFromGoal(gs: GameState, e: UnitEntity, dx: number, dz: number): { dx: number; dz: number } {
+  if (!e.targetId) return { dx, dz }
+  const t = getEntity(gs, e.targetId)
+  if (!t || t.dead) return { dx, dz }
+  const gx = t.x - e.x, gz = t.z - e.z
+  const l2 = gx * gx + gz * gz
+  if (l2 < 1e-6) return { dx, dz }
+  const dot = (dx * gx + dz * gz) / l2
+  if (dot >= 0) return { dx, dz } // push already moves the unit toward the goal
+  const keep = 0.06
+  return { dx: dx - gx * dot * (1 - keep), dz: dz - gz * dot * (1 - keep) }
+}
+
 function stepUnits(gs: GameState, dt: number): void {
   // separation pass (simple)
   const units = unitsOfTeam(gs, 'player').concat(unitsOfTeam(gs, 'enemy'))
@@ -232,6 +253,10 @@ function stepUnits(gs: GameState, dt: number): void {
         let bdx = (dx / d) * bPush, bdz = (dz / d) * bPush
         if (aForm) ({ dx: adx, dz: adz } = attenuateAwayFromHome(a, adx, adz))
         if (bForm) ({ dx: bdx, dz: bdz } = attenuateAwayFromHome(b, bdx, bdz))
+        const aGoal = attenuateAwayFromGoal(gs, a, adx, adz)
+        adx = aGoal.dx; adz = aGoal.dz
+        const bGoal = attenuateAwayFromGoal(gs, b, bdx, bdz)
+        bdx = bGoal.dx; bdz = bGoal.dz
 
         a.x += adx; a.z += adz
         b.x += bdx; b.z += bdz
@@ -579,6 +604,7 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
     const hdHome = e.home ? dist(e.x, e.z, e.home.x, e.home.z) : 0
     const homeToTgt = e.home ? dist(e.home.x, e.home.z, tgt.x, tgt.z) : Infinity
     if (d <= def.range) {
+      e.chaseT = 0; e.chaseD = undefined
       if (e.attackCd <= 0) {
         const atkProfile = UNIT_COMBAT[e.utype]?.attack ?? { base: def.damage, bonusVs: {} }
         applyHit(gs, e, atkProfile, tgt)
@@ -600,6 +626,17 @@ function stepCombatUnit(gs: GameState, e: UnitEntity, dt: number): void {
     }
     // out of range: only stances that allow movement give chase, but keep formation anchor
     if (e.stance === 'standground') return
+    // Watchdog: if we are not closing the distance (blocked by our own crowd), give
+    // up the target instead of bobbing in `attack` forever. The unit can then idle
+    // or re-acquire something it can actually reach.
+    const prevD = e.chaseD
+    if (prevD != null && d < prevD - 0.02) e.chaseT = 0
+    else e.chaseT = (e.chaseT ?? 0) + dt
+    e.chaseD = d
+    if ((e.chaseT ?? 0) > 3.5 && d < def.range + 2.5) {
+      e.targetId = undefined; e.chaseT = 0; e.chaseD = undefined; e.path = []
+      return
+    }
     if (e.home) {
       const leash = e.stance === 'defensive' ? DEFENSIVE_LEASH : FORMATION_SPACING * 3.2
       if (hdHome > leash) {

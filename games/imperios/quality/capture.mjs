@@ -451,12 +451,12 @@ const SCENARIOS = [
 
       // Avanzar hasta choque real con bajas acumuladas (huellas persistentes)
       let dead = 0
-      for (let i = 0; i < 18 && dead < 8; i++) {
+      for (let i = 0; i < 18 && dead < 4; i++) {
         g.skip(0.5)
         dead = deadUnits().length
       }
-      // Seguir un poco más para más bajas/daño antes del instante de captura
-      g.skip(0.6)
+      // Un poco más de intercambio, pero sin que un bando desaparezca
+      g.skip(0.3)
       dead = deadUnits().length
 
       // Refuerzos frescos de ambos bandos: garantiza que azul y rojo estén presentes
@@ -465,8 +465,8 @@ const SCENARIOS = [
       g.spawn('player', 'fusilero', 3, -13, 23)
       g.spawn('enemy', 'milicia', 3, 6, 22)
       g.spawn('enemy', 'fusilero', 3, 13, 23)
-      g.skip(1.2)
-      // pausa justo tras actividad (impactos con hold 2s siguen visibles en el still)
+      g.skip(0.8)
+      // pausa justo tras actividad
       g.skip(0.15)
       g.state.status = 'paused'
 
