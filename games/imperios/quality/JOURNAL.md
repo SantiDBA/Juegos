@@ -1169,6 +1169,58 @@ base enemiga y acabado de diorama siguen lejos de AoE2 DE.
 
 ---
 
+# Juez ciego · ciclo-25-base-enemiga-legible · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-25-base-enemiga-legible/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** se compactó la **base enemiga** de
+`07-late-game` en un compound alrededor del TC enemigo (2 cuarteles, fábrica, almacén,
+viviendas y una línea de 4 torres) y se reencuadró para que entre completa y sin quedar tapada
+por los paneles del HUD.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC, viviendas, granjas con trigo, rocas y árboles sobre suelo moteado; ingenieros como grupo; caminos tenues. |
+| 2 | Combate / counters / proyectiles | 6.0 | `08-asedio.png`: melé con destellos de impacto; trazadoras tenues. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: props y suelo moteado; ~20-30 % de la densidad de AoE2. |
+| 7 | IA legítima | 5.5 | `07-late-game.png`: el compound enemigo **entra completo y sin tapar**, pero el lector **no reconoce** TC/cuartel/fábrica/torres por silueta: se ve como "cúmulo de estructuras anaranjadas". El combate apenas se distingue. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible, posturas sin truncar; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 6.0 | Siluetas de edificios poco distintivas por tipo (raíz de la ilegibilidad de la base enemiga); materiales simples vs AoE2 DE. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello; sin feedback por unidad. Sin audio. |
+
+**Promedio:** 6.25 · **Mínima:** 5.5 · **Dimensiones < 7:** 9
+
+**Veredicto — SORPRENDIDO: NO**
+El encuadre ya muestra la base enemiga completa, pero **no se reconoce qué edificio es qué**
+por silueta: la legibilidad de la IA está bloqueada por el arte/diorama (dim 9). Promedio ~6.25.
+
+## Top 7 brechas
+1. Siluetas de edificios no distintivas por tipo → la base enemiga no se "lee" — `07-late-game.png` — dim 7,9.
+2. Combate sin lectura por unidad ni trazadoras claras — `04/08` — dim 2,10.
+3. Material/iluminación sin blending ni relieve — dim 9.
+4. Economía sin lectura de carga/ruta por unidad — dim 1.
+5. Densidad aún muy por debajo de AoE2 — dim 6.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Fase 4 (ortográfica) no viable sin trabajo de renderer — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. **Siluetas por tipo de edificio** (torre alta/estrecha, cuartel con patio y bandera, fábrica con chimeneas, TC con cúpula) — Dim 9 y 7.
+2. Combate legible por unidad + trazadoras — Dim 2,10.
+3. Blending de terreno / relieve / AO — Dim 9.
+4. Densidad/variación — Dim 6.
+5. HUD sin abreviaturas/recortes — Dim 8.
+
+## Riesgos / notas
+- **25 ciclos, promedio 6.20-6.25 sin tendencia** (últimos 7: 6.20, 6.25×6). Confirmado desde otro ángulo: la dim 7 no se arregla por encuadre; está bloqueada por siluetas/arte (dim 9). Sigue vigente la recomendación de pausar o redefinir la vara.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+- El compound enemigo y su encuadre cambiaron (no comparable con ciclos previos).
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
