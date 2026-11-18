@@ -2027,6 +2027,68 @@ dimensión; el outline es demasiado fino en píxeles a este zoom. Promedio igual
 
 ---
 
+# Juez ciego · ciclo-40-unidad-vs-edificio · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-40-unidad-vs-edificio/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** separar unidad de edificio. Se probaron
+varias combinaciones (aclarar unidades 16/22 %, oscurecer edificios 0.72/0.88, techos neutros al
+34 % de tinte de equipo) y se midió cada una:
+- **Oscurecer edificios** hacía resaltar las unidades pero **mataba la lectura de bando**
+  (regresión en dim 7: "techos gris-marrón uniformes, apenas distinguibles").
+- **Techos neutros** (34 % de tinte) también debilitaron la propiedad.
+- La combinación que mejor balancea: **unidades aclaradas 22 %** (siguen siendo azules/rojas,
+  pero con más valor que sus techos) + techos con el tinte de equipo fuerte (70 %) + hit-pips
+  un poco más chicos (menos ruido blanco en la melé).
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.5 | `03-economia.png`: economía viva; crate por forma. |
+| 2 | Combate / counters / proyectiles | 6.5 | `06b-unidades.png`: unidades **claramente azules** y legibles a campo abierto; en el cúmulo contra techos azules todavía se funden (blue-on-blue). |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: densidad tipo "Arabia de AoE2". |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: se mantiene la propiedad por color de techo (se preservó al no oscurecer). |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`: etiquetas completas, ayuda visible. |
+| 9 | Art direction / diorama isométrico | 7.0 | siluetas + color de bando. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`: hit-pips visibles sin saturar. Sin audio. |
+
+**Promedio:** 6.75 · **Mínima:** 6.5 · **Dimensiones < 7:** 4
+
+**Veredicto — SORPRENDIDO: NO**
+Hay una **tensión real**: techos con azul de bando (necesarios para propiedad, dim 7) chocan con
+unidades azules (dim 2). Se preservó dim 7 y se aclararon las unidades; el blue-on-blue persiste
+en cúmulos. Promedio igual (6.75).
+
+## Top 7 brechas
+1. Blue-on-blue en cúmulos: unidades y techos del mismo azul — `06b-unidades.png` — dim 2.
+2. Detalle de carga/depósito por recurso — dim 1.
+3. Niebla con transición simple — dim 3.
+4. Formaciones poco variadas por rol — dim 4.
+5. Zonas abiertas en late-game — dim 6.
+6. Materiales/luz simples — dim 9.
+7. Juice sin audio — dim 10.
+
+## 5 cambios para el próximo ciclo
+1. Resolver blue-on-blue por **forma**, no por color: base/plataforma oscura bajo cada unidad
+   (anillo de bando sobre disco oscuro) — dim 2.
+2. Depósito señalizado por recurso — dim 1.
+3. Transición de niebla más rica — dim 3.
+4. Variedad de formaciones por rol — dim 4.
+5. Rellenar huecos de late-game — dim 6.
+
+## Riesgos / notas
+- **40 ciclos.** Promedio 6.75 (sin cambio). **Aprendizaje importante:** oscurecer edificios para
+  separar unidades **rompe la propiedad de bando** (dim 7); el color de techo es la principal
+  señal de propiedad. Unidades aclaradas 22 % es el mejor compromiso encontrado.
+- La solución de dim 2 no va a venir del color (está tomado por el bando): hay que usar **forma**
+  (base oscura + anillo de bando) o un contorno más grueso.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
