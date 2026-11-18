@@ -1173,19 +1173,19 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     bag.position.set(-0.18, 0.5, -0.05); g.add(bag)
     // Visible load: oversized crate + icon so gathering/returning is instant at game zoom.
     const cargo = new THREE.Mesh(
-      new THREE.BoxGeometry(1.25, 1.0, 1.0),
+      new THREE.BoxGeometry(1.55, 1.15, 1.15),
       new THREE.MeshBasicMaterial({ color: 0xbef05a, transparent: true, opacity: 0.98, toneMapped: false }),
     )
     cargo.name = 'cargo'
-    cargo.position.set(0, 3.05, 0.02)
+    cargo.position.set(0, 2.35, 0.02)
     cargo.castShadow = false
     cargo.visible = false
     cargo.userData.baseY = cargo.position.y
     g.add(cargo)
     // Bright top marker makes the carried load unmistakable from camera distance.
     const cargoMark = new THREE.Mesh(
-      new THREE.BoxGeometry(1.45, 0.22, 1.45),
-      new THREE.MeshBasicMaterial({ color: 0xfff6c0, transparent: true, opacity: 1, toneMapped: false }),
+      new THREE.BoxGeometry(1.05, 0.22, 1.05),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, toneMapped: false }),
     )
     cargoMark.name = 'cargoMark'
     cargoMark.position.set(0, 0.58, 0)
@@ -1193,10 +1193,20 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     // Billboard icon (always camera-readable) above the carried resource.
     const cargoIcon = new THREE.Sprite(new THREE.SpriteMaterial({ map: cargoTexture('suministros'), color: 0xffffff, transparent: true, opacity: 1, depthTest: false, depthWrite: false, toneMapped: false }))
     cargoIcon.name = 'cargoIcon'
-    cargoIcon.position.set(0, 1.55, 0)
+    cargoIcon.position.set(0, 0.98, 0)
     cargoIcon.scale.set(3.1, 3.1, 1)
     cargoIcon.renderOrder = 500
     cargo.add(cargoIcon)
+    // Ground ring at the carrier's feet, tinted by the resource: the clearest
+    // "this one is loaded" cue at game zoom, independent of the crate.
+    const carryRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.58, 0.78, 24),
+      new THREE.MeshBasicMaterial({ color: 0xbef05a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }),
+    )
+    carryRing.name = 'carryRing'
+    carryRing.rotation.x = -Math.PI / 2
+    carryRing.position.set(0, -2.27, 0)
+    cargo.add(carryRing)
   } else if (u.utype === 'milicia') {
     addContactShadow(g, 0.6, 0.40)
     addTeamBase(g, u.team, 0.62)
@@ -2331,12 +2341,12 @@ function syncCargo(u: UnitEntity, obj: THREE.Object3D, moving: boolean, t: numbe
     const mm = mark.material as THREE.Material
     if (mm && (mm as any).isMeshBasicMaterial) {
       const mmb = mm as THREE.MeshBasicMaterial
-      mmb.color.setHex(resColor)
+      mmb.color.setHex(0xffffff)
       mmb.opacity = 1
     } else if (mm && (mm as any).isMeshStandardMaterial) {
       const mms = mm as THREE.MeshStandardMaterial
-      mms.color.setHex(resColor)
-      mms.emissive.setHex(resColor)
+      mms.color.setHex(0xffffff)
+      mms.emissive.setHex(0xffffff)
       mms.emissiveIntensity = 1.2 + 0.55 * fill + pulse * 0.35
     }
     mark.position.y = 0.58 + pulse * 0.05
@@ -2348,11 +2358,19 @@ function syncCargo(u: UnitEntity, obj: THREE.Object3D, moving: boolean, t: numbe
     im.color.setHex(0xffffff)
     im.opacity = 1
     im.needsUpdate = true
-    const s = 1.5 + 0.4 * fill + pulse * 0.15 + (returning ? 0.25 : 0)
+    const s = 2.2 + 0.5 * fill + pulse * 0.18 + (returning ? 0.3 : 0)
     icon.scale.set(s, s, 1)
-    icon.position.y = 1.35 + pulse * 0.08 + (returning ? 0.1 : 0)
+    icon.position.y = 0.98 + pulse * 0.08 + (returning ? 0.1 : 0)
   }
-  const baseY = (cargo.userData.baseY as number | undefined) ?? 3.05
+  const ring = cargo.getObjectByName('carryRing') as THREE.Mesh | undefined
+  if (ring) {
+    const rm = ring.material as THREE.MeshBasicMaterial
+    rm.color.setHex(0xffffff)
+    rm.opacity = returning ? 1.0 : 0.85
+    const rs = returning ? 1.15 : 1.0
+    ring.scale.setScalar(rs)
+  }
+  const baseY = (cargo.userData.baseY as number | undefined) ?? 2.35
   const sway = moving ? Math.sin(t * 9 + u.id) : 0
   cargo.rotation.z = sway * 0.12
   cargo.position.x = sway * 0.04

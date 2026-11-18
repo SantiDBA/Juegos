@@ -283,10 +283,16 @@ const SCENARIOS = [
         }
         g.skip(3)
       }
-      // empujar una tanda extra para que varios lleguen cargados cerca del TC
-      send(nFood, 2, 1, 4)
-      send(nWood, 2, 1, -4)
-      g.skip(5)
+      // Poner a trabajar TODA la economía: nada de ingenieros ociosos en el still.
+      if (typeof g.gatherAll === 'function') g.gatherAll('player')
+      g.skip(6)
+
+      // Asegurar PORTADORES al final: sin skips después, o entregan y se vacía.
+      for (let i = 0; i < 16; i++) {
+        const car = engs().filter(isCarrying).length
+        if (car >= 7) break
+        g.skip(1.0)
+      }
 
       const list = engs()
       const returning = list.filter(isReturning)
@@ -859,7 +865,8 @@ async function main() {
       if (sc.id === '06-ui') {
         await runScenario06(sc.settleMs)
       } else {
-        if (sc.js) evalExpect(sc.js, 'ok', sc.id)
+        const out = sc.js ? evalExpect(sc.js, 'ok', sc.id) : ''
+        if (out) log(`    → ${short(out, 160)}`)
         await sleep(sc.settleMs)
       }
       created.push(shot(`${sc.id}.png`))
