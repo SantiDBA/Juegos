@@ -1152,10 +1152,13 @@ function teamStripe(g: THREE.Group, teamC: number, w: number, y: number, z: numb
 }
 
 export function createMeshForEntity(e: AnyEntity): THREE.Object3D {
-  if (e.kind === 'unit') { const g = createUnitMesh(e); g.scale.setScalar(1.5); return g }
+  if (e.kind === 'unit') { const g = createUnitMesh(e); g.scale.setScalar(1.68); return g }
   if (e.kind === 'building') return createBuildingMesh(e)
   return createResourceMesh(e)
 }
+
+/** Shared inverted-hull outline material (dark, back faces only). */
+const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x0a0c10, side: THREE.BackSide })
 
 function createUnitMesh(u: UnitEntity): THREE.Object3D {
   const g = new THREE.Group()
@@ -1426,6 +1429,21 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     const crestTip = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), paintMat(teamC, 0.35, 0.25))
     crestTip.position.set(0, 1.86, -0.02)
     g.add(crestTip)
+  }
+  // Inverted-hull outline on the solid parts: at game zoom it separates a unit
+  // from the crowd/terrain (AoE2-style strong silhouettes) without extra textures.
+  for (const child of [...g.children]) {
+    const m = child as THREE.Mesh
+    if (!m.isMesh || !m.geometry) continue
+    const mm = m.material as any
+    if (!mm || mm.transparent || mm.side === THREE.BackSide) continue
+    if (['cargo', 'cargoMark', 'carryRing', 'sel', 'blob', 'teamring'].includes(m.name)) continue
+    const outline = new THREE.Mesh(m.geometry, OUTLINE_MAT)
+    outline.position.copy(m.position)
+    outline.rotation.copy(m.rotation)
+    outline.scale.copy(m.scale).multiplyScalar(1.34)
+    outline.name = 'outline'
+    g.add(outline)
   }
   const sel = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 28), new THREE.MeshBasicMaterial({ color: 0x7dffb2, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }))
   sel.rotation.x = -Math.PI / 2; sel.position.y = 0.06; sel.name = 'sel'; sel.visible = false; g.add(sel)
