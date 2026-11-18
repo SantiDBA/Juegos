@@ -866,44 +866,133 @@ export function paintFog(rc: RenderContext, grid: Uint8Array | null): void {
   rc.fogTexture.needsUpdate = true
 }
 
-function paintFogPixels(image: ImageData, grid: Uint8Array | null): void {
-  const data = image.data
-  const W = image.width // FOG_TEX
-  const scale = GRID / W
-  for (let py = 0; py < W; py++) {
-    for (let px = 0; px < W; px++) {
-      const gx = px * scale + scale * 0.5
-      const gy = py * scale + scale * 0.5
-      // bilinear sample of RGBA fog states over the 90x90 vision grid
-      const x0 = Math.floor(gx - 0.5), y0 = Math.floor(gy - 0.5)
-      const fx = Math.min(1, Math.max(0, gx - 0.5 - x0)), fy = Math.min(1, Math.max(0, gy - 0.5 - y0))
-      const c00 = visFog(grid, x0, y0), c10 = visFog(grid, x0 + 1, y0)
-      const c01 = visFog(grid, x0, y0 + 1), c11 = visFog(grid, x0 + 1, y0 + 1)
-      const topR = c00[0] + (c10[0] - c00[0]) * fx
-      const topG = c00[1] + (c10[1] - c00[1]) * fx
-      const topB = c00[2] + (c10[2] - c00[2]) * fx
-      const topA = c00[3] + (c10[3] - c00[3]) * fx
-      const botR = c01[0] + (c11[0] - c01[0]) * fx
-      const botG = c01[1] + (c11[1] - c01[1]) * fx
-      const botB = c01[2] + (c11[2] - c01[2]) * fx
-      const botA = c01[3] + (c11[3] - c01[3]) * fx
-      const o = (py * W + px) * 4
-      data[o] = Math.round(topR + (botR - topR) * fy)
-      data[o + 1] = Math.round(topG + (botG - topG) * fy)
-      data[o + 2] = Math.round(topB + (botB - topB) * fy)
-      data[o + 3] = Math.round(topA + (botA - topA) * fy)
-    }
-  }
+/** Continuous fog state per grid cell: 0 unknown, 1 explored, 2 visible now. */
+function visState(grid: Uint8Array | null, cx: number, cy: number): number {
+  if (!grid || cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) return 0
+  const v = grid[cy * GRID + cx]
+  return v >= 2 ? 2 : v === 1 ? 1 : 0
 }
 
-function visFog(grid: Uint8Array | null, cx: number, cy: number): [number, number, number, number] {
-  // visible (v>=2): clear; explored (v==1): gray-blue memory veil; unseen/outside: near-opaque black
-  if (!grid) return [0, 0, 0, 252]
-  if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) return [0, 0, 0, 252]
-  const v = grid[cy * GRID + cx]
-  if (v >= 2) return [0, 0, 0, 0]
-  if (v === 1) return [34, 42, 56, 186]
-  return [1, 2, 6, 252]
+/** Smooth 0..1 ramp between two state values (the soft seen/remembered border). */
+function fogRamp(lo: number, hi: number, v: number): number {
+  const t = Math.min(1, Math.max(0, (v - lo) / (hi - lo)))
+  return t * t * (3 - 2 * t)
+}
+
+let fogCoarse: Float32Array | null = null
+let fogCoarseB: Float32Array | null = null
+let fogCloudBuf: Float32Array | null = null
+
+/**
+ * Two-octave tileable value noise so the shroud reads as drifting cloud
+ * rather than a flat dark tile. Built once and reused on every repaint.
+ */
+function fogCloud(n: number): Float32Array {
+  if (fogCloudBuf && fogCloudBuf.length === n * n) return fogCloudBuf
+  const out = new Float32Array(n * n)
+  const octave = (L: number, seed: number, amp: number, into: Float32Array) => {
+    const lat = new Float32Array(L * L)
+    let s = seed >>> 0
+    for (let i = 0; i < L * L; i++) { s = (s * 1664525 + 1013904223) >>> 0; lat[i] = s / 4294967296 }
+    const wrap = (i: number) => ((i % L) + L) % L
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const fx = (x / n) * L, fy = (y / n) * L
+        const x0 = Math.floor(fx), y0 = Math.floor(fy)
+        const tx = smoothstep(fx - x0), ty = smoothstep(fy - y0)
+        const r0 = wrap(y0) * L, r1 = wrap(y0 + 1) * L
+        const a = lat[r0 + wrap(x0)], b = lat[r0 + wrap(x0 + 1)]
+        const c = lat[r1 + wrap(x0)], d = lat[r1 + wrap(x0 + 1)]
+        const top = a + (b - a) * tx, bot = c + (d - c) * tx
+        into[y * n + x] += (top + (bot - top) * ty) * amp
+      }
+    }
+  }
+  octave(18, 1337, 0.6, out) // banks: several tiles across
+  octave(44, 90210, 0.4, out) // medium curl, still cloud-scale
+  fogCloudBuf = out
+  return out
+}
+
+/**
+ * Fog repaint, once per vision pass (5 Hz).
+ *
+ * 1) read the state grid at coarse (one-texel-per-tile) resolution,
+ * 2) blur it there with three separable 1-2-1 passes: that feathers the
+ *    seen/remembered/unseen borders over ~2 tiles, which is the scale AoE2
+ *    uses, and costs 90x90 instead of 360x360,
+ * 3) bilinear upsample into the fog canvas with cloud-modulated alpha.
+ */
+function paintFogPixels(image: ImageData, grid: Uint8Array | null): void {
+  const W = image.width // FOG_TEX
+  const G = GRID
+  if (!fogCoarse || fogCoarse.length !== G * G) {
+    fogCoarse = new Float32Array(G * G)
+    fogCoarseB = new Float32Array(G * G)
+  }
+  const s = fogCoarse
+  const sb = fogCoarseB!
+  for (let y = 0; y < G; y++) {
+    for (let x = 0; x < G; x++) s[y * G + x] = visState(grid, x, y)
+  }
+  for (let it = 0; it < 6; it++) {
+    for (let y = 0; y < G; y++) {
+      const row = y * G
+      for (let x = 0; x < G; x++) {
+        const pl = s[row + (x > 0 ? x - 1 : 0)]
+        const pc = s[row + x]
+        const pr = s[row + (x < G - 1 ? x + 1 : G - 1)]
+        sb[row + x] = (pl + 2 * pc + pr) * 0.25
+      }
+    }
+    for (let x = 0; x < G; x++) {
+      for (let y = 0; y < G; y++) {
+        const pu = sb[(y > 0 ? y - 1 : 0) * G + x]
+        const pc = sb[y * G + x]
+        const pd = sb[(y < G - 1 ? y + 1 : G - 1) * G + x]
+        s[y * G + x] = (pu + 2 * pc + pd) * 0.25
+      }
+    }
+  }
+
+  const cloud = fogCloud(W)
+  const data = image.data
+  const scale = G / W
+  for (let py = 0; py < W; py++) {
+    const gy = py * scale + scale * 0.5
+    const y0 = Math.floor(gy - 0.5)
+    const fy = Math.min(1, Math.max(0, gy - 0.5 - y0))
+    const y0c = Math.min(G - 1, Math.max(0, y0))
+    const y1c = Math.min(G - 1, Math.max(0, y0 + 1))
+    for (let px = 0; px < W; px++) {
+      const gx = px * scale + scale * 0.5
+      const x0 = Math.floor(gx - 0.5)
+      const fx = Math.min(1, Math.max(0, gx - 0.5 - x0))
+      const x0c = Math.min(G - 1, Math.max(0, x0))
+      const x1c = Math.min(G - 1, Math.max(0, x0 + 1))
+      const c00 = s[y0c * G + x0c], c10 = s[y0c * G + x1c]
+      const c01 = s[y1c * G + x0c], c11 = s[y1c * G + x1c]
+      const top = c00 + (c10 - c00) * fx, bot = c01 + (c11 - c01) * fx
+      const v = top + (bot - top) * fy
+      const i = py * W + px
+      const o = i * 4
+      const veil = 176 * (0.62 + 0.72 * cloud[i])
+      let r: number, g: number, b: number, a: number
+      if (v >= 1) {
+        const k = fogRamp(1, 1.75, v)
+        a = veil * (1 - k)
+        r = 34 * (1 - k); g = 42 * (1 - k); b = 56 * (1 - k)
+      } else {
+        const k = fogRamp(0.1, 1, v)
+        a = 252 * (1 - k) + veil * k
+        r = 1 + 33 * k; g = 2 + 40 * k; b = 6 + 50 * k
+      }
+      data[o] = Math.round(r)
+      data[o + 1] = Math.round(g)
+      data[o + 2] = Math.round(b)
+      data[o + 3] = Math.round(Math.min(255, a))
+    }
+  }
 }
 
 export function updateCamera(rc: RenderContext): void {
