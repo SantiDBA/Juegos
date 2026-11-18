@@ -1971,6 +1971,62 @@ El hit-pip por unidad hace visible el impacto (juice 6.0→6.5) y el promedio ma
 
 ---
 
+# Juez ciego · ciclo-39-silueta-outline · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-39-silueta-outline/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** contraste de silueta de unidades.
+- **Outline por inverted hull**: cada parte sólida de la unidad recibe un clon con `BackSide`
+  oscuro escalado 1.34 (material compartido, sin geometría nueva). Queda sutil a este zoom.
+- **Unidades más grandes**: escala 1.5 → **1.68** (ganan píxeles de silueta).
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.5 | `03-economia.png`: economía viva; crate por forma. |
+| 2 | Combate / counters / proyectiles | 6.5 | `06b-unidades.png`: el juez pasó de "unidades ilegibles (4-5/10)" a **"~6/10, comparable o algo peor que AoE2"**: hay contraste unidad-edificio y las barras de vida ayudan; el outline se ve débil. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: densidad tipo "Arabia de AoE2". |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: base enemiga identificable por bando. |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`: etiquetas completas, ayuda visible. |
+| 9 | Art direction / diorama isométrico | 7.0 | siluetas + color de bando. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`: hit-pips visibles. Sin audio. |
+
+**Promedio:** 6.75 · **Mínima:** 6.5 · **Dimensiones < 7:** 4
+
+**Veredicto — SORPRENDIDO: NO**
+Subir la escala de unidades mejoró la lectura (4-5/10 → ~6/10) pero no alcanza para mover la
+dimensión; el outline es demasiado fino en píxeles a este zoom. Promedio igual (6.75).
+
+## Top 7 brechas
+1. Silueta/legibilidad de unidades en grupo (blob, blue-on-blue) — `06b-unidades.png` — dim 2.
+2. Detalle de carga/depósito por recurso — `03-economia.png` — dim 1.
+3. Niebla con transición simple — dim 3.
+4. Formaciones poco variadas por rol — dim 4.
+5. Zonas abiertas en late-game — dim 6.
+6. Juice sin peso (sin audio) — dim 10.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Separar unidades del fondo azul: **desaturar/oscurecer los techos** o dar a las unidades un
+   **rim claro** (no oscuro) para contraste real — dim 2.
+2. Depósito señalizado por recurso — dim 1.
+3. Transición de niebla más rica — dim 3.
+4. Variedad de formaciones por rol — dim 4.
+5. Rellenar huecos de late-game — dim 6.
+
+## Riesgos / notas
+- **39 ciclos.** Promedio 6.75 (sin cambio). Unidades a 1.68 y outline 1.34: el outline es
+  **demasiado fino** (1-2 px) a este zoom para leerse; para que funcione habría que engrosarlo
+  mucho (y quedaría tipo dibujo animado) o cambiar el contraste del fondo.
+- El problema real de dim 2 es **blue-on-blue** (unidades y techos del mismo azul). Próxima
+  palanca: separar la paleta de edificios de la de unidades.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
