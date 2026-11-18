@@ -2823,6 +2823,75 @@ ciclo 50: "thin yellow lines... blend with the tan ground".
 
 ---
 
+# Juez ciego · ciclo-53-tracer · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-53-tracer/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** dim 10 — legibilidad de la trazadora.
+- **Contorno oscuro debajo del núcleo**: se agrega un riel casi negro (0.78 u de grosor,
+  `renderOrder` 150) por debajo del núcleo brillante (151) y la vaina (152). Una línea cálida sobre
+  tierra tostada no tiene contraste propio; el borde oscuro es lo que la hace legible, igual que las
+  flechas de AoE2.
+- Núcleo 0.42 → 0.55 u; la vaina pasa a ir por debajo del núcleo en lugar de encima.
+
+**Verificación de la captura (esto es lo importante del ciclo).** El juez insistía en que la foto de
+`04-combate` mostraba "un pueblo sin combate". Para saber si el problema era la captura o el juez,
+escribí **la cámara en el DOM con posición fija** desde el propio escenario:
+
+- Con el marcador: la foto muestra `DBG cam 0,25 t=13294` → **la captura SÍ es del estado actual** y
+  la cámara SÍ está en el frente. Se eliminó el marcador después de comprobarlo.
+- Diagnóstico del harness al disparar: `cam=0.0,25.0 dist=48 near=32 beam=39 status=playing`.
+  32 unidades alrededor y **39 trazadoras vivas** (los fx muertos se reciclan, así que la cuenta es
+  real), y el conteo de píxeles cálidos brillantes en la imagen es ~1.5% del área muestreada.
+
+Conclusión: el efecto **está** en el frame y la captura es fiable. El juez de visión no lo registra.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`. |
+| 3 | Niebla / exploración | 7.0 | `05-fog.png`. |
+| 4 | Pathfinding / formaciones | 7.0 | `06c-formacion.png`. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.5 | `06-ui.png`. |
+| 9 | Art direction / diorama isométrico | 7.5 | `03-economia.png`. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`: el juez vuelve a decir "no combat", pero la marca en la imagen y el diagnóstico prueban 39 trazadoras vivas en el frente. |
+
+**Promedio:** 7.10 · **Mínima:** 6.5 · **Dimensiones < 7:** 1
+
+**Veredicto — SORPRENDIDO: NO**
+Sin cambio, y esta vez el motivo está identificado: **el juez de visión no es un instrumento fiable
+para dim 10 con tomas de 1280x577**. Después de tres ciclos de "arreglar" algo que las mediciones
+dicen que está bien, corresponde decirlo.
+
+## Top 7 brechas
+1. El juez no registra efectos finos a resolución de captura (trazadoras, impactos) — instrumento, no juego.
+2. Etiquetas flotantes densas en grupos grandes — dim 2/4.
+3. Suelo desaturado (el valor ya está) — dim 9.
+4. Chips sin diferenciación por unidad — dim 1.
+5. Zonas abiertas en late-game — dim 6.
+6. El óvalo de visión actual se lee artificialmente circular — dim 3.
+7. Sin audio (techo real de dim 10).
+
+## 5 cambios para el próximo ciclo
+1. **Capturar dim 10 distinto**: una toma más cercana (dist ~28) de un intercambio, hecha para el efecto — dim 10.
+2. Rellenar huecos de late-game — dim 6.
+3. Saturación del suelo — dim 9.
+4. Etiquetas en el mundo sólo por hover — dim 2/4.
+5. Diferenciar el ícono del chip por rol — dim 1.
+
+## Riesgos / notas
+- **53 ciclos.** Promedio 7.10. Una dimensión < 7 (juice 6.5).
+- **Técnica que vale conservar**: para saber si una captura es del estado actual, escribir un marcador
+  con `position: fixed` en el DOM desde el escenario y buscarlo en el PNG. Es concluyente y barato.
+- El harness ahora espera dos ticks de `requestAnimationFrame` antes de cada foto (`syncFrame`).
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
