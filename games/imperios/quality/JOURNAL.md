@@ -1624,6 +1624,58 @@ El color de bando en los techos resolvió la legibilidad de la base enemiga en l
 
 ---
 
+# Juez ciego · ciclo-33-densidad-mapa · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-33-densidad-mapa/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** **densidad ambiental**. Subí los
+instanciados (arbustos 2400→3200, piedras 820→1100, flores 500→700, cajas 130→180, rocas
+130→180) y agregué 12 clusters de matorral/roca en los corredores que quedaban vacíos. Chispas
+de impacto un poco más grandes para que el golpe se lea en el still.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC, viviendas, granjas, rocas y suelo moteado; ingenieros como grupo. |
+| 2 | Combate / counters / proyectiles | 6.5 | `04-combate.png`: melé limpia, bandos por color y anillos. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: el juez ahora lo compara con **"un mapa Arabia de AoE2 recién generado"** (antes lo medía en ~20-30 %): árboles, rocas, flores, arbustos y camino. `07-late-game.png`: base central densa; quedan zonas abiertas en late-game. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: base enemiga identificable al instante por techos rojos vs propios azules. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 7.0 | `07-late-game.png`: siluetas + color de bando dominante; materiales aún simples. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: chispas/estelas y despojos. Sin audio. |
+
+**Promedio:** 6.60 · **Mínima:** 6.0 · **Dimensiones < 7:** 6
+
+**Veredicto — SORPRENDIDO: NO**
+La densidad subió a nivel "mapa AoE2 recién generado" (dim 6 a 7) y el promedio marca nuevo
+máximo (6.60). Siguen < 7 combate fino, juice, economía y HUD.
+
+## Top 7 brechas
+1. Unidades chicas/aglomeradas en la melé — `04-combate.png` — dim 2.
+2. Sin feedback de golpe puntual por unidad — dim 10.
+3. Economía sin lectura de carga/ruta por unidad — dim 1.
+4. HUD: techs abreviadas y ayuda recortada — dim 8.
+5. Zonas abiertas en late-game (densidad irregular) — `07-late-game.png` — dim 6.
+6. Bando más débil en era 1 — `02-arranque.png` — dim 7.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Rellenar zonas abiertas del late-game (props temáticos cerca de bases) — dim 6.
+2. Separación/contraste de silueta de unidades — dim 2.
+3. Feedback de golpe puntual sin acumular — dim 10.
+4. HUD sin abreviaturas — dim 8.
+5. Economía por unidad (carga/ruta) — dim 1.
+
+## Riesgos / notas
+- **33 ciclos.** Promedio 6.55 → **6.60**: nuevo máximo. Serie: 6.40→6.45→6.55→6.60.
+- Densidad ya juega en la liga de AoE2 "Arabia" en el arranque; el late-game aún tiene huecos.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
