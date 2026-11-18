@@ -2498,7 +2498,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
   const seed = hash2(x * 0.7, z * 1.3)
 
   // Sparks/debris: 10-12 per hit, deterministic count/spread from the impact point.
-  const sparks = 5 + Math.floor(seed * 2)
+  const sparks = 7 + Math.floor(seed * 2)
   for (let i = 0; i < sparks; i++) {
     const mesh = acquireFx(rc, 'spark')
     if (!mesh) break
@@ -2512,7 +2512,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     m.color.setHex(i % 3 === 0 ? 0xffd06a : i % 3 === 1 ? 0xfff6d0 : 0xff8b3d)
     m.opacity = 1.0
     rc.fxItems.push({
-      kind: 'spark', mesh, t: 0, life: 1.6,
+      kind: 'spark', mesh, t: 0, life: 2.4,
       pos: mesh.position.clone(),
       vel: new THREE.Vector3(Math.cos(ang) * spread, 5.4 + (i % 3) * 1.8, Math.sin(ang) * spread),
       s0: size, s1: size, o0: 1.0,
@@ -2731,6 +2731,25 @@ export function spawnDepositFx(
       pos: mesh.position.clone(),
       vel: new THREE.Vector3(Math.cos(ang) * 3.0, 4.6 + (i % 3) * 1.0, Math.sin(ang) * 3.0),
       s0: size, s1: size, o0: 1.0,
+    })
+  }
+
+  // Tiny persistent impact scar: a small speck that marks where hits landed and
+  // survives to the still. Deliberately MUCH smaller than the old crater decals
+  // (rad 2.6) that merged into one big dark disc over a melee.
+  if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
+  const scar = acquireFx(rc, 'decal')
+  if (scar) {
+    const rad = 0.42 + seed * 0.22
+    scar.position.set(x, groundHeightAt(x, z) + 0.071, z)
+    scar.scale.set(rad, 1, rad)
+    const m = scar.material as THREE.MeshBasicMaterial
+    m.color.setHex(0x1b130d)
+    m.opacity = 0.55
+    rc.fxItems.push({
+      kind: 'decal', mesh: scar, t: 0, life: 40,
+      pos: scar.position.clone(), vel: new THREE.Vector3(),
+      s0: 1, s1: 1, o0: 0.55, hold: 30,
     })
   }
 }
