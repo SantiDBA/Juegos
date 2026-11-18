@@ -274,6 +274,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   background: rgba(255,255,255,0.04); border: 1px solid rgba(160,190,220,0.14);
 }
 .res .ico { width: 16px; height: 16px; display: block; filter: drop-shadow(0 0 2px rgba(0,0,0,0.35)); }
+.res-name { font-size: 10px; color: #9db0c8; letter-spacing: .02em; align-self: center; }
 .res b { font-size: 15px; min-width: 30px; text-align: right; color: #f6fbff; font-weight: 800; letter-spacing: .01em; text-shadow: 0 1px 0 rgba(0,0,0,0.4); }
 .res b.warn { color: #ff8f8f; font-weight: 900; }
 .era-badge { white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }

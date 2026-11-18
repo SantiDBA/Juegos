@@ -45,6 +45,13 @@ const RESOURCE_ICON: Record<ResourceKey, string> = {
   minerales: '💎',
 }
 
+const RESOURCE_TINT: Record<ResourceKey, string> = {
+  suministros: '#cfe07a',
+  materiales: '#d4994f',
+  combustible: '#e88a55',
+  minerales: '#c3d4e6',
+}
+
 const STANCE_ICON: Record<Stance, string> = {
   aggressive: '⚔️',
   defensive: '🛡️',
@@ -77,12 +84,12 @@ export function createUI(root: HTMLElement): UIRefs {
   root.innerHTML = `
     <div class="topbar">
       <div class="era-badge" id="era">Era del Vapor</div>
-      <div class="res res-chip" title="Suministros"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#d7e07a" d="M8 1.5c-2.6 2-4 4.4-4 7 0 2.8 1.7 5 4 5s4-2.2 4-5c0-2.6-1.4-5-4-7z"/></svg><b id="r-suministros">0</b></div>
-      <div class="res res-chip" title="Materiales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c08a4a" d="M2 14V7l6-4 6 4v7h-4V9H6v5z"/></svg><b id="r-materiales">0</b></div>
-      <div class="res res-chip" title="Combustible"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#e0734a" d="M9.5 1.5s-4 4.8-4 8a4 4 0 0 0 8 0c0-1.4-.6-2.7-1.5-4-.9 1-1.7 1.2-2.5 1.2.7-1.8.7-3.7 0-5.2z"/></svg><b id="r-combustible">0</b></div>
-      <div class="res res-chip" title="Minerales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c8d2dc" d="M8 1.5 13 6.5 8 14.5 3 6.5z"/></svg><b id="r-minerales">0</b></div>
-      <div class="res res-chip res-chip-pop" title="Población"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#9fd0ff" d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM3 13c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5z"/></svg><b id="pop">0/0</b></div>
-      <div class="res res-chip res-chip-clock" title="Tiempo de partida"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#98a6bd" d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2v5l3 2" stroke="#98a6bd" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg><b id="clock">0:00</b></div>
+      <div class="res res-chip" title="Suministros"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#d7e07a" d="M8 1.5c-2.6 2-4 4.4-4 7 0 2.8 1.7 5 4 5s4-2.2 4-5c0-2.6-1.4-5-4-7z"/></svg><b id="r-suministros">0</b><span class="res-name">Suministros</span></div>
+      <div class="res res-chip" title="Materiales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c08a4a" d="M2 14V7l6-4 6 4v7h-4V9H6v5z"/></svg><b id="r-materiales">0</b><span class="res-name">Materiales</span></div>
+      <div class="res res-chip" title="Combustible"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#e0734a" d="M9.5 1.5s-4 4.8-4 8a4 4 0 0 0 8 0c0-1.4-.6-2.7-1.5-4-.9 1-1.7 1.2-2.5 1.2.7-1.8.7-3.7 0-5.2z"/></svg><b id="r-combustible">0</b><span class="res-name">Combustible</span></div>
+      <div class="res res-chip" title="Minerales"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#c8d2dc" d="M8 1.5 13 6.5 8 14.5 3 6.5z"/></svg><b id="r-minerales">0</b><span class="res-name">Minerales</span></div>
+      <div class="res res-chip res-chip-pop" title="Población"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#9fd0ff" d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM3 13c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5z"/></svg><b id="pop">0/0</b><span class="res-name">Población</span></div>
+      <div class="res res-chip res-chip-clock" title="Tiempo de partida"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="#98a6bd" d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2v5l3 2" stroke="#98a6bd" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg><b id="clock">0:00</b><span class="res-name">Tiempo</span></div>
     </div>
     <div class="prog-wrap" id="prog"><div class="prod-bar"><div class="prod-bar-fill" id="prog-fill"></div></div><div class="prog-label" id="prog-label"></div></div>
     <div class="leftpanel">
@@ -425,6 +432,35 @@ export function renderActions(ui: UIRefs, gs: GameState, onTrain: (bId: number, 
   }
 }
 
+/** What a unit is doing right now, in the two-word form that fits a selection chip. */
+function unitTask(gs: GameState, u: any): { short: string; icon: string; tint: string } {
+  const carryKey = u.carrying
+    ? (Object.keys(u.carrying) as ResourceKey[]).find(k => (u.carrying[k] ?? 0) > 0)
+    : undefined
+  const byResource = (verb: string, rk?: ResourceKey) => ({
+    short: rk ? `${verb} ${RESOURCE_LABEL[rk]}` : verb,
+    icon: rk ? RESOURCE_ICON[rk] : '⛏️',
+    tint: rk ? RESOURCE_TINT[rk] : '#c3d4e6',
+  })
+  switch (u.state) {
+    case 'build':
+      return { short: 'Construye', icon: '🔨', tint: '#e8c07a' }
+    case 'return':
+      return byResource('Lleva', carryKey)
+    case 'gather': {
+      const node = getEntity(gs, u.gatherTargetId)
+      const rk = node && node.kind === 'resource' ? (node.resource as ResourceKey) : carryKey
+      return byResource('Recolecta', rk)
+    }
+    case 'attack':
+      return { short: 'Ataca', icon: '⚔️', tint: '#ff9a8a' }
+    case 'move':
+      return { short: 'Se mueve', icon: '➤', tint: '#9fc6ff' }
+    default:
+      return { short: 'Inactivo', icon: '⏸', tint: '#9aa8bd' }
+  }
+}
+
 export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
   const sel = gs.selectedIds.map(id => getEntity(gs, id)).filter(Boolean) as any[]
   if (sel.length === 0) {
@@ -572,10 +608,11 @@ export function updateSelectionInfo(ui: UIRefs, gs: GameState): void {
     if (e.kind === 'unit') {
       const d = UNIT_DEFS[e.utype]
       const icon = UNIT_ICON[e.utype] ?? chipLetter(d.name)
-      return `<div class="sel-chip team-${e.team}" title="${d.name} (${teamLabel(e.team as Team)}) ${Math.ceil(e.hp)}/${e.maxHp} HP">
+      const task = unitTask(gs, e)
+      return `<div class="sel-chip team-${e.team}" title="${d.name} (${teamLabel(e.team as Team)}) · ${task.short} · ${Math.ceil(e.hp)}/${e.maxHp} HP">
         <div class="sel-chip-top"><span class="sel-chip-icon" aria-hidden="true">${icon}</span><span class="sel-chip-name">${shortEntityLabel(d.name)}</span></div>
         ${miniHpBarHtml(e.hp, e.maxHp)}
-        <div class="sel-chip-team">${teamLabel(e.team as Team)}</div>
+        <div class="sel-chip-team" style="color:${task.tint}">${task.icon} ${task.short}</div>
       </div>`
     }
     if (e.kind === 'building') {
