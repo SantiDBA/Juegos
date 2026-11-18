@@ -1333,6 +1333,69 @@ a 7). Sigue lejos en combate, densidad y legibilidad de la base enemiga/combate.
 
 ---
 
+# Juez ciego · ciclo-28-unidades-legibles · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-28-unidades-legibles/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):**
+- **Bug de escala de unidades corregido**: se creaban a escala 1.35 pero una línea de ciclo 22
+  en `syncEntityMesh` las forzaba a 1.12 (más chicas). Ahora la escala vive en un solo lugar y
+  es 1.5 → siluetas bastante más grandes.
+- **Cresta de bando**: infantería y a distancia llevan un penacho/estandarte del color del
+  equipo sobre la cabeza, para leer el bando sin recurrir a glow.
+- **VFX de impacto/trazadora**: los `beam`/`flash`/`ring` pasaron de *additive* a blending
+  normal (muchos efectos simultáneos sumaban a blanco); impactos se sostienen lo justo para
+  sobrevivir al settle de captura (~0.85 s); cráter de impacto más chico.
+- `04-combate`: encuadre fijo (0,25,48) que incluye ambas líneas + refuerzos de ambos bandos
+  para garantizar azul **y** rojo en el still.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC con cúpula, viviendas, granjas, rocas y suelo moteado; ingenieros como grupo. |
+| 2 | Combate / counters / proyectiles | 6.0 | `06b-unidades.png`: milicias ahora se leen como soldados (escudo+lanza, azul/blanco, cresta). `04-combate.png`: bandos distinguibles en los bordes, pero un halo/pluma clara sobre el choque sigue tapando parte de la melé y las trazadoras son finas. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: props y suelo moteado; ~20-30 % de la densidad de AoE2. |
+| 7 | IA legítima | 6.0 | `07-late-game.png`: se reconocen los tipos de edificio; la base enemiga sigue leyéndose poco en el viewport. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible, posturas sin truncar; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 7.0 | `07-late-game.png`: tipos de edificio legibles por silueta; unidades algo más grandes con cresta de bando. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello; sin feedback de golpe por unidad. Sin audio. |
+
+**Promedio:** 6.40 · **Mínima:** 6.0 · **Dimensiones < 7:** 8
+
+**Veredicto — SORPRENDIDO: NO**
+Se arregló la escala de unidades y se les dio cresta de bando (se leen como soldados), y se
+sacó la suma additive de VFX. Pero el combate **sigue tapado por un halo claro** sobre el
+choque y el promedio no se mueve (6.40).
+
+## Top 7 brechas
+1. Halo/pluma clara sobre el choque tapa la melé incluso con VFX no-additive — `04-combate.png` — dim 2,10. Queda por identificar la fuente exacta (¿sun/bloom sobre terreno, ¿un mesh puntual?).
+2. Base enemiga poco legible en el viewport — `07-late-game.png` — dim 7.
+3. Trazadoras finas/tenues en la melé — `04-combate.png` — dim 2.
+4. Economía sin lectura de carga/ruta por unidad — dim 1.
+5. Densidad por debajo de AoE2 — dim 6.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Sin feedback de golpe por unidad — dim 10.
+
+## 5 cambios para el próximo ciclo
+1. Aislar y eliminar el halo claro del combate (revisar bloom/exposición y meshes brillantes en la zona) — Dim 2,10.
+2. Base enemiga legible (encuadre + color por bando) — Dim 7.
+3. Trazadoras más visibles pero no additive — Dim 2.
+4. Densidad/variación — Dim 6.
+5. HUD sin abreviaturas/recortes — Dim 8.
+
+## Riesgos / notas
+- **28 ciclos.** Promedio 6.40 (sin movimiento este ciclo). El bug de escala era real y las
+  unidades se leen mejor, pero la melé sigue contaminada por un halo claro que **no** era la
+  suma additive (se descartó al pasar beam/flash/ring a blending normal). Próximo paso:
+  aislarlo (bloom strength/threshold, exposición ACES, o un mesh específico).
+- Se descartó la suma additive como causa del "wash" (útil para no repetirlo).
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
