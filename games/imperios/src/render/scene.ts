@@ -1102,7 +1102,9 @@ function hpBarSpec(e: AnyEntity): HpBarSpec {
     return { w: Math.max(2.8, size.x * 0.5), h: 0.55, y: BUILDING_BAR_Y[e.btype] ?? 3.2, ox: 0 }
   }
   if (e.kind === 'unit') {
-    return { w: VEHICLE_UNITS.has(e.utype) ? 1.85 : 1.7, h: 0.42, y: 1.55, ox: ((e.id % 3) - 1) * 0.35 }
+    // Narrow and lifted: at 1.7 the bar was as wide as a soldier is tall, so in a
+    // formation the bars covered the neighbours' bodies and the ranks disappeared.
+    return { w: VEHICLE_UNITS.has(e.utype) ? 1.25 : 1.05, h: 0.3, y: 1.9, ox: ((e.id % 3) - 1) * 0.3 }
   }
   return { w: 2.2, h: 0.5, y: 2, ox: 0 }
 }
@@ -1250,7 +1252,9 @@ function addContactShadow(g: THREE.Group, radius: number, opacity = 0.28): void 
 
 function addTeamBase(g: THREE.Group, team: 'player' | 'enemy', radius: number): void {
   const c = TEAM_COLORS[team]
-  const ring = new THREE.Mesh(new THREE.RingGeometry(radius * 0.78, radius, 28), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false }))
+  // Tighter and fainter: at full radius the team rings of adjacent soldiers touched,
+  // and the overlap was what made a formed-up group read as one shapeless disc.
+  const ring = new THREE.Mesh(new THREE.RingGeometry(radius * 0.58, radius * 0.8, 28), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }))
   ring.rotation.x = -Math.PI / 2
   ring.position.y = 0.045
   ring.name = 'teamring'
@@ -1560,7 +1564,10 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     const bm = blob.material as THREE.MeshBasicMaterial
     if (bm && 'opacity' in bm) bm.opacity = 0.62
   }
-  const sel = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 28), new THREE.MeshBasicMaterial({ color: 0x7dffb2, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }))
+  // Hugs the unit: at 0.9-1.05 the selection ring was ~3.5 world units across, wider
+  // than a formation's slot spacing, so selecting a squad turned it into a mass of
+  // overlapping discs (the ranks were unreadable in every formation shot).
+  const sel = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 24), new THREE.MeshBasicMaterial({ color: 0x7dffb2, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }))
   sel.rotation.x = -Math.PI / 2; sel.position.y = 0.06; sel.name = 'sel'; sel.visible = false; g.add(sel)
   return g
 }

@@ -663,7 +663,11 @@ const SCENARIOS = [
       // Justo en tránsito: en cuanto llegan al destino la separación los dispersa y la
       // formación deja de leerse. El destino lejano garantiza que sigan marchando.
       g.skip(1)
-      g.camera(-42, 6, 24)  // cerca: a distancia lejana las filas no se leen a este zoom
+      // Más cenital: desde un ángulo bajo las filas se solapan en pantalla y la
+      // formación no se lee. g.camera() recorta dist a mínimo 25, así que la
+      // distancia se deja en 30 y el ángulo se sube por el render context.
+      g.render.camPitch = 1.12
+      g.camera(-38, 8, 30)
       g.state.status = 'paused'
       return n >= 6 ? 'ok' : 'moved:' + n + '/' + ids.length
     })()`,
