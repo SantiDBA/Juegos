@@ -2702,6 +2702,52 @@ Sin cambio. El juice se mejoró pero **no se puede verificar** con esta captura:
 
 ---
 
+# Bug de juego · ciclo-51-fix-edificios · 2026-11-17
+
+**Reporte del usuario:** "mis milicias no parecen poder atacar edificios enemigos".
+
+**Reproducción medida (probe, no juez):** probe de estado con 4-12 milicias y un cuartel enemigo,
+leyendo hp del edificio y estado de las unidades cada segundo. Aparecieron **dos bugs distintos**:
+
+1. **La adquisición medía al centro, el ataque medía al borde.**
+   `nearestVisibleEnemy` usaba distancia centro-a-centro, mientras `rangeTo` (el chequeo de alcance
+   del ataque) mide desde el **borde de la huella**. Un cuartel mide 4x4: una unidad parada contra
+   su pared está a ~2-3 u del centro, más que el radio de adquisición de la postura defensiva
+   (2.3). Resultado: la unidad se quedaba `idle` al lado del edificio sin adquirirlo nunca.
+   Medido: 4 milicias pegadas a un cuartel → **hp 1200 → 1200**, `idle`.
+
+2. **La correa defensiva anulaba las órdenes explícitas.**
+   `commandAttack` fija `home` en donde se dio la orden, y la correa de la postura defensiva
+   (`DEFENSIVE_LEASH = 6`) hacía volver a la unidad: una escuadra ordenada contra un edificio a 20 u
+   caminaba un poco, volvía y se quedaba en estado `attack` sin pegar.
+   Medido: 6 milicias, postura defensiva, orden de ataque → **hp 1200 → 1200**, todas `attack`.
+
+**Arreglos:**
+- Un único helper `rangeToEntity(x, z, e)` en `vision.ts` (distancia al borde para edificios,
+  centro para el resto) usado por la adquisición **y** por el chequeo de alcance del ataque, para
+  que no puedan volver a divergir.
+- Flag `ordered` en `UnitEntity`: lo pone `commandAttack` (orden explícita) y lo limpia la
+  adquisición automática. La correa de postura se aplica **sólo** a objetivos auto-adquiridos: una
+  orden explícita persigue donde haga falta, como en AoE2.
+- Hook de QA `attack(ids, targetId)` (mismo camino que el clic derecho) para poder medir esto sin
+  simular eventos de mouse.
+
+**Verificación (post-fix):**
+- 4 milicias pegadas a un cuartel, postura defensiva, auto-adquisición: **1200 → 1047**, 3 en `attack`.
+- 6 milicias, postura defensiva, orden explícita contra un cuartel a 20 u: **1200 → 822**, 6 en `attack`.
+- 6 milicias que llegan con orden de movimiento y después reciben la orden de ataque: **1119 → 633**.
+- 12 milicias en campo abierto (multitud): **1200 → 129**, sin regresión.
+- `capture.mjs` completo: 14/14 escenarios OK.
+
+## Riesgos / notas
+- El mismo patrón (centro vs borde) puede afectar otras comparaciones contra el alcance; si aparece
+  algo parecido, usar `rangeToEntity` en vez de `Math.hypot` a mano.
+- Las capturas de este arreglo quedan en `shots/ciclo-51-fix-edificios/` como evidencia de la corrida
+  de verificación (los escenarios pasaron igual que antes).
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
