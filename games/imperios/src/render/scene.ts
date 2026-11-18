@@ -934,22 +934,22 @@ const VEHICLE_UNITS = new Set(['blindado', 'tanque', 'cazacarros', 'mlrs', 'cano
 
 /** Height of the bar above a building's base, in world units (roof + a gap). */
 const BUILDING_BAR_Y: Record<BuildingEntity['btype'], number> = {
-  ayuntamiento: 4.6,
-  cuartel: 4.6,
+  ayuntamiento: 7.6,
+  cuartel: 5.4,
   vivienda: 3.2,
   almacen: 3.2,
-  fabrica: 5.4,
-  torre: 5.4,
+  fabrica: 6.4,
+  torre: 11.0,
 }
 
 /** Where damage smoke leaves a building, in world units above its base. */
 const BUILDING_SMOKE_Y: Record<BuildingEntity['btype'], number> = {
-  ayuntamiento: 4.3,
-  cuartel: 2.6,
+  ayuntamiento: 5.0,
+  cuartel: 2.8,
   vivienda: 2.7,
   almacen: 2.1,
-  fabrica: 3.0,
-  torre: 5.1,
+  fabrica: 6.2,
+  torre: 7.8,
 }
 
 interface HpBarSpec {
@@ -1437,6 +1437,16 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
     pole.position.set(2.5, 6.2, -2.5); g.add(pole)
     const banner = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.7), new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.12, side: THREE.DoubleSide }))
     banner.position.set(3.05, 6.4, -2.5); g.add(banner)
+    // central dome: gives the town hall a unique skyline vs the other buildings
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(2.1, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x8f8172, emissive: teamC, emissiveIntensity: 0.06, roughness: 0.7, metalness: 0.15 }),
+    )
+    dome.position.y = 4.9; dome.castShadow = true; g.add(dome)
+    const finial = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.1, 6), mat(0xd7c07a))
+    finial.position.y = 6.6; g.add(finial)
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), paintMat(0xe8c964, 0.3, 0.6))
+    orb.position.y = 7.2; g.add(orb)
     for (const [dx] of [[-2, 2], [0, 2], [2, 2]]) {
       const w = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.1), new THREE.MeshStandardMaterial({ color: 0xbfd8f2, emissive: 0x6aa0c8, emissiveIntensity: 0.2, roughness: 0.2, metalness: 0.1 }))
       w.position.set(dx, 1.4, sz.z/2 + 0.02); g.add(w)
@@ -1457,6 +1467,17 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
     gate.position.set(0, 0.6, sz.z/2 + 0.08); g.add(gate)
     const emblem = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.12), paintMat(teamC, 0.5, 0.2))
     emblem.position.set(0, 1.55, sz.z/2 + 0.08); g.add(emblem)
+    // corner turrets + tall banner: barracks must read as a fortified compound
+    for (const [cx, cz] of [[-sz.x/2 + 0.5, -sz.z/2 + 0.5], [sz.x/2 - 0.5, -sz.z/2 + 0.5], [-sz.x/2 + 0.5, sz.z/2 - 0.5], [sz.x/2 - 0.5, sz.z/2 - 0.5]]) {
+      const turret = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 3.4, 8), mat(0x5b6674))
+      turret.position.set(cx, 1.7, cz); turret.castShadow = true; g.add(turret)
+      const tcap = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.9, 8), paintMat(teamC, 0.5, 0.2))
+      tcap.position.set(cx, 3.85, cz); tcap.castShadow = true; g.add(tcap)
+    }
+    const fpole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.6, 6), mat(0x3a3a3a))
+    fpole.position.set(0, 3.4, 0); g.add(fpole)
+    const bflag = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.6), new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.14, side: THREE.DoubleSide }))
+    bflag.position.set(0.58, 4.35, 0); g.add(bflag)
   } else if (b.btype === 'fabrica') {
     g = buildingBase(sz.x, sz.z, 2.2, 0x6b7280, teamC)
     for (let i = -1; i <= 1; i++) {
@@ -1464,8 +1485,12 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
       if (i === 0) saw.name = 'roof'
       saw.position.set(i * 2.6, 2.75, 0); saw.rotation.x = 0.32; saw.castShadow = true; g.add(saw)
     }
-    const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.68, 3.8, 10), mat(0x7a6a58))
-    chimney.position.set(-sz.x / 2 + 1.1, 3.9, -sz.z / 2 + 1.1); chimney.castShadow = true; g.add(chimney)
+    const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.68, 5.2, 10), mat(0x7a6a58))
+    chimney.position.set(-sz.x / 2 + 1.1, 4.6, -sz.z / 2 + 1.1); chimney.castShadow = true; g.add(chimney)
+    const chimney2 = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.52, 4.4, 10), mat(0x6d5f50))
+    chimney2.position.set(sz.x / 2 - 1.2, 4.2, -sz.z / 2 + 0.9); chimney2.castShadow = true; g.add(chimney2)
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.25, 10), paintMat(teamC, 0.5, 0.2))
+    band.position.set(-sz.x / 2 + 1.1, 6.9, -sz.z / 2 + 1.1); g.add(band)
     const gate = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.9, 0.15), mat(0x2f3640))
     gate.position.set(0, 0.95, sz.z / 2 + 0.08); g.add(gate)
     const emblem = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.12), paintMat(teamC, 0.5, 0.2))
@@ -1488,25 +1513,28 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
   } else { // torre
     g = new THREE.Group()
     addContactShadow(g, 1.7, 0.3)
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.75, 4.2, 12), mat(0x8a7e6e, { roughness: 0.95 }))
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.25, 7.0, 12), mat(0x8a7e6e, { roughness: 0.95 }))
     base.name = 'body'
-    base.position.y = 2.1; base.castShadow = true; base.receiveShadow = true; g.add(base)
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.5, 12), paintMat(teamC, 0.5, 0.15))
+    base.position.y = 3.5; base.castShadow = true; base.receiveShadow = true; g.add(base)
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 0.45, 12), paintMat(teamC, 0.5, 0.15))
     rim.name = 'roof'
-    rim.position.y = 4.4; rim.castShadow = true; g.add(rim)
+    rim.position.y = 7.2; rim.castShadow = true; g.add(rim)
     for (let i = 0; i < 8; i++) {
       const ang = (i / 8) * Math.PI * 2
-      const crenel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.55, 0.5), mat(0x9a8e7c))
-      crenel.position.set(Math.cos(ang) * 1.38, 4.9, Math.sin(ang) * 1.38); crenel.rotation.y = -ang; crenel.castShadow = true; g.add(crenel)
+      const crenel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), mat(0x9a8e7c))
+      crenel.position.set(Math.cos(ang) * 1.15, 7.7, Math.sin(ang) * 1.15); crenel.rotation.y = -ang; crenel.castShadow = true; g.add(crenel)
     }
-    const mount = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8), paintMat(0x444c55, 0.5, 0.3))
-    mount.position.y = 4.85; g.add(mount)
-    const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 2.0, 8), paintMat(0x2a2a2a, 0.35, 0.5))
-    gun.rotation.x = Math.PI / 2 - 0.55; gun.position.set(0, 5.15, 0.85); gun.castShadow = true; g.add(gun)
+    // pointed spire makes the tower read instantly as a tower
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(1.25, 2.0, 8), paintMat(teamC, 0.5, 0.2))
+    spire.position.y = 8.9; spire.castShadow = true; g.add(spire)
+    const mount = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 8), paintMat(0x444c55, 0.5, 0.3))
+    mount.position.y = 7.6; g.add(mount)
+    const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 1.8, 8), paintMat(0x2a2a2a, 0.35, 0.5))
+    gun.rotation.x = Math.PI / 2 - 0.55; gun.position.set(0, 7.9, 0.8); gun.castShadow = true; g.add(gun)
     const flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), mat(0x444))
-    flagPole.position.set(-0.6, 5.5, -0.5); g.add(flagPole)
+    flagPole.position.set(-0.5, 10.1, -0.4); g.add(flagPole)
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.12, side: THREE.DoubleSide }))
-    flag.position.set(-0.22, 5.85, -0.5); g.add(flag)
+    flag.position.set(-0.12, 10.45, -0.4); g.add(flag)
   }
   if (BUILDING_DEFS[b.btype]?.dropoff) {
     const r = Math.max(sz.x, sz.z) * 0.4
