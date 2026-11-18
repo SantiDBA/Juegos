@@ -2655,8 +2655,8 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
     back.scale.set(thick, thick, dist)
     back.renderOrder = 150
     const bm = back.material as THREE.MeshBasicMaterial
-    bm.color.setHex(0x140f08)
-    bm.opacity = 0.8
+    bm.color.setHex(0x000000)
+    bm.opacity = 0.92
     rc.fxItems.push({
       kind: 'beam', mesh: back, t: 0, life: 2.0,
       pos: back.position.clone(), vel: new THREE.Vector3(),
@@ -2669,7 +2669,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
     mesh.renderOrder = 151
     mesh.position.lerpVectors(from, to, 0.5)
     mesh.lookAt(to) // geometry runs along +Z, so this aims the streak
-    const thick = 0.55
+    const thick = 0.42
     mesh.scale.set(thick, thick, dist)
     const m = mesh.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
