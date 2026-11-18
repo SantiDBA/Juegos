@@ -138,7 +138,7 @@ function addDensityProps(scene: THREE.Scene): void {
   // Low-poly bushes / shrubs (scattered + deterministic forest clusters), render-only.
   const bushGeo = new THREE.IcosahedronGeometry(0.55, 0)
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x3f6a35, roughness: 0.95, metalness: 0.0, flatShading: true })
-  const bushCount = 2400
+  const bushCount = 3200
   const bushes = new THREE.InstancedMesh(bushGeo, bushMat, bushCount)
   bushes.frustumCulled = false
   const d = new THREE.Object3D()
@@ -181,6 +181,9 @@ function addDensityProps(scene: THREE.Scene): void {
     [28, 14, 16], [22, -14, 16], [14, 22, 16], [32, 28, 14], [24, 8, 16], [10, -26, 14],
     // center skirmish lanes and mid map fillers
     [-4, -8, 14], [4, 8, 14], [-12, 2, 14], [12, -2, 14], [-20, 12, 14], [20, -12, 14], [0, 18, 14], [0, -18, 14],
+    // ciclo 33: rellenar los corredores vacíos con matorral y roca
+    [-30, -4, 10], [30, 4, 10], [-18, -14, 10], [18, 14, 10], [-6, 26, 10], [6, -26, 10],
+    [-36, 6, 10], [36, -6, 10], [-22, 6, 10], [22, -6, 10], [-14, 22, 10], [14, -22, 10],
   ]
   for (let ci = 0; ci < clusters.length && bi < bushCount; ci++) {
     const [cx, cz, n] = clusters[ci]
@@ -213,7 +216,7 @@ function addDensityProps(scene: THREE.Scene): void {
   // Extra small stones / pebbles
   const pebGeo = new THREE.DodecahedronGeometry(0.22, 0)
   const pebMat = new THREE.MeshStandardMaterial({ color: 0x7a7a72, roughness: 0.98, metalness: 0.02, flatShading: true })
-  const pebCount = 820
+  const pebCount = 1100
   const pebs = new THREE.InstancedMesh(pebGeo, pebMat, pebCount)
   pebs.frustumCulled = false
   let pi = 0
@@ -245,7 +248,7 @@ function addDensityProps(scene: THREE.Scene): void {
   // Flower/field patches (small color accents to break empty ground)
   const flowerGeo = new THREE.PlaneGeometry(0.35, 0.35)
   const flowerMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
-  const flowerCount = 500
+  const flowerCount = 700
   const flowers = new THREE.InstancedMesh(flowerGeo, flowerMat, flowerCount)
   flowers.frustumCulled = false
   let fi = 0
@@ -276,7 +279,7 @@ function addDensityProps(scene: THREE.Scene): void {
   // clustered near bases and on the routes, plus rock outcrops for identity.
   const crateGeo = new THREE.BoxGeometry(0.72, 0.72, 0.72)
   const crateMat = new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.9, metalness: 0.02 })
-  const crateCount = 130
+  const crateCount = 180
   const crates = new THREE.InstancedMesh(crateGeo, crateMat, crateCount)
   crates.frustumCulled = false
   const crateCenters: Array<[number, number]> = [
@@ -312,7 +315,7 @@ function addDensityProps(scene: THREE.Scene): void {
   // Rock outcrops: a few larger, darker clusters that give empty areas an identity.
   const rockGeo2 = new THREE.DodecahedronGeometry(0.85, 0)
   const rockMat2 = new THREE.MeshStandardMaterial({ color: 0x7f7d75, roughness: 0.98, metalness: 0.02, flatShading: true })
-  const rockCount2 = 130
+  const rockCount2 = 180
   const rocks2 = new THREE.InstancedMesh(rockGeo2, rockMat2, rockCount2)
   rocks2.frustumCulled = false
   const rockCenters: Array<[number, number]> = [
@@ -2470,7 +2473,7 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     if (!mesh) break
     const ang = (i / sparks) * Math.PI * 2 + (x + z) * 0.9
     const spread = 4.8 + (i % 3) * 1.7
-    const size = 0.1 + ((i % 3) * 0.03)
+    const size = 0.14 + ((i % 3) * 0.035)
     mesh.position.set(x, y, z)
     mesh.rotation.set(0, ang, 0)
     mesh.scale.setScalar(size)
