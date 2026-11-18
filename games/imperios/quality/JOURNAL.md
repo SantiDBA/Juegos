@@ -1458,6 +1458,64 @@ stills sigue leyéndose mal y el promedio no se mueve (6.40).
 
 ---
 
+# Juez ciego · ciclo-30-espaciado-mele · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-30-espaciado-mele/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):**
+- **La melé ya no queda tapada**: se quitaron las calcomanías de impacto (cráter/splash) y el
+  humo de muerte de unidad. Eran decenas de discos oscuros y nubes que se fusionaban sobre el
+  choque. Ahora las muertes dejan sólo despojos y las heridas sólo chispas.
+- **Espaciado**: la escala visual de las unidades (1.5) era mayor que el espaciado de melé
+  (radio 0.85 → 1.7). Se les dio **alcance** a las melés (milicia 1.7→2.3, granadero 2.2→2.7,
+  blindado 2.0→2.7) y radio de infantería 0.85→1.0, con separación más fuerte (0.5→0.58), para
+  que puedan mantener distancia sin salirse del combate.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC con cúpula, viviendas, granjas, rocas y suelo moteado; ingenieros como grupo. |
+| 2 | Combate / counters / proyectiles | 6.5 | `04-combate.png`: **el centro de la melé ya está limpio** (sin disco oscuro ni nube); bandos distinguibles por color/anillos y soldados con cresta. Unidades aún chicas y aglomeradas. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: props y suelo moteado; ~20-30 % de la densidad de AoE2. |
+| 7 | IA legítima | 6.0 | `07-late-game.png`: tipos de edificio reconocibles; base enemiga poco legible en el viewport. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible, posturas sin truncar; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 7.0 | `07-late-game.png`: tipos legibles por silueta; unidades más grandes con cresta. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: chispas/estelas y despojos; se quitaron cráteres/humo de unidad (menos "juice" pero más legible). Sin audio. |
+
+**Promedio:** 6.45 · **Mínima:** 6.0 · **Dimensiones < 7:** 8
+
+**Veredicto — SORPRENDIDO: NO**
+La melé dejó de estar tapada (combate sube a 6.5) y el promedio marca nuevo máximo (6.45),
+pero unidades chicas/aglomeradas, base enemiga y densidad siguen lejos de AoE2.
+
+## Top 7 brechas
+1. Base enemiga poco legible en el viewport — `07-late-game.png` — dim 7.
+2. Unidades aún chicas y aglomeradas en la melé — `04-combate.png` — dim 2.
+3. Sin feedback de golpe por unidad (se sacó mucho VFX) — dim 10.
+4. Economía sin lectura de carga/ruta por unidad — dim 1.
+5. Densidad por debajo de AoE2 — dim 6.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Base enemiga legible (marcarla por bando: techo/estandarte) — Dim 7.
+2. Unidades: separar más en contacto y/o subir contraste de silueta — Dim 2.
+3. Feedback de golpe **sin** acumular (chispa corta puntual) — Dim 10.
+4. Densidad/variación — Dim 6.
+5. HUD sin abreviaturas — Dim 8.
+
+## Riesgos / notas
+- **30 ciclos.** Promedio 6.20→…→6.40→**6.45**: nuevo máximo. El diagnóstico `?nofx` + sacar
+  calcomanías/humo de unidad resolvió la melé tapada. **Aprendizaje:** los decals/nubes
+  acumulados eran el problema, no los flashes ni el bloom.
+- Se perdió algo de "juice" (cráteres/humo); vigilar que dim 10 no caiga.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
