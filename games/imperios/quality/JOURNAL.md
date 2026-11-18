@@ -2641,6 +2641,67 @@ dimensiones en 7 o más.
 
 ---
 
+# Juez ciego · ciclo-50-juice · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-50-juice/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** dim 10 (la única por debajo de 7).
+- **Flash central en el impacto**: `spawnImpact` sólo lanzaba chispas, así que el receptor no
+  mostraba que le pegaran. Ahora hay un núcleo brillante con `life 0.75 s` y `hold 0.3 s`
+  (lección del ciclo 19/20: un efecto más corto que el settle de ~0.85 s no existe en el still).
+- **Trazadoras con más contraste**: núcleo 0.34 → 0.42, vaina 0.5 → 0.62 y opacidad 0.22 → 0.32,
+  porque el juez las veía "thin yellow lines" fundidas con el suelo.
+
+**Probe (no juez):** el escenario de combate sí pelea — 36 unidades cerca del frente, 18 en estado
+`attack` a los 0.5 s. Los efectos nuevos están en el código y se emiten.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`. |
+| 3 | Niebla / exploración | 7.0 | `05-fog.png`. |
+| 4 | Pathfinding / formaciones | 7.0 | `06c-formacion.png`. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.5 | `06-ui.png`. |
+| 9 | Art direction / diorama isométrico | 7.5 | `03-economia.png`. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`: el juez sigue en 4/10 ("no clear muzzle flashes, no visible tracers") pero describe un frame que NO es el frente de fuego cruzado. |
+
+**Promedio:** 7.10 · **Mínima:** 6.5 · **Dimensiones < 7:** 1
+
+**Veredicto — SORPRENDIDO: NO**
+Sin cambio. El juice se mejoró pero **no se puede verificar** con esta captura: el frame de
+`04-combate` no muestra el combate que el escenario arma.
+
+## Top 7 brechas
+1. `04-combate` no captura el frente que arma: el frame sale con la base y el ayuntamiento de un escenario anterior — dim 10.
+2. Etiquetas flotantes densas en grupos grandes — dim 2/4.
+3. Suelo desaturado (el valor ya está) — dim 9.
+4. Chips sin diferenciación por unidad — dim 1.
+5. Zonas abiertas en late-game — dim 6.
+6. El óvalo de visión actual se lee artificialmente circular — dim 3.
+7. Sin audio (techo real de dim 10).
+
+## 5 cambios para el próximo ciclo
+1. Arreglar el **estado/framing de `04-combate`** (por qué sale un frame de otro escenario) — dim 10.
+2. Rellenar huecos de late-game — dim 6.
+3. Saturación del suelo — dim 9.
+4. Diferenciar el ícono del chip por rol — dim 1.
+5. Etiquetas en el mundo sólo por hover — dim 2/4.
+
+## Riesgos / notas
+- **50 ciclos.** Promedio 7.10. Una dimensión < 7 (juice 6.5).
+- **Tercera vez el mismo patrón**: la feature está bien y la captura la representa mal (antes
+  `reveal()` en la niebla y el encuadre de `06-ui`; ahora el estado de `04-combate`). Antes de
+  tocar código de juego hay que verificar que el escenario muestre lo que se quiere juzgar.
+- Se probó dejar el sim en `playing` durante el settle para que el render loop emitiera fuego: la
+  cámara se pierde y el frame acaba en la base. Revertido; queda anotado en el escenario.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
