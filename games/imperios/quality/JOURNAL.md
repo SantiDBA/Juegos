@@ -2582,6 +2582,65 @@ formación están eliminados y verificados.
 
 ---
 
+# Juez ciego · ciclo-49-niebla · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-49-niebla/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** dim 3. No toqué el render de la niebla: el
+ciclo 43 ya la dejó con feather y nubes **medidos** (rampas de 7-8 texels, velo con alfa 128-223).
+Lo que estaba mal era **el escenario de captura**.
+- `05-fog` llamaba `g.reveal('player')`, que marca **todo** el mapa como explorado: la toma mostraba
+  un velo uniforme y nunca el negro inexplorado. O sea, el escenario venía representando la niebla
+  mal (y el juez la puntuaba en consecuencia) desde antes del ciclo 43.
+- Ahora el escenario usa un **explorador real**: spawnea un fusilero lejos y lo manda a cruzar el
+  mapa. A mitad de camino quedan las tres capas en una sola toma: el círculo de visión actual, el
+  corredor recordado por donde pasó, y el resto sin explorar.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`. |
+| 3 | Niebla / exploración | 7.0 | `05-fog.png`: "three distinct layers are clearly visible... soft gradient, not a hard line"; 6-7/10 (antes 4/10). |
+| 4 | Pathfinding / formaciones | 7.0 | `06c-formacion.png`. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.5 | `06-ui.png`. |
+| 9 | Art direction / diorama isométrico | 7.5 | `03-economia.png`. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`. Sin audio. |
+
+**Promedio:** 7.10 · **Mínima:** 6.5 · **Dimensiones < 7:** 1
+
+**Veredicto — SORPRENDIDO: NO**
+Sube 0.05 y **queda una sola dimensión por debajo de 7** (juice, que no tiene audio). Nueve de diez
+dimensiones en 7 o más.
+
+## Top 7 brechas
+1. Juice visual sin audio — dim 10 (única < 7).
+2. El óvalo de visión actual se lee "artificialmente circular" — dim 3.
+3. Sin detalle recordado de edificios en la banda explorada (sí existe el ghost, no se veía acá) — dim 3.
+4. Chips sin diferenciación por unidad — dim 1.
+5. Suelo desaturado (el valor ya está) — dim 9.
+6. Etiquetas flotantes densas en grupos grandes — dim 2/4.
+7. Zonas abiertas en late-game — dim 6.
+
+## 5 cambios para el próximo ciclo
+1. Juice visual: estela corta de proyectil + impacto con más presencia — dim 10.
+2. Poner edificios enemigos recordados dentro del corredor del explorador — dim 3.
+3. Rellenar huecos de late-game — dim 6.
+4. Saturación del suelo — dim 9.
+5. Diferenciar el ícono del chip por rol — dim 1.
+
+## Riesgos / notas
+- **49 ciclos.** Promedio **7.10**. **Una** dimensión < 7 (juice 6.5).
+- **Lección de método (la más importante de la racha):** antes de tocar el render, verificar que el
+  **escenario de captura** represente la feature. `reveal()` en `05-fog` hacía que la niebla se viera
+  plana desde siempre; el arreglo no fue de render sino del escenario, y movió la dimensión.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
