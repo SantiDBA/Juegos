@@ -1221,6 +1221,62 @@ por silueta: la legibilidad de la IA está bloqueada por el arte/diorama (dim 9)
 
 ---
 
+# Juez ciego · ciclo-26-siluetas-edificios · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-26-siluetas-edificios/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** **siluetas distintivas por tipo de
+edificio** — el eje que el juez marcó como raíz (los edificios eran cajas parecidas):
+- **Ayuntamiento**: cúpula central + remate dorado (skyline único).
+- **Torre**: mucho más alta y angosta, con **chapitel puntiagudo** (se reconoce al instante).
+- **Cuartel**: 4 torretas de esquina + bandera alta (lee como compound fortificado).
+- **Fábrica**: segunda chimenea más alta + banda de color (silueta industrial).
+- **Almacén/vivienda**: quedan bajos y anchos a propósito.
+Se ajustaron alturas de barra de vida y de humo para las nuevas siluetas.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.0 | `03-economia.png`: TC con cúpula, viviendas, granjas, rocas y suelo moteado; ingenieros como grupo. |
+| 2 | Combate / counters / proyectiles | 6.0 | `08-asedio.png`: melé con destellos; trazadoras tenues. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles; minimapa coherente. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 6.5 | `02-arranque.png`: props y suelo moteado; ~20-30 % de la densidad de AoE2. |
+| 7 | IA legítima | 6.0 | `07-late-game.png`: la cúpula del TC y las **torres con chapitel** ahora se reconocen; el resto de la base enemiga sigue leyéndose poco y el combate apenas se distingue. |
+| 8 | HUD / UX AoE2 | 6.5 | `06-ui.png`/`06b-unidades.png`: command card legible, posturas sin truncar; techs abreviadas. |
+| 9 | Art direction / diorama isométrico | 6.5 | `02-arranque.png`: el TC con cúpula y las torres altas dan siluetas reconocibles (sube respecto de "cajas parecidas"); cuartel/fábrica aún poco diferenciados y materiales simples. |
+| 10 | Audio / juice | 6.0 | `08-asedio.png`: impactos con destello; sin feedback por unidad. Sin audio. |
+
+**Promedio:** 6.30 · **Mínima:** 6.0 · **Dimensiones < 7:** 8
+
+**Veredicto — SORPRENDIDO: NO**
+Primer movimiento del promedio en 8 ciclos: las siluetas (cúpula del TC, torres con chapitel)
+se reconocen y suben arte/IA. Sigue lejos de AoE2 en combate, densidad y diferenciación fina.
+
+## Top 7 brechas
+1. Cuartel/fábrica/almacén aún poco diferenciados por silueta — `07-late-game.png` — dim 9,7.
+2. Combate sin lectura por unidad ni trazadoras claras — `04/08` — dim 2,10.
+3. Material/iluminación sin blending ni relieve — dim 9.
+4. Economía sin lectura de carga/ruta por unidad — dim 1.
+5. Densidad aún muy por debajo de AoE2 — dim 6.
+6. HUD: techs abreviadas y ayuda recortada — dim 8.
+7. Torres altas: revisar que no tapen unidades detrás (oclusión) — dim 2.
+
+## 5 cambios para el próximo ciclo
+1. Diferenciar cuartel (patio/walls), fábrica (chimeneas más altas y visibles) y almacén (tinglado) — Dim 9,7.
+2. Combate legible por unidad + trazadoras — Dim 2,10.
+3. Blending de terreno / relieve / AO — Dim 9.
+4. Densidad/variación — Dim 6.
+5. HUD sin abreviaturas/recortes — Dim 8.
+
+## Riesgos / notas
+- **26 ciclos.** Promedio 6.20→6.25→**6.30** (primer movimiento desde el 19). La hipótesis "arte/silueta bloquea dim 7/9" empieza a rendir; es la línea a seguir.
+- Las torres más altas pueden ocluir unidades detrás (verificar en 04/08).
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
