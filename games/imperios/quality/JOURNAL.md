@@ -2892,6 +2892,67 @@ dicen que está bien, corresponde decirlo.
 
 ---
 
+# Ciclo 55 · test de zoom + bug de VFX que no se dibujan · 2026-11-17
+
+## 1. Test de zoom (pedido explícito del usuario)
+
+Se agregó `CAPTURE_ZOOM` al harness: reencuadra cada toma a esa distancia conservando el objetivo
+del escenario. Así la **única** variable es el zoom. Se capturaron los 14 escenarios a `dist=48`
+(base, `ciclo-53-tracer`) y a `dist=28` (`ciclo-54-zoom28`, verificado en el log: `dist=28`).
+
+Lectura del juez, misma pregunta cada vez (n=1 por condición, instrumento ruidoso):
+
+| Toma | dim | dist 48 | dist 28 |
+|---|---|---:|---:|
+| `06b-unidades` | 2 | 6 | 5 |
+| `04-combate` | 10 | 3 | 3 |
+
+**Resultado: nulo.** El zoom no mueve la aguja (5 vs 6 está dentro del ruido que ya se midió en
+otros ciclos). La hipótesis "el zoom de captura es el culpable" queda **descartada**.
+
+Matemática de referencia: a `dist 48`, fov 45 y 577 px de alto son ~0.069 u/px → una unidad de ~2 u
+mide ~29 px; a `dist 28` mide ~50 px. El tamaño cambia, el veredicto no.
+
+## 2. El hallazgo real: las trazadoras NO se dibujan
+
+Al investigar por qué el juez no veía fuego, con `beam=33` medidas:
+
+- **Los objetos existen y están sanos**: 93 items de tipo `beam` en `rc.fxItems`, todos con
+  `visible = true`, `opacity` 0.3-1.0, `parent` presente, en la **misma escena** que las unidades
+  (`fxGroup.parent === rc.scene`), `fx.visible = true`, y proyectados al **centro de la pantalla**
+  (NDC `0.02, 0.09`), a `y = 3.9`, sobre el objetivo de cámara.
+- **Prueba del absurdo**: con el material en **magenta**, `opacity 1`, **grosor 3.0 u** y
+  `depthTest: false`, la foto tiene **0 píxeles magenta** (`0 de 738560`). Un cilindro magenta de
+  3 unidades en el centro del cuadro, dentro de la escena, no produce un solo píxel.
+
+Conclusión: hay un **defecto de render sin identificar** que descarta los meshes de VFX. Queda
+documentado como bug abierto con su reproducción mínima (magenta + `lenMax`, contar píxeles).
+
+## 3. Hallazgo secundario: los tracers medían 2 u
+
+El **largo** de la trazadora es la distancia del disparo, y los fusileros cerraban a distancia de
+melé: cada tracer medía 2.01 u (un muñón), no una línea. Con `stance = 'standground'` en los
+fusileros del escenario, `lenMax` pasó de **2.01 a 8.0 u** (≈116 px a `dist 48`, ≈200 px a `dist 28`).
+
+## Qué se cambió
+- `scene.ts`: `depthTest: false` en los materiales de `beam`, `flash` y `spark` (los VFX son
+  overlays; con depth test on un efecto a ras de suelo puede quedar tapado por el terreno).
+- `capture.mjs`: `CAPTURE_ZOOM`, `syncFrame` (dos ticks de rAF antes de cada foto), diagnóstico al
+  disparar con cámara + unidades cercanas + trazadoras vivas + **largo** de tracer, y
+  `standground` para los fusileros del escenario de combate.
+
+## Riesgos / notas
+- **55 ciclos.** Promedio 7.10; dim 10 sigue 6.5, pero ahora se sabe que **no es (solo) un problema
+  de arte**: hay efectos que el motor no dibuja.
+- **Implicación para la pregunta del renderer**: la hipótesis del zoom está muerta y apareció un bug
+  concreto y acotado. Eso **debilita** el argumento de reescribir el renderer: primero hay que
+  entender por qué no se dibujan los VFX.
+- Ese defecto probablemente explica varios veredictos negativos de dim 2 y dim 10 a lo largo de la
+  serie ("sin confirmación de impacto", "sin fuego"), o sea que parte del techo medido era un bug.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
