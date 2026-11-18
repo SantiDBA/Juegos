@@ -2273,6 +2273,68 @@ terreno: **el techo de dim 3 no es la niebla, es el terreno**.
 
 ---
 
+# Juez ciego · ciclo-44-terreno-suave · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-44-terreno-suave/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** atacar la causa raíz que dejó el ciclo 43 —
+los bordes duros del terreno.
+- Las franjas de cultivo (`fields`) eran quads planos con borde recto: ahora comparten una **textura
+  de canvas con borde ovalado desvanecido + surcos**, así se funden con el suelo en vez de cortarse.
+- Se subió la variación de color del terreno (offsetHSL ~1.7x) para separar tipos de suelo.
+
+**Medición propia (no del juez):** conteo de saltos de luminancia (>60/255) por fila en la zona de
+mundo de `02-arranque`: **2.5 antes, 2.5 después** — las franjas de cultivo no eran la fuente
+dominante de bordes duros. Los 14.6 saltos/fila medidos en el ciclo 43 venían de siluetas de
+edificios y del panel de UI, no de la niebla ni del terreno.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`: chips "Lleva Suministros / Recolecta Materiales / Inactivo". |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`: sin cambios. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: sin cambios; el velo mide alfa 128-223 (nubes) y rampas de 7-8 texels. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`. |
+| 9 | Art direction / diorama isométrico | 7.0 | `03-economia.png`: "sin costuras duras, bordes feather", pero "suelo de bajo contraste" (4/10 de legibilidad de tipos de suelo). |
+| 10 | Audio / juice | 6.5 | `04-combate.png`. Sin audio. |
+
+**Promedio:** 6.90 · **Mínima:** 6.5 · **Dimensiones < 7:** 3
+
+**Veredicto — SORPRENDIDO: NO**
+Sin cambio. Los bordes suaves quedaron (el juez los ve como "feathered, sin seams"), pero el
+puntaje de dim 9 no se mueve por el bajo contraste del suelo.
+
+## Top 7 brechas
+1. Suelo de bajo contraste: los tipos de suelo no se distinguen a simple vista — dim 9/3.
+2. Texto de chip truncado por el panel y el botón "?" — dim 1/8.
+3. Formaciones poco variadas por rol — dim 4.
+4. Zonas abiertas en late-game — dim 6.
+5. Materiales/luz simples — dim 9.
+6. Juice sin audio — dim 10.
+7. Unidades al borde de techos azules — dim 2.
+
+## 5 cambios para el próximo ciclo
+1. Subir el contraste **de valor** del suelo (no sólo de tono): bandas claras/oscuras más marcadas.
+2. Chip de tarea sin truncar — dim 1/8.
+3. Variedad de formaciones por rol — dim 4.
+4. Rellenar huecos de late-game — dim 6.
+5. Estela corta de proyectil — dim 10.
+
+## Riesgos / notas
+- **44 ciclos.** Promedio 6.90 (sin cambio). Dim 3 y 9 estancadas.
+- **Fiabilidad del juez (importante):** dos lecturas de visión de tomas casi idénticas se
+  contradijeron — la primera vio los cultivos "feathered, sin bordes rectos" y la segunda los vio
+  "crisp, hard straight edges at tile granularity". Cuando el juez se contradice, manda la medición
+  de píxeles; conviene registrar ambas y no volver a perseguir el mismo objetivo a ciegas.
+- La niebla (ciclo 43) y las franjas (ciclo 44) quedan implementadas y son baratas.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
