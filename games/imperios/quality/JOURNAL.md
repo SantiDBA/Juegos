@@ -2451,6 +2451,71 @@ juez, que ahora pide detalle fino en vez de arreglos.
 
 ---
 
+# Juez ciego · ciclo-47-formaciones · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-47-formaciones/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** dim 4 — formaciones por rol.
+- Nueva formación **`ranks`**: filas apiladas de adelante hacia atrás, así los roles se estratifican
+  (infantería al frente, fusileros detrás, apoyo al fondo) en vez de una sola fila.
+- `commandMoveFormation` ya no empareja por "quién estaba más adelante" sino **por rol**:
+  `unitRank()` (infantería 0, vehículos 1, ranged 2, economía 3) ordena las unidades y los slots se
+  asignan por profundidad. Antes la formación era un bloque indiferenciado.
+- El clic derecho elige formación según la composición: grupo mixto → `ranks`, homogéneo → `box`.
+- `FORMATION_SPACING` 2.05 → 2.67 (las filas se separan más en el mundo).
+
+**Medición propia (probe de posiciones, no del juez) — las filas existen y son correctas:**
+A 1 s de la orden, con 6 milicia + 5 fusilero + 3 ingeniero marchando:
+- milicia z ≈ 3.8-5.9 (frente), fusilero z ≈ 7.6-8.8 (medio), ingeniero z ≈ 10.0-11.5 (fondo).
+Tres líneas separadas, exactamente en el orden pedido.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: las filas existen (probe), pero el juez lee "shapeless blob", 2-3/10 — a este zoom los sprites son diminutos y las barras de vida dominan. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.5 | `03-economia.png`. |
+| 9 | Art direction / diorama isométrico | 7.5 | `03-economia.png`. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`. Sin audio. |
+
+**Promedio:** 7.00 · **Mínima:** 6.5 · **Dimensiones < 7:** 3
+
+**Veredicto — SORPRENDIDO: NO**
+La lógica está bien y medida; el juez no puede leerla porque **a la escala de captura las unidades
+son demasiado chicas**. Cuatro encuadres distintos (tránsito, destino lejano, campo abierto,
+cámara a distancia 24) dieron el mismo veredicto.
+
+## Top 7 brechas
+1. Formaciones ilegibles a escala de captura: el problema es zoom/tamaño de sprite, no la lógica — dim 4.
+2. Unidades chicas y barras de vida dominantes (les quitan silueta) — dim 4/2.
+3. Niebla con transición correcta pero poco visible — dim 3.
+4. Zonas abiertas en late-game — dim 6.
+5. Suelo desaturado (el valor ya está) — dim 9.
+6. Chips sin diferenciación por unidad — dim 1.
+7. Juice sin audio — dim 10.
+
+## 5 cambios para el próximo ciclo
+1. Achicar/atenuar las **barras de vida** para que no tapen las siluetas — dim 4/2.
+2. Capturar la formación **desde arriba** (cámara cenital) donde las filas son evidentes — dim 4.
+3. Rellenar huecos de late-game — dim 6.
+4. Saturación del suelo — dim 9.
+5. Estela corta de proyectil — dim 10.
+
+## Riesgos / notas
+- **47 ciclos.** Promedio 7.00 (sin cambio); dim 4 sigue 6.5.
+- **Lección de método:** cuando el probe dice que el mundo está bien y el juez dice que no se ve,
+  la brecha es de **comunicación visual** (zoom, tamaño de sprite, oclusión por UI), no de simulación.
+  Seguir iterando la lógica no mueve el puntaje; hay que cambiar cómo se muestra.
+- `FORMATION_SPACING` más ancho cambia el área de la formación en gameplay: 2.05 → 2.67.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
