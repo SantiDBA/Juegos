@@ -1915,6 +1915,62 @@ observable) queda en 6.0 y el promedio no se mueve (6.70).
 
 ---
 
+# Juez ciego · ciclo-38-hit-pip · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-38-hit-pip/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** **"hit pip" por unidad**. En vez de
+partículas (que o se acumulan o se pierden), cada unidad golpeada muestra **un único destello
+en estrella** de tamaño fijo encima, con `depthTest:false` y ~1.4 s de vida: 1 por unidad, se
+refresca al recibir daño, imposible de acumular en blob. Se descartó la versión chica (no se
+leía) y quedó en un tamaño claramente visible.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.5 | `03-economia.png`: economía viva (32 portadores / 15 recolectando); crate por forma. |
+| 2 | Combate / counters / proyectiles | 6.5 | `04-combate.png`: bandos en contacto, melé limpia, estelas. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: densidad tipo "Arabia de AoE2". |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: base enemiga identificable por bando. |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`: etiquetas completas, ayuda visible. |
+| 9 | Art direction / diorama isométrico | 7.0 | siluetas + color de bando. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`: el juez ve **"varios destellos en estrella blancos/amarillos en los puntos de impacto"**, distintos de los puntos de unidad. Sin audio observable. |
+
+**Promedio:** 6.75 · **Mínima:** 6.5 · **Dimensiones < 7:** 4
+
+**Veredicto — SORPRENDIDO: NO**
+El hit-pip por unidad hace visible el impacto (juice 6.0→6.5) y el promedio marca nuevo máximo
+(6.75). Quedan < 7 economía, combate fino, niebla y formaciones.
+
+## Top 7 brechas
+1. Unidades chicas/aglomeradas en la melé — `04-combate.png` — dim 2.
+2. Detalle de carga/depósito por recurso — `03-economia.png` — dim 1.
+3. Niebla con transición simple — dim 3.
+4. Formaciones poco variadas por rol — dim 4.
+5. Zonas abiertas en late-game — dim 6.
+6. Juice todavía sin peso (sin audio, impactos chicos) — dim 10.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Contraste de silueta de unidades en melé (contorno/base más marcada) — dim 2.
+2. Depósito señalizado por recurso — dim 1.
+3. Transición de niebla más rica — dim 3.
+4. Variedad de formaciones por rol — dim 4.
+5. Rellenar huecos de late-game — dim 6.
+
+## Riesgos / notas
+- **38 ciclos.** Promedio 6.70 → **6.75**: nuevo máximo (serie 6.40→…→6.70→6.75).
+- **Aprendizaje:** para juice en stills, un **marcador único por unidad** (sprite fijo, 1 por
+  entidad, ~1.4 s) funciona mejor que partículas: no se acumula y se lee. La versión chica no
+  se veía; el tamaño tiene que ser claramente mayor que la unidad.
+- Dim 10 sigue limitada por no tener audio.
+- El lector ciego es inconsistente entre corridas: validar siempre con probe o varias lecturas.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
