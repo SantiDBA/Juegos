@@ -1162,7 +1162,9 @@ const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x0a0c10, side: THREE.B
 
 function createUnitMesh(u: UnitEntity): THREE.Object3D {
   const g = new THREE.Group()
-  const teamC = TEAM_COLORS[u.team]
+  // Units use a lightened team colour so a soldier is a brighter value than its
+  // own team's roofs (blue-on-blue made them vanish); the hue still reads as team.
+  const teamC = new THREE.Color(TEAM_COLORS[u.team]).lerp(new THREE.Color(0xffffff), 0.22).getHex()
   if (u.utype === 'ingeniero') {
     addContactShadow(g, 0.55, 0.38)
     addTeamBase(g, u.team, 0.55)
@@ -2148,7 +2150,7 @@ export function syncEntityMesh(
         rc.hitPips.set(e.id, rem)
         const k = rem / HIT_PIP_TIME
         pip.visible = true
-        const s = 1.5 + 1.1 * (1 - k)
+        const s = 1.15 + 0.75 * (1 - k)
         pip.scale.set(s, s, 1)
         ;(pip.material as THREE.SpriteMaterial).opacity = Math.min(1, k * 2.2)
       }
