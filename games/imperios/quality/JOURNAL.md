@@ -1802,6 +1802,62 @@ siguen < 7.
 
 ---
 
+# Juez ciego · ciclo-36-hud-carga · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-36-hud-carga/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):**
+- **HUD sin abreviaturas**: `shortEntityLabel` cortaba a 11 caracteres ("Producción en Cadena"
+  → "Producción…"). Se subió a 24 y ahora las techs se leen completas (wrappean a 2 líneas).
+  Además se acortó la ayuda a "Seleccioná un edificio o un Ingeniero." (ya no se recorta).
+- **Carga por recurso**: la caja de carga cambia de **silueta** según el recurso (troncos largos,
+  bidones altos, mineral pequeño), no sólo de color.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.5 | `03-economia.png`: economía viva (32 portadores / 15 recolectando); el crate cambia de forma por recurso (detalle aún fino). |
+| 2 | Combate / counters / proyectiles | 6.5 | `04-combate.png`: bandos en contacto. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente y separación pareja. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: densidad tipo "Arabia de AoE2". |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: base enemiga identificable por bando. |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`: **todas las etiquetas completas** ("Producción en Cadena", "Acero Bessemer", "Motor de Combustión", "Blindaje Compuesto", "Inteligencia de Batalla"), ayuda visible, costos con iconos. El juez lo pone "comparable o mejor que AoE2". |
+| 9 | Art direction / diorama isométrico | 7.0 | siluetas + color de bando. |
+| 10 | Audio / juice | 6.0 | chispas/estelas; sin audio. |
+
+**Promedio:** 6.70 · **Mínima:** 6.0 · **Dimensiones < 7:** 5
+
+**Veredicto — SORPRENDIDO: NO**
+El HUD ya no trunca nada (dim 8 a 7) y el promedio marca nuevo máximo (6.70). Quedan < 7
+combate fino, juice, economía por unidad, niebla/formaciones.
+
+## Top 7 brechas
+1. Detalle de carga por recurso/depósito todavía fino — `03-economia.png` — dim 1.
+2. Unidades chicas/aglomeradas en la melé — `04-combate.png` — dim 2.
+3. Sin feedback de golpe puntual por unidad — dim 10.
+4. Niebla con transición simple — `05-fog.png` — dim 3.
+5. Formaciones poco variadas por rol — dim 4.
+6. Zonas abiertas en late-game — dim 6.
+7. Materiales/luz simples — dim 9.
+
+## 5 cambios para el próximo ciclo
+1. Feedback de golpe puntual sin acumular — dim 10.
+2. Silueta/contraste de unidades en melé — dim 2.
+3. Depósito con señalización más rica (halo/ruta por recurso) — dim 1.
+4. Rellenar huecos de late-game — dim 6.
+5. Transición de niebla más rica — dim 3.
+
+## Riesgos / notas
+- **36 ciclos.** Promedio 6.65 → **6.70**: nuevo máximo (serie 6.40→6.45→6.55→6.60→6.65→6.70).
+  Ya hay **5 dimensiones en 7** (edades, densidad, IA, HUD, arte).
+- El HUD quedó sin abreviaturas; el juez lo compara favorablemente con AoE2.
+- El lector ciego sigue siendo inconsistente con los crates entre corridas.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
