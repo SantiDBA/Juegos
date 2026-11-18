@@ -2089,6 +2089,65 @@ en cúmulos. Promedio igual (6.75).
 
 ---
 
+# Juez ciego · ciclo-41-base-unidad · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-41-base-unidad/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** atacar dim 2 **por forma**, ya que el color
+está tomado por el bando.
+- Contorno invertido **×1.8**: se probó y **no se lee** al zoom de juego (el juez sigue viendo
+  "sin contorno") → **se retiró** (además duplicaba mallas de unidad sin pago medible).
+- **Base oscura** bajo cada unidad: el blob de contacto se agranda ×1.35 y sube a opacidad 0.62.
+  Le da a cada soldado una huella oscura consistente, que separa por **valor** (no por tono).
+- Se mantiene: color de bando aclarado 22 % (ciclo 40), escala 1.68, hit-pips chicos.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 6.5 | `03-economia.png`: economía viva. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`: "comparable a AoE2, algo peor en el caso azul-sobre-azul pero algo mejor a campo abierto gracias a los anillos". |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`: tres estados legibles. |
+| 4 | Pathfinding / formaciones | 6.5 | `06c-formacion.png`: bloque con frente. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`: barra dorada con % y segundos. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`: densidad tipo "Arabia". |
+| 7 | IA legítima | 7.0 | `07-late-game.png`: propiedad por color de techo intacta (no se tocó la paleta de edificios). |
+| 8 | HUD / UX AoE2 | 7.0 | `06-ui.png`: etiquetas completas, ayuda visible. |
+| 9 | Art direction / diorama isométrico | 7.0 | siluetas + color de bando. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`: hit-pips visibles sin saturar. Sin audio. |
+
+**Promedio:** 6.80 · **Mínima:** 6.5 · **Dimensiones < 7:** 4
+
+**Veredicto — SORPRENDIDO: NO**
+Dim 2 llega a 7 por primera vez, y con la **propiedad de bando intacta** (era la trampa del ciclo
+40). El juez pide explícitamente lo mismo que este ciclo: base oscura + contorno; la base funcionó,
+el contorno no.
+
+## Top 7 brechas
+1. Unidades al borde de techos azules: el peor caso sobrevive — dim 2.
+2. Detalle de carga/depósito por recurso — dim 1.
+3. Niebla con transición simple — dim 3.
+4. Formaciones poco variadas por rol — dim 4.
+5. Zonas abiertas en late-game — dim 6.
+6. Materiales/luz simples — dim 9.
+7. Juice sin audio — dim 10.
+
+## 5 cambios para el próximo ciclo
+1. Depósito señalizado por recurso + icono de carga — dim 1.
+2. Transición de niebla más rica (borde, no bloque) — dim 3.
+3. Variedad de formaciones por rol — dim 4.
+4. Rellenar huecos de late-game — dim 6.
+5. Impacto de proyectil con estela corta — dim 10.
+
+## Riesgos / notas
+- **41 ciclos.** Promedio **6.80** (+0.05). Dim 2 = 7 por primera vez.
+- **Lección**: el color está reservado al bando; toda mejora de silueta debe ser por **forma o
+  valor** (base oscura sí, contorno invertido no al zoom actual).
+- No volver a probar el contorno invertido sin antes subir la resolución de captura o la escala
+  de la unidad; a 1.68 y ~1280 px no se ve.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
