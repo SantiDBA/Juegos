@@ -1456,7 +1456,7 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
     // central dome: gives the town hall a unique skyline vs the other buildings
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(2.1, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-      new THREE.MeshStandardMaterial({ color: 0x8f8172, emissive: teamC, emissiveIntensity: 0.06, roughness: 0.7, metalness: 0.15 }),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(0x8f8172).lerp(new THREE.Color(teamC), 0.5), emissive: teamC, emissiveIntensity: 0.16, roughness: 0.65, metalness: 0.18 }),
     )
     dome.position.y = 4.9; dome.castShadow = true; g.add(dome)
     const finial = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.1, 6), mat(0xd7c07a))
@@ -1795,7 +1795,10 @@ function applyEraDetails(obj: THREE.Object3D, e: AnyEntity, era: number): void {
         if (own && (own as any).isMeshStandardMaterial) {
           // Lerp the era palette toward the team hue so a late-era base still reads
           // as "whose" it is (otherwise both sides go blue-grey at era 4).
-          own.color.setHex(color).lerp(teamHue, 0.24)
+          // Strong team tint (roofs especially): a late-era base must read as a side's
+          // at a glance, so lean much harder toward the team hue than before.
+          const teamMix = name === 'roof' ? 0.7 : 0.38
+          own.color.setHex(color).lerp(teamHue, teamMix)
           if ('emissive' in own) { own.emissive.setHex(emissive); own.emissiveIntensity = ei }
           if ('metalness' in own) own.metalness = Math.max(own.metalness ?? 0, era >= 3 ? 0.18 : era >= 2 ? 0.1 : 0.05)
           if ('roughness' in own) own.roughness = era >= 4 ? Math.min(own.roughness ?? 0.8, 0.48) : era >= 3 ? Math.min(own.roughness ?? 0.8, 0.62) : (own.roughness ?? 0.8)
