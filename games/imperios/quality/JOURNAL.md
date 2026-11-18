@@ -2748,6 +2748,81 @@ leyendo hp del edificio y estado de las unidades cada segundo. Aparecieron **dos
 
 ---
 
+# Juez ciego · ciclo-52-combate · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-52-combate/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** dim 10 — por qué `04-combate` salía sin fuego.
+
+**Causa raíz encontrada (bug real, también de gameplay):** `startGame()` corre una **intro de
+cámara de 1.8 s** con `requestAnimationFrame` que easea a `(-48, 4)`. En una página headless el rAF
+está limitado, así que un frame tardío de la intro llegaba **después** del encuadre que fijaba el
+escenario y lo pisaba: cualquier captura con cámara propia terminaba mostrando la base.
+Medido: la cámara se iba de `(0,25)` a `(-48,4)` en 0 ms de reloj real.
+
+**Arreglos:**
+- La intro ahora es **cancelable** (`stopIntro()`), y la cancelan: el paneo con teclado, la rueda,
+  el clic en el minimapa y los hooks de dev `camera()`/`focus()`. También arregla gameplay: antes,
+  si paneabas en el primer segundo, la intro te devolvía la vista.
+- `04-combate`: los fusileros (alcance 8.5) estaban a 20 u entre líneas → se acercaban a pie y el
+  fuego llegaba tarde. Ahora están a 8 u y disparan desde el arranque.
+- El combate queda en `playing` durante el settle: los fx los emite el **render loop**, así que
+  pausar deja el frame sin fuego.
+- El harness ahora imprime un **diagnóstico al disparar la foto**: cámara, unidades cercanas y
+  trazadoras vivas. Sin esto estuve tres ciclos adivinando.
+
+**Medición propia (no del juez):** `cam=0.0,25.0 dist=48 near=35 beam=32 status=playing pop=78/198`.
+La cámara está en el frente, hay 35 unidades alrededor y **32 trazadoras vivas** en el instante de
+la foto (los fx muertos se reciclan en `updateFx`, así que la cuenta es real).
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`. |
+| 3 | Niebla / exploración | 7.0 | `05-fog.png`. |
+| 4 | Pathfinding / formaciones | 7.0 | `06c-formacion.png`. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.5 | `06-ui.png`. |
+| 9 | Art direction / diorama isométrico | 7.5 | `03-economia.png`. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`: el juez sigue sin ver fuego ("no tracers, no muzzle flashes") pese a las 32 trazadoras vivas medidas. |
+
+**Promedio:** 7.10 · **Mínima:** 6.5 · **Dimensiones < 7:** 1
+
+**Veredicto — SORPRENDIDO: NO**
+El encuadre ya es correcto y está medido, así que el problema de dim 10 dejó de ser la captura y
+pasó a ser **la legibilidad del efecto**: a esta cámara una trazadora mide ~6 px de ancho (0.42 u
+de grosor, ~0.069 u/px) y el juez de visión no la registra. Es exactamente lo que pidió en el
+ciclo 50: "thin yellow lines... blend with the tan ground".
+
+## Top 7 brechas
+1. Trazadoras demasiado finas para leerse a zoom de juego: falta contorno oscuro o núcleo más grueso — dim 10.
+2. Etiquetas flotantes densas en grupos grandes — dim 2/4.
+3. Suelo desaturado (el valor ya está) — dim 9.
+4. Chips sin diferenciación por unidad — dim 1.
+5. Zonas abiertas en late-game — dim 6.
+6. El óvalo de visión actual se lee artificialmente circular — dim 3.
+7. Sin audio (techo real de dim 10).
+
+## 5 cambios para el próximo ciclo
+1. Trazadora con **contorno oscuro** debajo del núcleo brillante (como las flechas de AoE2): es lo
+   que la hace legible sobre suelo claro — dim 10.
+2. Rellenar huecos de late-game — dim 6.
+3. Saturación del suelo — dim 9.
+4. Etiquetas en el mundo sólo por hover — dim 2/4.
+5. Diferenciar el ícono del chip por rol — dim 1.
+
+## Riesgos / notas
+- **52 ciclos.** Promedio 7.10. Una dimensión < 7 (juice 6.5).
+- La intro de cámara pisaba los encuadres por rAF: cualquier escenario con cámara propia podía
+  salir mal de forma intermitente. Si vuelve a verse un encuadre raro, revisar el diagnóstico del
+  harness (cámara + unidades cercanas) antes que el render.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
