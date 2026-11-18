@@ -1157,9 +1157,6 @@ export function createMeshForEntity(e: AnyEntity): THREE.Object3D {
   return createResourceMesh(e)
 }
 
-/** Shared inverted-hull outline material (dark, back faces only). */
-const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x0a0c10, side: THREE.BackSide })
-
 function createUnitMesh(u: UnitEntity): THREE.Object3D {
   const g = new THREE.Group()
   // Units use a lightened team colour so a soldier is a brighter value than its
@@ -1432,20 +1429,13 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     crestTip.position.set(0, 1.86, -0.02)
     g.add(crestTip)
   }
-  // Inverted-hull outline on the solid parts: at game zoom it separates a unit
-  // from the crowd/terrain (AoE2-style strong silhouettes) without extra textures.
-  for (const child of [...g.children]) {
-    const m = child as THREE.Mesh
-    if (!m.isMesh || !m.geometry) continue
-    const mm = m.material as any
-    if (!mm || mm.transparent || mm.side === THREE.BackSide) continue
-    if (['cargo', 'cargoMark', 'carryRing', 'sel', 'blob', 'teamring'].includes(m.name)) continue
-    const outline = new THREE.Mesh(m.geometry, OUTLINE_MAT)
-    outline.position.copy(m.position)
-    outline.rotation.copy(m.rotation)
-    outline.scale.copy(m.scale).multiplyScalar(1.34)
-    outline.name = 'outline'
-    g.add(outline)
+  // Dark, slightly larger base footprint: by VALUE (not hue) it separates the unit
+  // from blue roofs and from the ground, where colour alone cannot.
+  const blob = g.getObjectByName('blob') as THREE.Mesh | undefined
+  if (blob) {
+    blob.scale.setScalar(1.35)
+    const bm = blob.material as THREE.MeshBasicMaterial
+    if (bm && 'opacity' in bm) bm.opacity = 0.62
   }
   const sel = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 28), new THREE.MeshBasicMaterial({ color: 0x7dffb2, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }))
   sel.rotation.x = -Math.PI / 2; sel.position.y = 0.06; sel.name = 'sel'; sel.visible = false; g.add(sel)
