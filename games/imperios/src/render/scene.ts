@@ -939,7 +939,7 @@ const BUILDING_BAR_Y: Record<BuildingEntity['btype'], number> = {
   vivienda: 3.2,
   almacen: 3.2,
   fabrica: 6.4,
-  torre: 11.0,
+  torre: 10.0,
 }
 
 /** Where damage smoke leaves a building, in world units above its base. */
@@ -1460,9 +1460,16 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
     door.position.set(0, 0.5, sz.z/2 + 0.06); g.add(door)
   } else if (b.btype === 'cuartel') {
     g = buildingBase(sz.x, sz.z, 2.0, 0x5b6674, teamC)
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(sz.x + 0.5, 0.35, sz.z + 0.5), mat(0x404854))
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(sz.x * 0.62, 1.5, 4), mat(0x404854))
     roof.name = 'roof'
-    roof.position.y = 2.15; roof.castShadow = true; g.add(roof)
+    roof.position.y = 2.95; roof.rotation.y = Math.PI / 4; roof.castShadow = true; g.add(roof)
+    // low front courtyard wall so the barracks reads as an enclosed compound
+    for (const wx of [-sz.x / 2 - 1.0, sz.x / 2 + 1.0]) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 3.0), mat(0x6a6f78))
+      wall.position.set(wx, 0.35, sz.z / 2 + 0.4); wall.castShadow = true; wall.receiveShadow = true; g.add(wall)
+    }
+    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(sz.x + 0.4, 0.6, 0.35), mat(0x6a6f78))
+    frontWall.position.set(0, 0.3, sz.z / 2 + 1.9); frontWall.receiveShadow = true; g.add(frontWall)
     const gate = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 0.15), mat(0x2a2f36))
     gate.position.set(0, 0.6, sz.z/2 + 0.08); g.add(gate)
     const emblem = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.12), paintMat(teamC, 0.5, 0.2))
@@ -1485,12 +1492,19 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
       if (i === 0) saw.name = 'roof'
       saw.position.set(i * 2.6, 2.75, 0); saw.rotation.x = 0.32; saw.castShadow = true; g.add(saw)
     }
-    const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.68, 5.2, 10), mat(0x7a6a58))
-    chimney.position.set(-sz.x / 2 + 1.1, 4.6, -sz.z / 2 + 1.1); chimney.castShadow = true; g.add(chimney)
-    const chimney2 = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.52, 4.4, 10), mat(0x6d5f50))
-    chimney2.position.set(sz.x / 2 - 1.2, 4.2, -sz.z / 2 + 0.9); chimney2.castShadow = true; g.add(chimney2)
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.25, 10), paintMat(teamC, 0.5, 0.2))
-    band.position.set(-sz.x / 2 + 1.1, 6.9, -sz.z / 2 + 1.1); g.add(band)
+    const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.82, 6.4, 12), mat(0x7a6a58))
+    chimney.position.set(-sz.x / 2 + 1.1, 5.2, -sz.z / 2 + 1.1); chimney.castShadow = true; g.add(chimney)
+    const chimney2 = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.62, 5.4, 10), mat(0x6d5f50))
+    chimney2.position.set(sz.x / 2 - 1.2, 4.9, -sz.z / 2 + 0.9); chimney2.castShadow = true; g.add(chimney2)
+    // pale caps make the stacks pop against the roof at game zoom
+    for (const [cxx, cyy, czz, rr] of [[-sz.x / 2 + 1.1, 8.45, -sz.z / 2 + 1.1, 0.68], [sz.x / 2 - 1.2, 7.65, -sz.z / 2 + 0.9, 0.5]]) {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(rr + 0.08, rr + 0.08, 0.22, 10), mat(0xcfc7ba))
+      cap.position.set(cxx, cyy, czz); g.add(cap)
+    }
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 0.3, 12), paintMat(teamC, 0.5, 0.2))
+    band.position.set(-sz.x / 2 + 1.1, 7.6, -sz.z / 2 + 1.1); g.add(band)
+    const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 3.0, 8), paintMat(0x8a8f96, 0.6, 0.3))
+    vent.position.set(0.6, 3.6, -sz.z / 2 + 0.5); vent.castShadow = true; g.add(vent)
     const gate = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.9, 0.15), mat(0x2f3640))
     gate.position.set(0, 0.95, sz.z / 2 + 0.08); g.add(gate)
     const emblem = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.12), paintMat(teamC, 0.5, 0.2))
@@ -1510,31 +1524,38 @@ function createBuildingMesh(b: BuildingEntity): THREE.Object3D {
       const crate = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.7), mat(0x8f7350))
       crate.position.set(i * 0.9, 0.25, sz.z/2 + 0.7); crate.castShadow = true; g.add(crate)
     }
+    // slanted loading awning: warehouse reads as a low wide shed
+    const awning = new THREE.Mesh(new THREE.BoxGeometry(sz.x + 0.6, 0.12, 1.8), mat(0x6b5a44))
+    awning.position.set(0, 1.25, sz.z / 2 + 1.15); awning.rotation.x = 0.28; awning.castShadow = true; g.add(awning)
+    for (const px of [-sz.x / 2 + 0.3, sz.x / 2 - 0.3]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.3, 0.16), mat(0x5a4634))
+      post.position.set(px, 0.65, sz.z / 2 + 1.95); g.add(post)
+    }
   } else { // torre
     g = new THREE.Group()
     addContactShadow(g, 1.7, 0.3)
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.25, 7.0, 12), mat(0x8a7e6e, { roughness: 0.95 }))
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.25, 6.2, 12), mat(0x8a7e6e, { roughness: 0.95 }))
     base.name = 'body'
-    base.position.y = 3.5; base.castShadow = true; base.receiveShadow = true; g.add(base)
+    base.position.y = 3.1; base.castShadow = true; base.receiveShadow = true; g.add(base)
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 0.45, 12), paintMat(teamC, 0.5, 0.15))
     rim.name = 'roof'
-    rim.position.y = 7.2; rim.castShadow = true; g.add(rim)
+    rim.position.y = 6.4; rim.castShadow = true; g.add(rim)
     for (let i = 0; i < 8; i++) {
       const ang = (i / 8) * Math.PI * 2
       const crenel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), mat(0x9a8e7c))
-      crenel.position.set(Math.cos(ang) * 1.15, 7.7, Math.sin(ang) * 1.15); crenel.rotation.y = -ang; crenel.castShadow = true; g.add(crenel)
+      crenel.position.set(Math.cos(ang) * 1.15, 6.9, Math.sin(ang) * 1.15); crenel.rotation.y = -ang; crenel.castShadow = true; g.add(crenel)
     }
     // pointed spire makes the tower read instantly as a tower
-    const spire = new THREE.Mesh(new THREE.ConeGeometry(1.25, 2.0, 8), paintMat(teamC, 0.5, 0.2))
-    spire.position.y = 8.9; spire.castShadow = true; g.add(spire)
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(1.25, 1.8, 8), paintMat(teamC, 0.5, 0.2))
+    spire.position.y = 8.0; spire.castShadow = true; g.add(spire)
     const mount = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 8), paintMat(0x444c55, 0.5, 0.3))
-    mount.position.y = 7.6; g.add(mount)
+    mount.position.y = 6.8; g.add(mount)
     const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 1.8, 8), paintMat(0x2a2a2a, 0.35, 0.5))
-    gun.rotation.x = Math.PI / 2 - 0.55; gun.position.set(0, 7.9, 0.8); gun.castShadow = true; g.add(gun)
+    gun.rotation.x = Math.PI / 2 - 0.55; gun.position.set(0, 7.1, 0.8); gun.castShadow = true; g.add(gun)
     const flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), mat(0x444))
-    flagPole.position.set(-0.5, 10.1, -0.4); g.add(flagPole)
+    flagPole.position.set(-0.5, 9.1, -0.4); g.add(flagPole)
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), new THREE.MeshStandardMaterial({ color: teamC, emissive: teamC, emissiveIntensity: 0.12, side: THREE.DoubleSide }))
-    flag.position.set(-0.12, 10.45, -0.4); g.add(flag)
+    flag.position.set(-0.12, 9.45, -0.4); g.add(flag)
   }
   if (BUILDING_DEFS[b.btype]?.dropoff) {
     const r = Math.max(sz.x, sz.z) * 0.4

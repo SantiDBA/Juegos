@@ -788,6 +788,9 @@ async function runScenario06(settleMs) {
   const selected = evalJs(`(() => {
     const g = window.__imperios
     g.select([${id}])
+    // encuadrar el TC del jugador: 05-fog dejó la cámara sobre la base enemiga
+    const e = g.state.entities && g.state.entities.get ? g.state.entities.get(${id}) : null
+    if (e) g.camera(e.x, e.z, 55)
     const sel = g.state.selectedIds || []
     return 'selected:' + sel.join(',')
   })()`)
