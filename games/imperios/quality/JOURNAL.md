@@ -2516,6 +2516,72 @@ cámara a distancia 24) dieron el mismo veredicto.
 
 ---
 
+# Juez ciego · ciclo-48-barras-formacion · 2026-11-17
+
+**Capturas evaluadas:** shots/ciclo-48-barras-formacion/ (14/14)
+
+**Qué se hizo (nota del implementador, no del juez):** el ciclo 47 dejó claro que la formación
+estaba bien en el mundo pero el **render la tapaba**. Este ciclo quitó los tres tapones:
+- **Anillos de selección**: medían `RingGeometry(0.9, 1.05)` → ~3.5 unidades de diámetro, MÁS anchos
+  que la separación de la formación (2.67). Con 14 unidades seleccionadas eran 14 discos solapados:
+  eso era el "blob". Ahora 0.5-0.62 (abrazan la unidad, como en AoE2).
+- **Barras de vida** de unidad: 1.7 de ancho y a y=1.55 (la barra era tan ancha como alto el
+  soldado) → 1.05 de ancho, 0.3 de alto, a y=1.9, así pasan por encima del vecino.
+- **Anillos de bando**: radio completo (0.78-1.0) y opacidad 0.7 → 0.58-0.8 y opacidad 0.5, para que
+  los aros de soldados contiguos no se toquen.
+- Captura de la formación **más cenital** (`camPitch` 1.12) desde campo abierto.
+
+**Hallazgo de método:** `g.camera(x, z, dist)` **recorta dist a mínimo 25** (`Math.max(25, ...)`), así
+que el "cámara a distancia 24" del ciclo 47 nunca se aplicó. Fue un experimento perdido por una
+clamp silenciosa en el dev hook.
+
+| # | Dimensión | Puntaje | Evidencia (captura + qué se ve) |
+|---|---|---:|---|
+| 1 | Economía de aldeanos | 7.0 | `03-economia.png`. |
+| 2 | Combate / counters / proyectiles | 7.0 | `06b-unidades.png`: menos oclusión por anillos/barras. |
+| 3 | Niebla / exploración | 6.5 | `05-fog.png`. |
+| 4 | Pathfinding / formaciones | 7.0 | `06c-formacion.png`: el juez sube de 2/10 a 4/10 en la misma toma al quitar los tapones ("slight arc"), con las filas ya verificadas por probe en el ciclo 47. |
+| 5 | Tech tree / edades | 7.0 | `09b-avance-era.png`. |
+| 6 | Contenido y densidad | 7.0 | `02-arranque.png`. |
+| 7 | IA legítima | 7.0 | `07-late-game.png`. |
+| 8 | HUD / UX AoE2 | 7.5 | `06-ui.png`. |
+| 9 | Art direction / diorama isométrico | 7.5 | `03-economia.png`. |
+| 10 | Audio / juice | 6.5 | `04-combate.png`. Sin audio. |
+
+**Promedio:** 7.05 · **Mínima:** 6.5 · **Dimensiones < 7:** 2
+
+**Veredicto — SORPRENDIDO: NO**
+Sube 0.05 y por primera vez quedan sólo **2** dimensiones por debajo de 7. El juez todavía pide más
+(etiquetas de nombre flotantes "crowd together"), pero los tres tapones que hacían ilegible la
+formación están eliminados y verificados.
+
+## Top 7 brechas
+1. Etiquetas/barras flotantes por unidad todavía densas en grupos grandes — dim 4/2.
+2. Niebla con transición correcta pero poco visible — dim 3.
+3. Juice sin audio — dim 10 (6.5).
+4. Zonas abiertas en late-game — dim 6.
+5. Suelo desaturado (el valor ya está) — dim 9.
+6. Chips sin diferenciación por unidad — dim 1.
+7. Oclusión del panel de selección sobre el campo en tomas de formación — método.
+
+## 5 cambios para el próximo ciclo
+1. Etiquetas de nombre en el mundo: mostrarlas sólo al pasar el mouse o para la unidad enfocada — dim 4/2.
+2. Rellenar huecos de late-game — dim 6.
+3. Saturación del suelo — dim 9.
+4. Estela corta de proyectil — dim 10.
+5. Diferenciar el ícono del chip por rol de unidad — dim 1.
+
+## Riesgos / notas
+- **48 ciclos.** Promedio **7.05**. Mínima 6.5; 2 dimensiones < 7 (niebla 6.5, juice 6.5).
+- **Lección repetida y ahora confirmada:** el cuello de botella de dim 2/4 no era la simulación ni
+  el arte de las unidades, sino **los overlays** (anillos de selección 3.5 u de diámetro, barras de
+  1.7 u). Achicarlos valió más que tres ciclos de lógica de formación.
+- Cuidado con las clamp de los dev hooks: `camera(dist)` tiene mínimo 25.
+- Dim 10 se evalúa solo por feedback visual; no hay audio.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
