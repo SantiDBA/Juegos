@@ -829,7 +829,7 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   addDensityProps(scene)
 
   // --- VFX assets (shared geometries, per-mesh materials for fading) ------
-  const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true)
+  const beamGeo = new THREE.ConeGeometry(1, 1, 6, 1, true)
   beamGeo.rotateX(Math.PI / 2) // axis along +Z, length 1
   const ringGeo = new THREE.RingGeometry(0.62, 1, 28)
   ringGeo.rotateX(-Math.PI / 2)

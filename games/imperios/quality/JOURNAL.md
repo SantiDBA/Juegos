@@ -3164,6 +3164,38 @@ Dims: 1=6 · 2=4 · 3=7 · 4=5 · 5=6 · 6=5 · 7=5 · 8=7 · 9=4 · 10=4. Salid
 
 ---
 
+# Ciclo 60 · tracer con taper (cono) · 2026-11-19
+
+Brecha estable de c59: las trazadoras siguen leyéndose como "polígonos/barras pálidas"
+(un cilindro fino pálido sobre tierra tostada no lee como bala). Se probó darles taper.
+
+## Qué se cambió (`scene.ts`)
+- `beamGeo`: `CylinderGeometry(1, 1, 1, 6, 1, true)` → `ConeGeometry(1, 1, 6, 1, true)`
+  (mismo `rotateX(Math.PI / 2)`). La trazadora queda ancha en el tirador y se afina hacia
+  el objetivo (ápice en +Z tras `lookAt(to)`). Escalas `x/y/z` sin cambios.
+
+## Captura — shots/ciclo-60-tracer-taper
+14 frames + 6 recortes (04-combate: `lenMax=8.2`, `wreck=12`; 08-asedio: `wreck=72`).
+- Revisión visual (crop nativo 04-combate): el taper **no se percibe** a esta escala — los
+  streaks leen como líneas pálidas casi uniformes con fogonazo en el origen (el cono va de
+  0.15 a 0 de forma demasiado gradual a lo largo de `dist`).
+
+## Juez ciego
+**No ejecutado.** Los intentos de `judge.sh ciclo-59-tracer tencent/hy4` y
+`judge.sh ciclo-60-tracer-taper tencent/hy4` (modelo fijado, en paralelo, sesión aislada)
+fallaron por límite semanal de uso de `cmd -p` (salidas vacías, exit 5, err:
+"weekly usage limit"). Sin juez no hay puntajes comparables para c60; el c59 previo
+(5.30, modelo no fijado) sigue siendo la última lectura registrada.
+
+## Próximo ciclo (cuando haya juez disponible)
+1. **Taper perceptible**: hacer que el afinado sea visible — p. ej. cono con base mucho más
+   ancha y punta nula, o mesh/alpha que se desvanezca hacia el objetivo (no sólo radio).
+2. Re-ejecutar juez con **modelo fijado** sobre c59/c60 para obtener serie comparable.
+3. Impactos con humo/polvo persistente en vez de un destello reciclado.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
