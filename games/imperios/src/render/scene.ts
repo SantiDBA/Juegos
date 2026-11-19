@@ -2240,6 +2240,8 @@ export function syncEntityMesh(
       if (dx*dx + dz*dz > 0.0004) {
         const targetYaw = Math.atan2(dx, dz)
         obj.rotation.y = THREE.MathUtils.lerp(obj.rotation.y, targetYaw, 0.18)
+      } else if (u.faceYaw != null) {
+        obj.rotation.y = THREE.MathUtils.lerp(obj.rotation.y, u.faceYaw, 0.08)
       }
     }
     const moving = (e as any).path?.length > 0 || (u.state === 'move' || u.state === 'gather' || u.state === 'return' || u.state === 'attack')

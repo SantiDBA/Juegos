@@ -131,6 +131,8 @@ export interface UnitEntity extends BaseEntity {
   wpRef?: Vec2
   wpBest?: number
   stuckT?: number
+  /** Desired facing (radians, atan2(dx,dz)) when idle/settled, e.g. formation front. */
+  faceYaw?: number
 }
 
 export interface BuildingEntity extends BaseEntity {

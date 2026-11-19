@@ -3241,11 +3241,36 @@ persistiera en capturas fijas (dim 10).
 **No ejecutado.** `cmd -p -m tencent/hy4` devolvió "weekly usage limit" (sin cuota). Sin
 puntaje comparable para c62.
 
+---
+
+# Ciclo 63 · facing de formación al asentarse · 2026-11-19
+
+Brecha de c58/c59/c62 (dim 4): las formaciones se leían como nube sin frente/orientación
+común al detenerse.
+
+## Qué se cambió
+- `core/types.ts`: `UnitEntity.faceYaw?: number` (orientación deseada en reposo/slot).
+- `sim/state.ts`: se asigna `faceYaw` en órdenes — formación (`commandMoveFormation`, dirección
+  de avance del grupo), `commandMove` individual, `commandAttack` (hacia el objetivo) y
+  `commandPatrol` (hacia B). Typecheck OK.
+- `render/scene.ts`: si la unidad apenas se desplaza y tiene `faceYaw`, interpola `rotation.y`
+  hacia él (lerp suave) para que la fila mire al frente al asentarse.
+
+## Captura — shots/ciclo-63-formacion-facing
+14 frames + 6 recortes (`capture.mjs`). 04-combate: `lenMax=8.1`, `wreck=12`, `puff=124`;
+08-asedio: `wreck=50`, `puff=175`.
+
+## Juez ciego
+**No ejecutado.** `cmd -p -m tencent/hy4` devolvió "weekly usage limit" (sin cuota). Sin
+puntaje comparable para c63.
+
 ## Próximo ciclo (cuando haya juez disponible)
-1. Juzgar c59–c62 con **modelo fijado** para serie comparable y ver si polvo + taper mueven
-   dim 2/10.
-2. Si el taper aún no lee como estela, reforzar con caída de alpha hacia el objetivo.
-3. Formación: *facing* por unidad al asentarse y evitar interpenetración (dim 4).
+1. Juzgar c59–c63 con **modelo fijado** (serie comparable) y medir efecto de taper, polvo e
+   facing en dims 2/4/10.
+2. Si 06c-formacion sigue leyendo como nube, reforzar anti-interpenetración/filas y verificar
+   que el facing sea visible en los modelos.
+3. Si el taper no lee como estela, añadir caída de alpha hacia el objetivo; borde/periferia
+   de mapa para dim 6/9.
 
 
 ---

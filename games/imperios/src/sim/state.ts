@@ -445,6 +445,7 @@ export function commandMoveFormation(
     .map((s, i) => ({ s, i, d: depthOf(s.x, s.z) }))
     .sort((a, b) => (b.d - a.d) || (a.i - b.i))
 
+  const faceYaw = Math.atan2(dx, dz)
   for (let s = 0; s < order.length && s < slots.length; s++) {
     const u = units[order[s].i]
     const slot = slots[s].s
@@ -455,6 +456,7 @@ export function commandMoveFormation(
     u.dropoffTargetId = undefined
     u.patrol = undefined
     u.home = { x: slot.x, z: slot.z }
+    u.faceYaw = faceYaw
     u.repathT = 0
   }
   return Math.min(order.length, slots.length)
@@ -480,6 +482,7 @@ export function commandMove(gs: GameState, ids: number[], target: Vec2, attackMo
     } else {
       e.path = leg
       e.home = { x: target.x, z: target.z }
+      e.faceYaw = Math.atan2(target.x - e.x, target.z - e.z)
       e.patrol = undefined
     }
     e.state = attackMove ? 'attack' : 'move'
@@ -515,7 +518,10 @@ export function commandAttack(gs: GameState, ids: number[], targetId: number): v
     e.patrol = undefined
     // the defensive leash measures from wherever the order was issued
     e.home = { x: e.x, z: e.z }
-    if (tgt) e.path = findPath(gs, e.x, e.z, tgt.x, tgt.z)
+    if (tgt) {
+      e.path = findPath(gs, e.x, e.z, tgt.x, tgt.z)
+      e.faceYaw = Math.atan2(tgt.x - e.x, tgt.z - e.z)
+    }
     e.repathT = 0
   }
 }
@@ -530,6 +536,7 @@ export function commandPatrol(gs: GameState, ids: number[], a: Vec2, b: Vec2): v
     e.gatherTargetId = undefined
     e.dropoffTargetId = undefined
     e.home = { x: a.x, z: a.z }
+    e.faceYaw = Math.atan2(b.x - e.x, b.z - e.z)
     e.repathT = 0
   }
 }
