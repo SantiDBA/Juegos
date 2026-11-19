@@ -3196,6 +3196,33 @@ fallaron por límite semanal de uso de `cmd -p` (salidas vacías, exit 5, err:
 
 ---
 
+# Ciclo 61 · tracer con taper perceptible (base más ancha) · 2026-11-19
+
+Brecha de c60: el cono (0.15→0 a lo largo de `dist`) era demasiado gradual y el taper no se
+percibía; los streaks seguían leyendo como líneas pálidas casi uniformes.
+
+## Qué se cambió (`scene.ts`, `spawnTracer`)
+- Riel oscuro (contorno): `thick` 0.30 → **0.85** (misma opacidad 0.92).
+- Núcleo brillante: `thick` 0.15 → **0.45**, `o0` 0.9 → 0.95.
+- Geometría sigue siendo `ConeGeometry` (c60): base ancha en tirador, punta hacia el objetivo.
+
+## Captura — shots/ciclo-61-tracer-taper-visible
+14 frames + 6 recortes (`capture.mjs`). 04-combate: `lenMax=8.1`, `wreck=12`; 08-asedio:
+`wreck=68`.
+
+## Juez ciego
+**No ejecutado.** `cmd -p -m tencent/hy4 --skip-onboarding -t` devolvió "weekly usage limit"
+(sin cuota). Sin juez no hay puntaje comparable para c61 ni serie c59/c60/c61.
+
+## Próximo ciclo (cuando haya juez disponible)
+1. Verificar con juez ciego (modelo fijado) si el taper ya lee como estela; si no, reforzar
+   con alpha/mesh que se desvanezca hacia el objetivo además del radio.
+2. Re-ejecutar juez con modelo fijado sobre c59/c60/c61 para serie comparable.
+3. Impactos con humo/polvo persistente en vez de un destello reciclado.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
