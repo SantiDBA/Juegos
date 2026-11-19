@@ -2752,6 +2752,25 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
     })
   }
 
+  // Dust/smoke: lingers so the hit reads in still captures (dim 10).
+  for (let i = 0; i < 2; i++) {
+    const mesh = acquireFx(rc, 'puff')
+    if (!mesh) break
+    const ang = seed * Math.PI * 2 + i * 2.4
+    const rad = 0.3 + i * 0.35
+    mesh.position.set(x + Math.cos(ang) * rad, y, z + Math.sin(ang) * rad)
+    mesh.scale.setScalar(0.6)
+    const m = mesh.material as THREE.MeshBasicMaterial
+    m.color.setHex(i === 0 ? 0x5f564a : 0x3f3932)
+    m.opacity = 0.7
+    rc.fxItems.push({
+      kind: 'puff', mesh, t: 0, life: 2.8,
+      pos: mesh.position.clone(),
+      vel: new THREE.Vector3(Math.cos(ang) * 0.35, 0.6 + i * 0.25, Math.sin(ang) * 0.35),
+      s0: 0.6, s1: 1.35, o0: 0.7, hold: 0.5,
+    })
+  }
+
 }
 
 /** Grey smoke rising from a wounded building's roof (presentation only). */

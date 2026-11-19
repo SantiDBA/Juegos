@@ -3223,6 +3223,33 @@ percibía; los streaks seguían leyendo como líneas pálidas casi uniformes.
 
 ---
 
+# Ciclo 62 · impactos con polvo/humo persistente · 2026-11-19
+
+Brecha de c61/c60: los impactos se leían como destello/chispas efímeras, sin rastro que
+persistiera en capturas fijas (dim 10).
+
+## Qué se cambió (`scene.ts`, `spawnImpact`)
+- Se agregaron **2 puffs de polvo/humo** por impacto (deterministas): `life` 2.8, `hold` 0.5,
+  `s0` 0.6 → `s1` 1.35, `o0` 0.7, deriva lenta vertical/lateral, colores terrosos oscuros
+  (0x5f564a / 0x3f3932). Chispas y flash de núcleo sin cambios.
+
+## Captura — shots/ciclo-62-impacto-polvo
+14 frames + 6 recortes (`capture.mjs`). 04-combate: `lenMax=8.1`, `wreck=12`, `puff=124`;
+08-asedio: `wreck=50`, `puff=155`.
+
+## Juez ciego
+**No ejecutado.** `cmd -p -m tencent/hy4` devolvió "weekly usage limit" (sin cuota). Sin
+puntaje comparable para c62.
+
+## Próximo ciclo (cuando haya juez disponible)
+1. Juzgar c59–c62 con **modelo fijado** para serie comparable y ver si polvo + taper mueven
+   dim 2/10.
+2. Si el taper aún no lee como estela, reforzar con caída de alpha hacia el objetivo.
+3. Formación: *facing* por unidad al asentarse y evitar interpenetración (dim 4).
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
