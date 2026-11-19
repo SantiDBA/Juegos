@@ -2992,6 +2992,144 @@ que verificar que el valor de prueba sobreviva hasta el render. Costó dos ciclo
 
 ---
 
+# Ciclo 57 · el instrumento: resolución, pase de zoom y el juez roto · 2026-11-19
+
+**Ciclo de INSTRUMENTO** (no de arte). Ataca la premisa del ciclo 56: que el juez no
+resuelve los efectos finos a 1280x577 y que por eso dim 10 está trabada.
+
+## Qué se cambió (harness, no arte)
+- `capture.mjs`: viewport a **2× (2560x1154)** vía `CAPTURE_SCALE`, con la **misma aspect
+  ratio** (misma composición) y **pase de zoom**: recortes centrados a resolución nativa
+  `<id>-zoom.png` para las tomas de detalle.
+- `calibrate.mjs` + `quality/calibration/`: escalera de anchos de línea y tamaños de texto.
+- `judge.sh` + `judge-prompt.txt`: el juez ciego corre en **sesión aislada headless**
+  (arreglo de raíz del instrumento; ver §2 y §4).
+- Capturas nuevas: `shots/ciclo-57-instrumento/` (14 frames + 6 recortes + `judge.md`).
+
+## 1. Piso del instrumento (calibración)
+Escalera medida con el mismo tipo de modelo que juzga:
+
+| | línea más fina visible | texto mínimo legible |
+|---|---|---|
+| frame completo (2560, reescalado por el modelo) | ~2px | ~10px |
+| recorte nativo (1280x577) | ~2px | ~12px |
+
+El recorte **no mejora** el piso: el canal entrega el frame casi sin reescalar. Los
+tracers del juego miden ~6-11px (1×) / ~12-22px (2×): **muy por encima del piso**.
+⇒ **El instrumento nunca fue el cuello de botella de dim 10.**
+
+## 2. El hallazgo grave: el juez NO veía las capturas
+Dos corridas del juez ciego devolvieron lecturas **inválidas**:
+- La 1.ª reportó que para las 20 capturas veía *siempre* la planilla de calibración
+  (`calibration/line-ladder.png`) — que era la última imagen que **yo** había leído.
+- La 3.ª reportó que las 20 capturas eran *idénticas* ("Era del Motor · 12460 · 1:56") —
+  que era `06c-formacion.png`, mi última lectura.
+- Test controlado: un subagente mandado a leer `07-late-game.png` —archivo que yo **nunca**
+  había abierto— describió mi `02-arranque.png`. **Confirmado: la visión de un subagente
+  devuelve la última imagen leída en la sesión padre, no el archivo que el subagente abre.**
+
+Regla nueva (README §3 y RUBRIC): el juicio corre en una **sesión aislada**, con el
+implementador sin haber abierto los PNGs; y una imagen por vez. Las corridas de este
+ciclo **no se puntúan** (promedio vigente: **7.10**, c56).
+
+## 3. Lo que sí se ve (lecturas propias, verificadas)
+Con mi propia lectura —que sí funciona— en `04-combate` (frame y recorte nativo) las
+"trazadoras" **se leen como humo**: listones anchos, blandos, casi blancos, sin núcleo
+brillante ni ritmo de balas; un **blob pálido dominante** tapa unidades; y **no hay
+impactos, cráteres, ruina ni scorch**.
+⇒ dim 10 y buena parte de dim 2 son **diseño de VFX**, no resolución ni instrumento.
+El blob es, casi seguro, la suma de `spawnMuzzleFlash` (0xfff3cf, 1.5→2.6, cap 40) y
+`spawnImpact` (flash 0xfff0c0) más la vaina glow del tracer: casi blancos, aditivos,
+solapados con 20+ fusileros.
+
+## 4. Lectura válida del juez (headless) — resuelto
+El juez NO puede ser un subagente (ve la última imagen de la sesión padre). La forma
+correcta es un proceso **headless**: `cmd -p` corre en una sesión aislada y **sí** ve las
+imágenes que lee. Quedó reproducible en `quality/judge.sh <fase> [modelo]` +
+`quality/judge-prompt.txt`.
+
+Corrida de este ciclo (headless, sesión limpia, exit 0):
+
+| | |
+|---|---|
+| promedio | **6.30** |
+| mínima | 5.0 |
+| dims < 7 | 8 |
+| veredicto | SORPRENDIDO: NO |
+
+Dims: 1=6 · 2=6 · 3=6 · 4=5 · 5=8 · 6=6 · 7=6 · 8=8 · 9=6 · 10=6. Salida completa:
+`shots/ciclo-57-instrumento/judge.md`.
+
+**Dato clave**: el juez ve las trazadoras **en el recorte** (`04-combate-zoom.png`: "4
+trazadoras, fogonazo, mancha de daño") pero **no en el frame completo** ("`04-combate.png`
+no muestra combate"). El pase de zoom cumple su función: revela el detalle que a escala
+de juego no se lee. El juez además es **más duro** que el de c56 (7.10 → 6.30): ahonda en
+muertes, formaciones y niebla. **No comparable 1:1** (modelo quizá distinto: hay que
+**fijar el modelo** con `judge.sh <fase> <modelo>` para que la serie sea comparable).
+
+Top-5 que pide: (1) muerte visible (cadáver/humo/rastro); (2) formaciones con filas y
+frente sin solapamiento; (3) niebla con penumbra de "explorado" y minimapa espejo; (4) que
+la toma de asedio muestre acción (proyectil, impacto, edificio dañado); (5) siluetas y
+materiales diferenciados por clase.
+
+## Riesgos / notas
+- **57 ciclos.** Promedio vigente c56: 7.10 (dim 10 en 6.5). Lectura válida c57: **6.30**
+  (modelo del juez sin fijar: comparar con cuidado).
+- La resolución 2× es **opcional** (`CAPTURE_KEEP_VIEWPORT=1` la revierte): la calibración
+  dice que no era el límite. El pase de zoom aporta **saliencia** (objetivo más grande,
+  menos desorden), no resolución.
+- Próximo ciclo real (arte, no instrumento): rediseñar el VFX de disparo (línea fina con
+  núcleo brillante, sin el blob blanco), bajar cap/opacidad de fogonazos e impactos, y
+  dejar marcas de impacto/baja en el suelo.
+
+
+---
+
+# Ciclo 58 · combate (bajas/proyectiles/asedio) y formaciones · 2026-11-19
+
+Feature: atacar las brechas 1, 2, 4 y 5 del juez del ciclo 57 — hacer legible el combate
+(bajas + proyectiles + asedio en vivo) y ordenar la formación.
+
+## Qué se cambió
+- **04-combate**: `reveal` + `slay` de 6 unidades del frente → **wreck=10** (cadáveres) en
+  el frame, con beam=138. El escenario antes no dejaba bajar a nadie.
+- **08-asedio**: el sim queda **corriendo** durante el settle → wreck=58, beam=193,
+  muzzle≈19 (asedio con acción real; antes `status='paused'` dejaba la toma sin fuego).
+- **`FX_MAX` 420 → 700** (y `spark` 260 → 200): con 490 fx vivos, `acquireFx('wreck')`
+  devolvía null y la toma no mostraba ningún cadáver. Causa raíz, no arte.
+- **main.ts**: las bajas del **propio bando** se dibujan siempre (el gate de niebla las
+  filtraba: una unidad muerta ya no marca visión → sin FX). Hooks QA nuevos: `slay` y
+  `hide`/`clearVision` (para restaurar la niebla que `reveal` levanta en 04).
+- **Formaciones**: `FORMATION_SPACING` ahora escala con el radio de la unidad (vehículo
+  2.9 → gap 3.9; infantería 3.1), en vez de un 2.67 fijo que las hacía interpenetrarse.
+  06c captura tras asentarse (skip 1 → 6).
+- **Siluetas**: milicia con escudo, fusilero con fusil más largo.
+
+## Juez ciego (headless, sesión aislada) — shots/ciclo-58-combate-formacion
+Promedio **6.10** · mín 5.0 · 7 dims < 7 · **SORPRENDIDO: NO**.
+Dims: 1=6 · 2=5 · 3=7 · 4=5 · 5=7 · 6=6 · 7=6 · 8=8 · 9=5 · 10=6. Salida: `judge.md`.
+(c57: 6.30 → **sin cambio**; modelo del juez sin fijar.)
+
+## Lectura honesta
+- Los cambios **agregaron contenido real** (el juez ahora menciona "cadáveres planos", y en
+  08 "humo, chispas, esquirlas y troncos en vuelo") pero **no movieron el promedio**: el
+  techo es de **arte de fondo**, no de instrumento ni de captura.
+- dim 2/10: **las trazadoras se siguen leyendo como barras y estallido blanco** ("estallido
+  blanco gigante tapa justo el punto de choque"; "barras blancas superpuestas leídas como
+  geometría"). Es el VFX de disparo (cilindros pálidos + vaina glow), no la resolución.
+- dim 4: la formación **no forma** ni tras asentarse (unidades embebidas en el edificio,
+  anillos solapados, sin filas ni frente). Falta *facing* por unidad y disciplina al llegar.
+- dim 9/6: el mapa se lee como **"disco flotando en el espacio negro"** con periferia vacía.
+
+## Próximo ciclo (arte, no instrumento)
+1. **Rediseñar el tracer**: línea fina con núcleo brillante y contorno oscuro, y **retirar
+   el estallido blanco** que tapa el punto de choque.
+2. **Formación real**: forzar separación y *facing* por unidad al asentarse.
+3. **Mapa**: borde de terreno y llenar la periferia (dejar de leerse como disco en el vacío).
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
