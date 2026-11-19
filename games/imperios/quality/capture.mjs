@@ -37,6 +37,14 @@
  *   AGENT_BROWSER        binario a ejecutar (default: "agent-browser").
  *   CAPTURE_SETTLE_MS    espera base tras cada acción antes de capturar (default: 600).
  *   CAPTURE_TIMEOUT_MS   timeout por comando del CLI (default: 120000).
+ *   CAPTURE_SCALE        multiplicador de resolución sobre 1280x577 (default: 2 →
+ *                        2560x1154). Conserva el aspect ratio: no cambia el encuadre.
+ *   CAPTURE_KEEP_VIEWPORT=1   no tocar el viewport (capturar a la resolución default).
+ *   CAPTURE_ZOOM_CROP    fracción central del recorte de detalle (default: 0.5).
+ *   CAPTURE_NO_CROPS=1   no generar los recortes `-zoom.png`.
+ *   CAPTURE_CROP_TOOL    herramienta de recorte (default: "sips"; macOS). Si falta,
+ *                        avisa y sigue: el frame completo siempre queda.
+ *   CAPTURE_ZOOM         re-encuadra cada toma a esa distancia (test de zoom).
  *
  * NOTAS DE DETERMINISMO
  * ---------------------
@@ -55,7 +63,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -76,6 +84,44 @@ const TIMEOUT_MS = Number(process.env.CAPTURE_TIMEOUT_MS ?? 120_000)
 const ZOOM = process.env.CAPTURE_ZOOM ? Number(process.env.CAPTURE_ZOOM) : null
 const INTRO_CAMERA_MS = 1900 // duración real de la intro de cámara de startGame()
 const PHASE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+
+/**
+ * RESOLUCIÓN DEL INSTRUMENTO
+ * --------------------------
+ * El viewport por defecto de agent-browser daba shots de 1280x577 (medido). El
+ * renderer escala con window.innerWidth/Height (`resize()` está wireado al evento
+ * `resize`), así que subir el viewport sube la resolución REAL de render — no es
+ * reescalado de la imagen.
+ *
+ * La escala se aplica sobre 1280x577 para conservar EXACTAMENTE el aspect ratio
+ * (2.218:1). Cambiar el aspect cambiaría el encuadre, y eso sí sería cambiar la
+ * medición, no la resolución.
+ */
+const BASE_W = 1280
+const BASE_H = 577
+const SCALE = Number(process.env.CAPTURE_SCALE ?? 2)
+const VIEWPORT_W = Math.round(BASE_W * SCALE)
+const VIEWPORT_H = Math.round(BASE_H * SCALE)
+const KEEP_VIEWPORT = process.env.CAPTURE_KEEP_VIEWPORT === '1'
+
+/**
+ * PASE DE ZOOM (recortes de detalle)
+ * ----------------------------------
+ * Además del frame completo —que fija la escala de juego y es el input primario
+ * para todo lo que depende de escala—, se entrega al juez un recorte CENTRADO a
+ * resolución NATIVA de la zona de acción, `<id>-zoom.png`, para verificar detalle
+ * (dims 2/4/10). No agranda píxeles: recorta menos área, así que el modelo de
+ * visión no lo reescala y ve el detalle real. Lo pide el propio RUBRIC (paso 0.1:
+ * "después ampliar para verificar detalles"); el harness nunca lo proveía.
+ *
+ * No es un "arreglo de captura": es determinista (misma región siempre), del
+ * mismo frame, y se entrega junto al completo para que la escala no se pueda
+ * falsear.
+ */
+const ZOOM_CROP = Number(process.env.CAPTURE_ZOOM_CROP ?? 0.5)
+const NO_CROPS = process.env.CAPTURE_NO_CROPS === '1'
+const CROP_TOOL = process.env.CAPTURE_CROP_TOOL || 'sips'
+const ZOOM_SHOTS = new Set(['03-economia', '04-combate', '06b-unidades', '06c-formacion', '07-late-game', '08-asedio'])
 
 const USAGE = `Imperios · capturas deterministas
 
@@ -118,6 +164,53 @@ function log(msg) {
 function short(text, max = 800) {
   const t = String(text ?? '').trim()
   return t.length > max ? `${t.slice(0, max)}…` : t
+}
+
+/** Tamaño de un PNG leyendo el header IHDR (sin dependencias). */
+function pngSize(file) {
+  const b = readFileSync(file)
+  if (b.length < 24 || b.readUInt32BE(0) !== 0x89504e47) throw new Error('no es un PNG válido')
+  return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) }
+}
+
+/** Ejecuta una herramienta del sistema; no tira (ok/err) para poder degradar sin romper. */
+function runTool(bin, args, timeout = 60_000) {
+  const res = spawnSync(bin, args, { encoding: 'utf8', timeout })
+  if (res.error) return { ok: false, err: res.error.message }
+  if (res.status !== 0) return { ok: false, err: short(res.stderr || `exit ${res.status}`) }
+  return { ok: true }
+}
+
+/**
+ * Recortes de detalle a resolución nativa: `<id>-zoom.png`, centrado, ZOOM_CROP
+ * del frame. Si falta la herramienta de recorte, avisa y sigue — el frame
+ * completo siempre queda.
+ */
+function makeZoomCrops(files) {
+  const crops = []
+  for (const file of files) {
+    const base = file.replace(/\.png$/, '')
+    const id = base.split(/[\\/]/).pop()
+    if (!ZOOM_SHOTS.has(id)) continue
+    let size
+    try {
+      size = pngSize(file)
+    } catch (e) {
+      log(`  ! ${id}: no pude leer el PNG (${e.message})`)
+      continue
+    }
+    const w = Math.round(size.w * ZOOM_CROP)
+    const h = Math.round(size.h * ZOOM_CROP)
+    const dst = `${base}-zoom.png`
+    const r = runTool(CROP_TOOL, ['-c', String(h), String(w), file, '--out', dst])
+    if (!r.ok) {
+      log(`  ! ${id}: recorte falló con "${CROP_TOOL}" (${r.err}); queda el frame completo.`)
+      continue
+    }
+    log(`  ✓ ${id}-zoom.png  ${w}x${h}`)
+    crops.push(dst)
+  }
+  return crops
 }
 
 /**
@@ -501,18 +594,31 @@ const SCENARIOS = [
       g.spawn('enemy', 'milicia', 3, 6, 22)
       g.spawn('enemy', 'fusilero', 4, 3, 23)
       for (const e of [...g.state.entities.values()]) { if (e && e.kind === 'unit' && e.utype === 'fusilero') e.stance = 'standground' }
-      g.skip(0.8)
-      // Se deja el sim CORRIENDO durante el settle: los fx (trazadoras, impactos) los
-      // emite el render loop, no skip(), así que pausar deja el frame sin fuego. Antes
-      // esto "perdía la cámara" porque la intro de startGame() la pisaba por rAF; ahora
-      // la intro es cancelable y los escenarios mandan.
+
+      // El FX de muerte sólo se emite si la posición es visible (gate de niebla), y una
+      // unidad muerta ya no marca visión: sin revelar, los cadáveres no se dibujan. Se
+      // revela el frente (como en 07/08) y luego se matan unas unidades del frente por
+      // el camino real (hook slay) para que la toma muestre bajas y despojo.
+      g.reveal('player')
+      let slain = 0
+      for (const e of [...g.state.entities.values()]) {
+        if (!e || e.dead || e.kind !== 'unit' || e.team !== 'player') continue
+        if (Math.abs(e.x) > 14 || e.z < 18 || e.z > 32) continue
+        if (slain >= 6) break
+        if (typeof g.slay === 'function' && g.slay(e.id) === 'ok') slain++
+      }
+
+      g.skip(0.6)
+      // Se deja el sim CORRIENDO durante el settle: los fx (trazadoras, impactos,
+      // bajas) los emite el render loop, no skip(), así que pausar deja el frame
+      // sin fuego. La intro de startGame() es cancelable y los escenarios mandan.
       g.state.status = 'playing'
 
       // Encuadre fijo sobre el frente: ambas líneas (±13) entran en cuadro
       g.camera(0, 25, 48)
 
 
-      return 'ok dead=' + deadUnits().length
+      return 'ok slain=' + slain
     })()`,
     settleMs: 850,
   },
@@ -522,6 +628,8 @@ const SCENARIOS = [
     js: `(() => {
       const g = window.__imperios
       g.state.status = 'playing' // reanudar el sim: el escenario previo pudo pausarlo para el still
+      // 04-combate reveló la niebla para dibujar las bajas: acá se restaura.
+      if (typeof g.hide === 'function') g.hide('player')
       g.setEra(3)
       // NO usar reveal(): marca TODO el mapa como explorado y entonces no se ve el
       // negro inexplorado (el escenario mostraba la niebla mal desde siempre).
@@ -697,9 +805,9 @@ const SCENARIOS = [
       if (ids.length < 6) return 'spawn-only:' + ids.length
       g.select(ids)
       const n = g.moveFormation(ids, -30, 14, 'ranks')
-      // Justo en tránsito: en cuanto llegan al destino la separación los dispersa y la
-      // formación deja de leerse. El destino lejano garantiza que sigan marchando.
-      g.skip(1)
+      // Dejar que LLEGUEN y se alineen: en tránsito se ven como una nube. Con el
+      // espaciado por tamaño de unidad, al asentarse tendrían que quedar filas legibles.
+      g.skip(6)
       // Más cenital: desde un ángulo bajo las filas se solapan en pantalla y la
       // formación no se lee. g.camera() recorta dist a mínimo 25, así que la
       // distancia se deja en 30 y el ángulo se sube por el render context.
@@ -781,6 +889,16 @@ const SCENARIOS = [
         }
       }
 
+      // Bajas del asedio: unas pocas unidades caen durante el settle y dejan
+      // despojo/humo, para que la toma lea "asedio en curso", no una foto fija.
+      let doomed = 0
+      for (const e of iter) {
+        if (!e || e.dead || e.kind !== 'unit') continue
+        if (e.x < 34 || e.x > 56 || e.z < -10 || e.z > 20) continue
+        if (doomed % 3 === 0) e.hp = Math.max(1, Math.floor(e.maxHp * 0.06))
+        doomed++
+      }
+
       // centrar en el cruce de fuego activo (ambos bandos y base defendida)
       let cx = 0, cz = 0, n = 0
       for (const e of g.state.entities.values()) {
@@ -792,11 +910,13 @@ const SCENARIOS = [
       else g.camera(47, 2, 48)
       g.fog()
 
-      // acumular más huellas y pausar en ráfaga reciente (trazadoras/impactos visibles)
+      // El sim sigue CORRIENDO durante el settle: los fx (trazadoras, impactos,
+      // fogonazos, bajas) los emite el render loop, no skip(). Pausar deja la toma
+      // de asedio sin fuego ni explosiones.
       g.skip(3.2)
       g.skip(0.2)
-      g.state.status = 'paused'
-      return 'ok'
+      g.state.status = 'playing'
+      return 'ok doomed=' + doomed
     })()`,
     settleMs: 900,
   },
@@ -863,14 +983,17 @@ async function main() {
   log(`  url   ${BASE_URL}`)
   log(`  fase  ${PHASE}`)
   log(`  dir   ${SHOTS_DIR}`)
-  log(`  bin   ${BIN}\n`)
+  log(`  bin   ${BIN}`)
+  log(`  vp    ${VIEWPORT_W}x${VIEWPORT_H}  (escala ${SCALE}× de ${BASE_W}x${BASE_H})`)
+  log(`  zoom  recorte centrado ${Math.round(ZOOM_CROP * 100)}% → ${[...ZOOM_SHOTS].join(', ')}\n`)
 
   const created = []
   let opened = false
 
   try {
-    // a. Abrir la página y esperar carga de red + primer frame.
+    // a. Fijar la resolución del instrumento y abrir la página.
     log('[1/4] Abriendo la página')
+    if (!KEEP_VIEWPORT) run(['set', 'viewport', String(VIEWPORT_W), String(VIEWPORT_H)])
     run(['open', BASE_URL])
     opened = true
     run(['wait', '--load', 'networkidle'])
@@ -923,15 +1046,19 @@ async function main() {
       if (ZOOM) {
         evalJs('(() => { const g = window.__imperios; g.camera(g.render.target.x, g.render.target.z, ' + ZOOM + '); return "ok" })()', { allowFail: true })
       }
-      if (sc.id === '04-combate') {
-        const diag = evalJs("(() => { const g = window.__imperios; const fx = g.render.fxItems || []; const ents = [...g.state.entities.values()]; const near = ents.filter(e => e && !e.dead && e.kind === 'unit' && Math.hypot(e.x - g.render.target.x, e.z - g.render.target.z) < 30); const beams = fx.filter(f => f.kind === 'beam'); const lens = beams.map(f => f.mesh.scale.z); return 'lenMax=' + (lens.length ? Math.max(...lens).toFixed(1) : '0') + ' lenMed=' + (lens.length ? (lens.reduce((a, b) => a + b, 0) / lens.length).toFixed(1) : '0') + ' cam=' + g.render.target.x.toFixed(1) + ',' + g.render.target.z.toFixed(1) + ' dist=' + g.render.camDist.toFixed(0) + ' near=' + near.length + ' beam=' + fx.filter(f => f.kind === 'beam').length + ' status=' + g.state.status + ' pop=' + g.state.players.player.pop + '/' + g.state.players.player.popCap })()")
+      if (sc.id === '04-combate' || sc.id === '08-asedio') {
+        const diag = evalJs("(() => { const g = window.__imperios; const fx = g.render.fxItems || []; const kinds = {}; for (const f of fx) kinds[f.kind] = (kinds[f.kind] || 0) + 1; const ents = [...g.state.entities.values()]; const near = ents.filter(e => e && !e.dead && e.kind === 'unit' && Math.hypot(e.x - g.render.target.x, e.z - g.render.target.z) < 30); const beams = fx.filter(f => f.kind === 'beam'); const lens = beams.map(f => f.mesh.scale.z); return 'lenMax=' + (lens.length ? Math.max(...lens).toFixed(1) : '0') + ' cam=' + g.render.target.x.toFixed(1) + ',' + g.render.target.z.toFixed(1) + ' dist=' + g.render.camDist.toFixed(0) + ' near=' + near.length + ' fx=' + JSON.stringify(kinds) + ' status=' + g.state.status })()")
         log(`    · diag al disparar la foto: ${diag}`)
       }
       created.push(shot(`${sc.id}.png`))
     }
 
-    log(`\nListo: ${created.length} capturas en ${SHOTS_DIR}`)
+    log(`\n[+zoom] Recortes de detalle a resolución nativa`)
+    const zoomCrops = NO_CROPS ? [] : makeZoomCrops(created)
+
+    log(`\nListo: ${created.length} capturas${zoomCrops.length ? ` + ${zoomCrops.length} recortes` : ''} en ${SHOTS_DIR}`)
     for (const f of created) log(`  - ${f}`)
+    for (const f of zoomCrops) log(`  - ${f}`)
     log('')
   } finally {
     if (opened) {

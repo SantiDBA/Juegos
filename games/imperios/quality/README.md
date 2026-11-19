@@ -39,6 +39,9 @@ quality/
    (`'unit' | 'building' | 'resource'`), `team` y, si es edificio, `btype`
    (p. ej. `'ayuntamiento'`). El script de capturas depende de esa forma.
 3. `agent-browser` instalado y en el PATH.
+4. (Opcional) una herramienta de recorte en el PATH para el **pase de zoom**
+   (§2.1): por defecto `sips` (macOS). Si falta, `capture.mjs` avisa y sigue: el
+   frame completo siempre queda.
 
 Si falta el hook o el server, `capture.mjs` falla con un mensaje explícito y **no**
 genera capturas parciales fuera de `quality/shots/`.
@@ -84,6 +87,35 @@ Por qué hay esperas reales: el juego avanza con `requestAnimationFrame`. Entre 
 hook y capturar hay que dejar correr frames (`setTimeout`), o la imagen sale con el
 estado anterior.
 
+### 2.1 Resolución y pase de zoom (el instrumento)
+
+El juez es ciego y puntúa **imágenes**. Si las imágenes no resuelven lo que el juez
+tiene que juzgar, no se mide el juego: se mide el instrumento. Dos parámetros lo fijan,
+y **cambiarlos invalida la comparación con ciclos anteriores** (registrar en el JOURNAL).
+
+- **Resolución** (`CAPTURE_SCALE`, default `2`). El viewport por defecto de
+  agent-browser daba shots de **1280x577** (medido). El renderer escala con
+  `window.innerWidth/Height`, así que subir el viewport sube la resolución **real** de
+  render. La escala se aplica sobre 1280x577 para conservar el aspect ratio (2.218:1):
+  cambiar el aspect cambiaría el encuadre — eso no es resolución, es otra toma.
+  `CAPTURE_SCALE=2` → 2560x1154.
+- **Pase de zoom** (`CAPTURE_ZOOM_CROP`, default `0.5`). Además del frame completo
+  —que fija la **escala de juego** y es el input primario para toda dimensión que
+  dependa de escala—, el harness escribe un recorte **centrado a resolución nativa**
+  por toma, `<id>-zoom.png`, para las tomas de detalle (`03-economia`, `04-combate`,
+  `06b-unidades`, `06c-formacion`, `07-late-game`, `08-asedio`).
+  - **Por qué un recorte y no un reescalado**: agrandar una imagen no agrega píxeles.
+    Recortar menos área hace que el modelo de visión **no la reescale** y vea el
+    detalle real. El recorte es determinista (misma región siempre) y sale del **mismo
+    frame**; se entrega junto al completo, así que la escala no se puede falsear.
+  - **Por qué es legítimo y no un "arreglo de captura"**: lo pide el propio RUBRIC
+    (paso 0.1: *"después ampliar para verificar detalles"*); el harness nunca proveía
+    los píxeles para ese paso. El frame completo sigue mandando sobre la escala.
+
+El bin `calibrate.mjs` mide el **piso de resolución del juez** (escalera de anchos de
+línea y tamaños de texto) para poder distinguir "el juez no lo ve" de "el juego no lo
+muestra": ver `calibration/`.
+
 ---
 
 ## 3. Protocolo del loop
@@ -102,12 +134,16 @@ Cada ciclo es **una feature verificable**, no un conjunto de cambios sueltos.
                                 ▼
 ┌─ 3. Capturas deterministas ────────────────────────────────────────────┐
 │   capture.mjs → shots/<NN-feature>/01-menu.png … 07-late-game.png     │
-│   Mismos 7 escenarios siempre. Cero capturas "elegidas a mano".        │
+│   + recortes de detalle <id>-zoom.png (resolución nativa, §2.1).      │
+│   Mismos escenarios siempre. Cero capturas "elegidas a mano".          │
 └───────────────────────────────┬────────────────────────────────────────┘
                                 ▼
 ┌─ 4. Juez ciego con rúbrica ────────────────────────────────────────────┐
-│   Sólo ve las imágenes (RUBRIC.md). No ve el código, ni el JOURNAL,    │
-│   ni los puntajes anteriores. 10 dimensiones 0-10 + evidencia.         │
+│   `quality/judge.sh <fase> [modelo]` — headless, sesión AISLADA.       │
+│   CRÍTICO: un subagente NO sirve (su visión devuelve la última imagen  │
+│   leída por el agente principal). Guardar la salida en judge.md.       │
+│   No ve código, ni JOURNAL, ni puntajes previos. Una imagen por vez.   │
+│   10 dimensiones 0-10 + evidencia.                                     │
 └───────────────────────────────┬────────────────────────────────────────┘
                                 ▼
                     ┌───────────┴───────────┐
@@ -148,6 +184,11 @@ anotadas en el JOURNAL (no se pierden, se postergan).
 - Una feature por ciclo. Si una idea necesita tres sistemas, se parte.
 - Nada de "arreglos de captura" (cambiar cámara, esconder UI, subir el bloom para la
   foto). Si el juego no se ve así jugando, no puede verse así en las capturas.
+- **Excepción explícita (no es un arreglo): el pase de zoom de §2.1.** No cambia la
+  cámara, no esconde nada, no agrega contenido: recorta el mismo frame a resolución
+  nativa para que el juez *pueda ampliar para verificar detalles*, como ya manda el
+  RUBRIC. El frame completo se entrega siempre, así que la escala sigue siendo la de
+  juego.
 
 ---
 
@@ -215,6 +256,7 @@ quality/shots/<NN-feature>/
   05-fog.png
   06-ui.png
   07-late-game.png
+  <id>-zoom.png   (sólo para las tomas de detalle, resolución nativa; §2.1)
 ```
 
 - `<NN-feature>` = número de ciclo + slug corto: `01-economia`, `02-combate-juice`,

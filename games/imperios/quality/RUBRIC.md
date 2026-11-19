@@ -1,8 +1,9 @@
 # RUBRIC · Imperios → Age of Empires II
 
-Rúbrica del juez ciego. Se aplica **sólo** sobre las 7 capturas de una fase
-(`quality/shots/<NN-feature>/01-menu.png … 07-late-game.png`). El juez no ve código,
-ni el JOURNAL, ni puntajes previos.
+Rúbrica del juez ciego. Se aplica **sólo** sobre las capturas de una fase
+(`quality/shots/<NN-feature>/01-menu.png … 07-late-game.png`), más los recortes de
+detalle `<id>-zoom.png` cuando existen. El juez no ve código, ni el JOURNAL, ni
+puntajes previos.
 
 **Referencia de comparación:** *Age of Empires II: Definitive Edition*, jugado a escala
 normal de partida. No se compara contra el ciclo anterior ni contra otros prototipos.
@@ -20,6 +21,53 @@ normal de partida. No se compara contra el ciclo anterior ni contra otros protot
    no se puntúa: máximo 4.
 5. Promedio aritmético de las 10. Ninguna dimensión puede quedar sin número.
 6. Emitir el veredicto (`SORPRENDIDO: SÍ / NO`) y el top-7 de brechas.
+
+### El paso "ampliar" tiene su input: los recortes `-zoom.png`
+
+El paso 1 manda ampliar para verificar detalles, pero una captura completa de 2560
+px reescala al tamaño del modelo y pierde el detalle fino. Por eso, para las tomas de
+detalle, la fase trae **recortes centrados a resolución nativa** (`<id>-zoom.png`):
+el **mismo frame**, con menos área, sin reescalar.
+
+- **El frame completo manda sobre la escala.** Toda dimensión que dependa de escala
+  (1, 3, 5, 6, 7, 8, 9) se puntúa sobre el frame completo. El recorte no agranda nada:
+  si algo "parece grande" en el recorte, no cuenta como más.
+- **Los recortes son para verificar detalle** en las dimensiones finas: **2 (combate /
+  proyectiles), 4 (formaciones) y 10 (juice)**. Ahí se le pide al juez mirar el recorte
+  para decidir si hay o no trazadoras, impactos, líneas de formación, etc.
+- Si en el frame completo no se ve algo pero en el recorte sí, **eso cuenta**: el
+  recorte es la verificación ("ampliar") que el paso 1 ya exigía.
+- Si faltan los recortes (la máquina no tenía herramienta de recorte), se puntúa con
+  el frame completo y se anota en `Riesgos / notas` que no hubo verificación de detalle.
+
+### Cómo el juez LEE las imágenes (CRÍTICO — si se ignora, el juicio no vale)
+
+**Método canónico: `games/imperios/quality/judge.sh <fase>`** — corre el juez en una
+sesión **headless** (`cmd -p`), que es un proceso/sesión aislado. Es la única forma
+confiable en este entorno.
+
+**Por qué no un subagente.** En este entorno, el canal de visión de un subagente **no
+devuelve el archivo que el subagente lee**: devuelve la **última imagen ya leída en la
+sesión padre**. Verificado de forma controlada: un subagente mandado a leer
+`01-menu.png` —y otro a leer un archivo fresco, `07-late-game.png`— describieron la
+última captura que había abierto el agente principal. Consecuencia: si el agente
+principal ya miró los PNGs, **cualquier subagente juez puntúa a ciegas o mira otra
+imagen**, y su veredicto no vale nada. Un proceso headless **sí** ve las imágenes que
+lee (probado: el ciclo 57 se puntuó así, con citas correctas de cada toma).
+
+Reglas:
+- **Correr el juicio con `judge.sh` (headless), nunca como subagente.** Si querés
+  hacerlo a mano, abrí una sesión nueva donde nadie haya leído antes los PNGs de esa
+  fase. El implementador **no** abre las capturas; sólo el juez.
+- **Fijá el modelo** (`judge.sh <fase> <modelo>` o `-m`): modelos distintos puntúan
+  distinto y mezclarlos rompe la comparación entre ciclos.
+- **Una imagen por vez**: leer varias en una misma operación devuelve un binario no
+  visible.
+- **Nunca** leer nada de `quality/calibration/`: esa carpeta calibra al juez, no puntúa
+  al juego.
+- Si la imagen leída **no coincide** con el archivo pedido, o no se ve, el juez **para
+  y lo denuncia** en `Riesgos / notas` y **no puntúa**. (Verificado en el JOURNAL: dos
+  jueces subagente devolvieron lecturas inválidas justamente por esto.)
 
 ### Escala general
 
