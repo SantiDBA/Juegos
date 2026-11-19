@@ -3050,11 +3050,31 @@ export function spawnDepositFx(
 
 function fxMaterial(kind: FxKind): THREE.Material {
   switch (kind) {
-    case 'beam':
+    case 'beam': {
       // normal blending: many simultaneous tracers must not stack into a white web.
       // depthTest OFF: a tracer sits near ground level and the terrain is displaced, so
       // with depth testing on the streak was drawn *under* the ground and never seen.
-      return new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, depthWrite: false, depthTest: false, toneMapped: false })
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, depthWrite: false, depthTest: false, toneMapped: false })
+      // Fade toward the tip (+Z, target) so the streak reads as a tracer, not a solid bar.
+      mat.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <common>',
+          '#include <common>\nvarying float vBeamZ;'
+        ).replace(
+          '#include <begin_vertex>',
+          '#include <begin_vertex>\nvBeamZ = position.z;'
+        )
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <common>',
+          '#include <common>\nvarying float vBeamZ;'
+        ).replace(
+          '#include <dithering_fragment>',
+          'diffuseColor.a *= smoothstep(0.48, -0.35, vBeamZ);\n#include <dithering_fragment>'
+        )
+      }
+      mat.customProgramCacheKey = () => 'beam-fade'
+      return mat
+    }
     case 'flash':
       // normal blending: overlapping hit flashes must not sum to white (same depth note)
       return new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, depthWrite: false, depthTest: false, toneMapped: false })

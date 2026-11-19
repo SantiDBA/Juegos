@@ -3294,13 +3294,33 @@ sobre el fondo.
 **No ejecutado.** `cmd -p -m tencent/hy4` devolvió "weekly usage limit" (sin cuota). Sin
 puntaje comparable para c64.
 
+---
+
+# Ciclo 65 · tracer con caída de alpha hacia el objetivo · 2026-11-19
+
+Brecha de c64/c61: el taper geométrico (cono) podía seguir leyendo como barra sólida; faltaba
+desvanecer la estela hacia el objetivo.
+
+## Qué se cambió (`scene.ts`, `fxMaterial('beam')`)
+- Shader `onBeforeCompile`: `varying float vBeamZ` y
+  `diffuseColor.a *= smoothstep(0.48, -0.35, vBeamZ)` para atenuar la alpha hacia la punta
+  (+Z = objetivo) y que la trazadora lea como estela, no como bloque uniforme.
+- `customProgramCacheKey = () => 'beam-fade'`. Geometría cónica y escalas de c60/c61 se mantienen.
+
+## Captura — shots/ciclo-65-tracer-alpha
+14 frames + 6 recortes (`capture.mjs`). 04-combate: `lenMax=8.1`, `wreck=10`, `puff=116`,
+`beam=66`; 08-asedio: `wreck=44`, `puff=189`, `beam=124`.
+
+## Juez ciego
+**No ejecutado.** `cmd -p -m tencent/hy4 --skip-onboarding -t` devolvió "weekly usage limit"
+(sin cuota). Sin puntaje comparable para c65.
+
 ## Próximo ciclo (cuando haya juez disponible)
-1. Juzgar c59–c64 con **modelo fijado** (serie comparable) y medir efecto de taper, polvo,
-   facing y falda en dims 2/4/6/9/10.
+1. Juzgar c59–c65 con **modelo fijado** (serie comparable) y medir efecto de taper, alpha,
+   polvo, facing y falda en dims 2/4/6/9/10.
 2. Si 06c-formacion sigue leyendo como nube, reforzar anti-interpenetración/filas y visibilidad
    del facing en los modelos.
-3. Si el taper no lee como estela, añadir caída de alpha hacia el objetivo; mejorar legibilidad
-   de bajas/cadáveres si el juez no los distingue.
+3. Mejorar legibilidad de bajas/cadáveres y de impactos si el juez aún no los distingue.
 
 
 ---
