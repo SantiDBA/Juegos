@@ -1,7 +1,7 @@
 import { BUILDING_DEFS, ERAS, TECHS, TILE, UNIT_DEFS } from '../core/config'
 import { computeDamage, UNIT_COMBAT, type AttackProfile, type DefenseProfile } from '../core/combat'
 import { dist, moveToward } from '../core/utils'
-import { applyTech, buildingsOfTeam, findNearestDropoff, FORMATION_SPACING, getEntity, recomputePop, spawnUnit, unitsOfTeam, type GameState } from './state'
+import { applyTech, buildingsOfTeam, findNearestDropoff, FORMATION_SPACING, getEntity, recomputePop, spawnUnit, unitRadius, unitsOfTeam, type GameState } from './state'
 import { emit } from './events'
 import { stepAI } from './ai'
 import { nearestVisibleEnemy, rangeToEntity, stepVision } from './vision'
@@ -158,15 +158,6 @@ function stepBuildings(gs: GameState, dt: number): void {
       }
     }
   }
-}
-
-const VEHICLES = new Set<string>(['blindado', 'cazacarros', 'canon', 'mlrs', 'tanque', 'tanque_autonomo'])
-
-function unitRadius(utype: string): number {
-  if (utype === 'ingeniero') return 0.8
-  if (utype === 'dron') return 0.9
-  if (VEHICLES.has(utype)) return 1.45
-  return 1.0
 }
 
 /** True when a unit is converging/holding a formation/home slot; keeps formation while fighting near its slot. */

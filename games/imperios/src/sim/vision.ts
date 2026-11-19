@@ -232,3 +232,11 @@ export function hideAll(gs: GameState, team: Team): void {
   gs.visionRevealed[team] = false
   forceVisionUpdate(gs)
 }
+
+/** Dev/QA helper: wipes a team's vision back to unexplored, re-stamped on the next pass. */
+export function clearVision(gs: GameState, team: Team): void {
+  gs.visionRevealed[team] = false
+  gs.vision[team].fill(VIS_UNKNOWN)
+  gs.knownBuildings[team].clear()
+  forceVisionUpdate(gs)
+}

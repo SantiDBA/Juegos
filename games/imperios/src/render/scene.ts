@@ -79,7 +79,7 @@ interface FxItem {
 const FOG_TEX = 360
 
 /** Hard cap on simultaneous VFX so a big battle cannot tank the frame. */
-const FX_MAX = 420
+const FX_MAX = 700
 
 /**
  * Per-kind live caps. Everything shares FX_MAX as a global ceiling; the small
@@ -92,7 +92,7 @@ const FX_LIVE_CAP: Record<FxKind, number> = {
   ring: FX_MAX,
   puff: FX_MAX,
   muzzle: 80, // judge-visible muzzle flashes: pooled generously for volleys
-  spark: 260,
+  spark: 200,
   decal: 520, // craters + unit stains + deposit halos (keep more persistent traces)
   wreck: 320,
   rubble: 320,
@@ -1351,6 +1351,10 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     rifle.position.set(0.28, 0.85, 0.28); rifle.castShadow = true; g.add(rifle)
     const band = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.34), paintMat(teamC, 0.55, 0.1))
     band.position.y = 0.95; g.add(band)
+    // Distinct melee silhouette: a tall shield on the left arm reads at game zoom where
+    // the small weapon/helmet differences do not.
+    const shield = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.74, 0.5), paintMat(teamC, 0.5, 0.18))
+    shield.position.set(-0.36, 0.72, 0.04); shield.castShadow = true; g.add(shield)
     const pack = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.32, 0.16), mat(0x4a5545))
     pack.position.set(0, 0.75, -0.22); g.add(pack)
   } else if (u.utype === 'fusilero') {
@@ -1362,8 +1366,8 @@ function createUnitMesh(u: UnitEntity): THREE.Object3D {
     head.position.set(0, 1.08, 0.08); head.castShadow = true; g.add(head)
     const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.12, 10), paintMat(0x3f4a3b, 0.7, 0.05))
     cap.position.set(0, 1.24, 0.08); g.add(cap)
-    const gun = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 1.25), paintMat(0x2b2b2b, 0.45, 0.35))
-    gun.position.set(0.22, 0.88, 0.45); gun.castShadow = true; g.add(gun)
+    const gun = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 1.6), paintMat(0x2b2b2b, 0.45, 0.35))
+    gun.position.set(0.22, 0.88, 0.6); gun.castShadow = true; g.add(gun)
     const optic = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.18, 8), paintMat(0x222, 0.3, 0.5))
     optic.rotation.z = Math.PI / 2; optic.position.set(0.22, 0.98, 0.25); g.add(optic)
     const mark = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.08, 0.3), paintMat(teamC, 0.55, 0.1))

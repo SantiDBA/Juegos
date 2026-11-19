@@ -5,7 +5,7 @@ import type { AnyEntity, BuildingEntity, BuildingType, ResourceEntity, Team, Uni
 import { createState, commandAttack, commandGather, commandMove, commandMoveFormation, commandStance, getEntity, queueResearch, queueTrain, setSelection, spawnBuilding, spawnResource, spawnUnit, tryAdvanceEra, tryPlaceBuilding, unitsOfTeam, type Formation } from './sim/state'
 import { stepSim } from './sim/sim'
 import { advance } from './sim/loop'
-import { forceVisionUpdate, isExplored, isVisible, revealAll } from './sim/vision'
+import { clearVision, forceVisionUpdate, isExplored, isVisible, revealAll } from './sim/vision'
 import {
   createRender, groundHeightAt, paintFog, removeEntityMesh, renderFrame, resize,
   flashHitPip, spawnDeathFx, spawnDepositFx, spawnImpact, spawnMuzzleFlash, spawnTracer, syncEntityMesh, updateCamera,
@@ -460,7 +460,10 @@ function drainSimEvents(): void {
       flashHitPip(rc, dmg.target)
     } else if (k === 'death') {
       const death = ev as any
-      if (!seen(death.x, death.z)) continue
+      // You always see your OWN losses — the fog only hides the enemy's. Gating this on
+      // sight meant a unit killed while its cell was no longer refilled by its own vision
+      // left no corpse, so a fight read as if nobody ever died.
+      if (death.team !== observer && !seen(death.x, death.z)) continue
       spawnDeathFx(rc, death.x, death.z, death.entity, death.team)
     } else if (k === 'deposit') {
       const dep = ev as any
@@ -669,6 +672,14 @@ if (import.meta.hot) {
       commandAttack(gs, ids, targetId)
       return (gs.entities.get(targetId) ? 'ok' : 'no-target')
     },
+    /** QA only: kills an entity outright through the real flow (death event → FX). */
+    slay: (id: number) => {
+      const e = gs.entities.get(id)
+      if (!e || e.dead) return 'no'
+      e.hp = 0
+      e.dead = true
+      return 'ok'
+    },
     /** Formation move for an explicit id list (wedge/box/line). */
     moveFormation: (ids: number[], x: number, z: number, formation: Formation = 'wedge') => {
       return commandMoveFormation(gs, ids, { x, z }, formation)
@@ -690,6 +701,12 @@ if (import.meta.hot) {
     /** Lift the fog for a team (QA only). */
     reveal: (team: Team = 'player') => {
       revealAll(gs, team)
+      paintFog(rc, observerTeam() ? gs.vision[observerTeam()!] : null)
+      return 'ok'
+    },
+    /** Restore a team's fog (QA only): inverse of `reveal`, wipes vision back to unexplored. */
+    hide: (team: Team = 'player') => {
+      clearVision(gs, team)
       paintFog(rc, observerTeam() ? gs.vision[observerTeam()!] : null)
       return 'ok'
     },

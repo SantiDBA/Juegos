@@ -12,6 +12,16 @@ export type Formation = 'line' | 'box' | 'wedge' | 'ranks'
 /** World-space gap between two units in a formation slot. */
 export const FORMATION_SPACING = 2.67
 
+const VEHICLE_UNITS = new Set<UnitType>(['blindado', 'cazacarros', 'canon', 'mlrs', 'tanque', 'tanque_autonomo'])
+
+/** Footprint radius per unit type: drives separation and formation spacing. */
+export function unitRadius(utype: UnitType): number {
+  if (utype === 'ingeniero') return 0.8
+  if (utype === 'dron') return 0.9
+  if (VEHICLE_UNITS.has(utype)) return 1.45
+  return 1.0
+}
+
 export interface PlayerState {
   team: Team
   resources: Resources
@@ -329,7 +339,7 @@ function playerUnits(gs: GameState, ids: number[]): UnitEntity[] {
  * Slot layout around `target`, facing the direction the group is coming from.
  * `from` is the group centroid so the frontage axis is perpendicular to travel.
  */
-export function formationSlots(count: number, formation: Formation, from: Vec2, target: Vec2): Vec2[] {
+export function formationSlots(count: number, formation: Formation, from: Vec2, target: Vec2, spacing = FORMATION_SPACING): Vec2[] {
   let dx = target.x - from.x
   let dz = target.z - from.z
   const len = Math.hypot(dx, dz)
@@ -338,9 +348,9 @@ export function formationSlots(count: number, formation: Formation, from: Vec2, 
   const slots: Vec2[] = []
 
   if (formation === 'line') {
-    const span = (count - 1) * FORMATION_SPACING
+    const span = (count - 1) * spacing
     for (let i = 0; i < count; i++) {
-      const off = i * FORMATION_SPACING - span / 2
+      const off = i * spacing - span / 2
       slots.push({ x: target.x + px * off, z: target.z + pz * off })
     }
   } else if (formation === 'box') {
@@ -349,8 +359,8 @@ export function formationSlots(count: number, formation: Formation, from: Vec2, 
     for (let i = 0; i < count; i++) {
       const col = i % cols
       const row = Math.floor(i / cols)
-      const along = (col - (cols - 1) / 2) * FORMATION_SPACING
-      const depth = (row - (rows - 1) / 2) * FORMATION_SPACING
+      const along = (col - (cols - 1) / 2) * spacing
+      const depth = (row - (rows - 1) / 2) * spacing
       slots.push({ x: target.x + px * along + dx * depth, z: target.z + pz * along + dz * depth })
     }
   } else if (formation === 'ranks') {
@@ -361,8 +371,8 @@ export function formationSlots(count: number, formation: Formation, from: Vec2, 
     for (let i = 0; i < count; i++) {
       const row = Math.floor(i / cols)
       const col = i % cols
-      const along = (col - (cols - 1) / 2) * FORMATION_SPACING
-      const depth = ((rows - 1) / 2 - row) * FORMATION_SPACING
+      const along = (col - (cols - 1) / 2) * spacing
+      const depth = ((rows - 1) / 2 - row) * spacing
       slots.push({ x: target.x + px * along + dx * depth, z: target.z + pz * along + dz * depth })
     }
   } else {
@@ -371,8 +381,8 @@ export function formationSlots(count: number, formation: Formation, from: Vec2, 
     for (let i = 1; i < count; i++) {
       const side = i % 2 === 1 ? 1 : -1
       const rank = Math.ceil(i / 2)
-      const along = side * rank * FORMATION_SPACING * 0.82
-      const depth = -rank * FORMATION_SPACING * 0.82
+      const along = side * rank * spacing * 0.82
+      const depth = -rank * spacing * 0.82
       slots.push({ x: target.x + px * along + dx * depth, z: target.z + pz * along + dz * depth })
     }
   }
@@ -391,6 +401,17 @@ function unitRank(u: any): number {
   if (role === 'vehicle') return 1
   if (role === 'ranged') return 2
   return 3 // economy / support
+}
+
+/**
+ * Slot gap for a group: must clear the widest unit's footprint, or rows overlap and
+ * the block reads as a single mass. Vehicles are ~2.9 u across, so a fixed spacing
+ * let them interpenetrate and the separation pass dissolved the grid.
+ */
+function formationSpacingFor(units: UnitEntity[]): number {
+  let maxR = 0
+  for (const u of units) maxR = Math.max(maxR, unitRadius(u.utype))
+  return Math.max(FORMATION_SPACING, maxR * 2 + 1.1)
 }
 
 export function commandMoveFormation(
@@ -420,7 +441,7 @@ export function commandMoveFormation(
   const order = units
     .map((u, i) => ({ i, rank: unitRank(u), p: frontage(u.x, u.z) }))
     .sort((a, b) => (a.rank - b.rank) || (a.p - b.p))
-  const slots = formationSlots(units.length, formation, { x: cx, z: cz }, target)
+  const slots = formationSlots(units.length, formation, { x: cx, z: cz }, target, formationSpacingFor(units))
     .map((s, i) => ({ s, i, d: depthOf(s.x, s.z) }))
     .sort((a, b) => (b.d - a.d) || (a.i - b.i))
 
