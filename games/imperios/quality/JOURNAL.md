@@ -3275,6 +3275,36 @@ puntaje comparable para c63.
 
 ---
 
+# Ciclo 64 · falda/borde de terreno (mapa sin disco flotante) · 2026-11-19
+
+Brecha de c58/c59/c63 (dim 6/9): el mapa se leía como un disco/terreno recortado flotando
+sobre el fondo.
+
+## Qué se cambió (`scene.ts`, `createRender`)
+- Se agregó una **falda de terreno** (skirt) en los 4 bordes del mapa: mallas que siguen la
+  altura del terreno en el borde y descienden hacia abajo (`skirtDepth` 26, `skirtSeg` 96),
+  material terroso opaco (`0x5b4a32`, `fog: false`, `DoubleSide`, `renderOrder -1`) para
+  ocultar el corte duro y dar continuidad fuera del área jugable.
+
+## Captura — shots/ciclo-64-borde-terreno
+14 frames + 6 recortes (`capture.mjs`). 04-combate: `lenMax=8.1`, `wreck=10`, `puff=118`;
+08-asedio: `wreck=44`, `puff=162`.
+
+## Juez ciego
+**No ejecutado.** `cmd -p -m tencent/hy4` devolvió "weekly usage limit" (sin cuota). Sin
+puntaje comparable para c64.
+
+## Próximo ciclo (cuando haya juez disponible)
+1. Juzgar c59–c64 con **modelo fijado** (serie comparable) y medir efecto de taper, polvo,
+   facing y falda en dims 2/4/6/9/10.
+2. Si 06c-formacion sigue leyendo como nube, reforzar anti-interpenetración/filas y visibilidad
+   del facing en los modelos.
+3. Si el taper no lee como estela, añadir caída de alpha hacia el objetivo; mejorar legibilidad
+   de bajas/cadáveres si el juez no los distingue.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).

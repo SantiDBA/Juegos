@@ -826,6 +826,46 @@ export function createRender(canvas: HTMLCanvasElement): RenderContext {
   scene.add(fogOverlay)
   paintFogPixels(fogImage, null)
 
+  // Terrain skirt: hides the hard edge so the map doesn't read as a disc floating in space.
+  const skirtDepth = 26
+  const skirtMat = new THREE.MeshStandardMaterial({ color: 0x5b4a32, roughness: 0.98, metalness: 0.0, fog: false, side: THREE.DoubleSide })
+  const skirtSeg = 96
+  const half = MAP_SIZE / 2
+  const addSkirtEdge = (axis: 'x' | 'z', sign: 1 | -1) => {
+    const geo = axis === 'x'
+      ? new THREE.PlaneGeometry(MAP_SIZE, skirtDepth, skirtSeg, 1)
+      : new THREE.PlaneGeometry(skirtDepth, MAP_SIZE, 1, skirtSeg)
+    const posAttr = geo.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < posAttr.count; i++) {
+      const lx = posAttr.getX(i)
+      const ly = posAttr.getY(i)
+      if (axis === 'x') {
+        const isTop = ly > 0
+        const edgeCoord = sign * half
+        const worldX = lx
+        const worldZ = isTop ? edgeCoord : edgeCoord + sign * skirtDepth
+        const h = isTop ? terrainHeight(worldX, edgeCoord) : terrainHeight(worldX, edgeCoord) - skirtDepth * 0.85
+        posAttr.setXYZ(i, worldX, h, worldZ)
+      } else {
+        const isRight = lx > 0
+        const edgeCoord = sign * half
+        const worldX = isRight ? edgeCoord : edgeCoord + sign * skirtDepth
+        const worldZ = ly
+        const h = isRight ? terrainHeight(edgeCoord, worldZ) : terrainHeight(edgeCoord, worldZ) - skirtDepth * 0.85
+        posAttr.setXYZ(i, worldX, h, worldZ)
+      }
+    }
+    geo.computeVertexNormals()
+    const mesh = new THREE.Mesh(geo, skirtMat)
+    mesh.receiveShadow = true
+    mesh.renderOrder = -1
+    scene.add(mesh)
+  }
+  addSkirtEdge('z', -1) // north
+  addSkirtEdge('z', 1)  // south
+  addSkirtEdge('x', -1) // west
+  addSkirtEdge('x', 1)  // east
+
   addDensityProps(scene)
 
   // --- VFX assets (shared geometries, per-mesh materials for fading) ------
