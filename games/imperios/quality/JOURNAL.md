@@ -3130,6 +3130,40 @@ Dims: 1=6 · 2=5 · 3=7 · 4=5 · 5=7 · 6=6 · 7=6 · 8=8 · 9=5 · 10=6. Salid
 
 ---
 
+# Ciclo 59 · tracer fino y fogonazos chicos · 2026-11-19
+
+Brecha 1/2 del juez c58: las trazadoras se leen como barras pálidas y el estallido blanco
+tapa el choque.
+
+## Qué se cambió (`scene.ts`)
+- Tracer: riel oscuro 0.78 → 0.30; núcleo 0.42 → 0.15; **se eliminó la vaina glow**
+  (0.44, 0xfff4c8) que lavaba la línea en un bloque pálido.
+- Fogonazos: muzzle 1.3 → 0.6 (y 1.5 → 0.8 en `spawnMuzzleFlash`); flash de impacto
+  1.5 → 0.9.
+
+## Juez ciego (headless) — shots/ciclo-59-tracer
+Promedio **5.30** · mín 4.0 · 8 dims < 7 · **NO** (c58: 6.10).
+Dims: 1=6 · 2=4 · 3=7 · 4=5 · 5=6 · 6=5 · 7=5 · 8=7 · 9=4 · 10=4. Salida: `judge.md`.
+
+## Lectura
+- **Inconcluso**: cayeron dimensiones **no relacionadas** con el cambio (5,6,7,8,9) →
+  **varianza del juez** (modelo sin fijar). El propio juez anota "lecturas inconsistentes
+  entre tomas / posible sobreinterpretación".
+- Lo que sí es estable: las trazadoras **siguen leyéndose como "polígonos blancos
+  estirados"**, no como estelas. Un cilindro fino pálido sobre tierra tostada no lee como
+  bala: falta **caída/taper** (el cilindro no se afina) y contraste propio.
+- El estallido blanco bajó de tamaño (bien) pero sigue siendo el elemento más brillante.
+
+## Próximo ciclo
+1. **Tracer con taper**: geometría cónica o quad con caída de alfa (brillante adelante, se
+   apaga atrás) + riel oscuro fino.
+2. **FIJAR EL MODELO DEL JUEZ** (`judge.sh <fase> <modelo>`): sin eso, cada Δ es ruido y el
+   loop no puede medir progreso.
+3. Impactos con humo/polvo persistente en vez de un destello reciclado.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).
