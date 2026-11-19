@@ -2638,14 +2638,14 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   const muzzle = acquireFx(rc, 'flash')
   if (muzzle) {
     muzzle.position.copy(from)
-    muzzle.scale.setScalar(1.3)
+    muzzle.scale.setScalar(0.6)
     const mm = muzzle.material as THREE.MeshBasicMaterial
     mm.color.setHex(color)
     mm.opacity = 1.0
     rc.fxItems.push({
       kind: 'flash', mesh: muzzle, t: 0, life: 0.34,
       pos: muzzle.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.3, s1: 2.0, o0: 1.0, hold: 0.12,
+      s0: 0.6, s1: 0.95, o0: 1.0, hold: 0.12,
     })
   }
   // Dark backing rail, drawn UNDER the bright core (renderOrder): a warm streak over
@@ -2655,7 +2655,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
   if (back) {
     back.position.lerpVectors(from, to, 0.5)
     back.lookAt(to)
-    const thick = 0.78
+    const thick = 0.30
     back.scale.set(thick, thick, dist)
     back.renderOrder = 150
     const bm = back.material as THREE.MeshBasicMaterial
@@ -2673,7 +2673,7 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
     mesh.renderOrder = 151
     mesh.position.lerpVectors(from, to, 0.5)
     mesh.lookAt(to) // geometry runs along +Z, so this aims the streak
-    const thick = 0.42
+    const thick = 0.15
     mesh.scale.set(thick, thick, dist)
     const m = mesh.material as THREE.MeshBasicMaterial
     m.color.setHex(color)
@@ -2682,23 +2682,6 @@ export function spawnTracer(rc: RenderContext, from: THREE.Vector3, to: THREE.Ve
       kind: 'beam', mesh, t: 0, life: 2.0,
       pos: mesh.position.clone(), vel: new THREE.Vector3(),
       s0: thick, s1: thick, o0: 0.9, hold: 1.1,
-    })
-  }
-  // Glow sheath for extra readability at game zoom
-  const glow = acquireFx(rc, 'beam')
-  if (glow) {
-    glow.position.lerpVectors(from, to, 0.5)
-    glow.lookAt(to)
-    glow.renderOrder = 152
-    const thick = 0.44
-    glow.scale.set(thick, thick, dist)
-    const gm = glow.material as THREE.MeshBasicMaterial
-    gm.color.setHex(0xfff4c8)
-    gm.opacity = 0.55
-    rc.fxItems.push({
-      kind: 'beam', mesh: glow, t: 0, life: 2.0,
-      pos: glow.position.clone(), vel: new THREE.Vector3(),
-      s0: thick, s1: thick, o0: 0.32, hold: 1.1,
     })
   }
 }
@@ -2712,14 +2695,14 @@ export function spawnMuzzleFlash(rc: RenderContext, x: number, y: number, z: num
   if (!mesh) return
   mesh.position.set(x, y, z)
   mesh.quaternion.copy(rc.camera.quaternion) // billboard, no per-frame lookAt
-  mesh.scale.setScalar(1.5)
+  mesh.scale.setScalar(0.8)
   const m = mesh.material as THREE.MeshBasicMaterial
   m.color.setHex(0xfff3cf)
   m.opacity = 1.0
   rc.fxItems.push({
     kind: 'muzzle', mesh, t: 0, life: 0.4,
     pos: mesh.position.clone(), vel: new THREE.Vector3(),
-    s0: 1.5, s1: 2.6, o0: 1.0, hold: 0.14,
+    s0: 0.8, s1: 1.3, o0: 1.0, hold: 0.14,
   })
 }
 
@@ -2736,14 +2719,14 @@ export function spawnImpact(rc: RenderContext, x: number, y: number, z: number):
   const core = acquireFx(rc, 'flash')
   if (core) {
     core.position.set(x, y, z)
-    core.scale.setScalar(1.5)
+    core.scale.setScalar(0.9)
     const cm = core.material as THREE.MeshBasicMaterial
     cm.color.setHex(0xfff0c0)
     cm.opacity = 1.0
     rc.fxItems.push({
       kind: 'flash', mesh: core, t: 0, life: 0.75,
       pos: core.position.clone(), vel: new THREE.Vector3(),
-      s0: 1.5, s1: 2.3, o0: 1.0, hold: 0.3,
+      s0: 0.9, s1: 1.4, o0: 1.0, hold: 0.3,
     })
   }
 
