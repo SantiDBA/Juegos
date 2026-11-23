@@ -3339,13 +3339,13 @@ Brecha arrastrada de c65 (dim 2/10): las bajas no se leían con claridad en capt
 04-combate `wreck=10, decal=201, puff=133, beam=62`; 08-asedio `wreck=40, decal=229, puff=193, beam=114`.
 
 ## Juez ciego
-**No ejecutado.** `cmd -p --skip-onboarding --trust -m tencent/hy4` devolvió "weekly usage limit"
-(sin cuota). Sin puntaje comparable para c66.
+- **Intento 1 (`tencent/hy4`, modelo fijado histórico):** no ejecutado, `weekly usage limit` (sin cuota).
+- **Intento 2 (`stealth/glyph-cluster:free`, headless):** `judge.md` generado, pero **inválido**. El modelo reportó "Inspección visual bloqueada / herramienta de visión no pudo acceder..." y puntuó por techo de no observabilidad (promedio 3.90, mínima 3.0, dims < 7: 10, `SORPRENDIDO: NO`). **No es veredicto comparable**: no hubo evidencia visual real.
 
-## Próximo ciclo (cuando haya juez disponible)
-1. Juzgar c59–c66 con **modelo fijado** (`tencent/hy4`) y medir efecto en dims 2/10, sin mezclar modelos.
-2. Si bajas siguen poco legibles, reforzar contraste/tamaño de manchas y separar siluetas de cadáver del terreno.
-3. Mantener pendientes de c65: facing/filas en formaciones y legibilidad de impactos si el juez lo pide.
+## Próximo ciclo (cuando haya juez válido)
+1. Reejecutar juez ciego de c66 con un modelo que sí pueda inspeccionar imágenes en `cmd -p` headless; idealmente mantener `tencent/hy4` para comparabilidad, o registrar explícitamente el cambio de modelo.
+2. Si el juez válido confirma mejora en bajas (dims 2/10), continuar con pendientes c65: facing/filas en formaciones y legibilidad de impactos.
+3. Si bajas siguen poco legibles, reforzar contraste/tamaño de manchas y separar siluetas de cadáver del terreno.
 
 
 ---
