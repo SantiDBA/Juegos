@@ -3325,6 +3325,31 @@ desvanecer la estela hacia el objetivo.
 
 ---
 
+# Ciclo 66 · legibilidad de bajas/cadáveres · 2026-11-23
+
+Brecha arrastrada de c65 (dim 2/10): las bajas no se leían con claridad en capturas fijas.
+
+## Qué se cambió (`scene.ts`, `spawnDeathFx`)
+- Unidades muertas ahora emiten **4 puffs de humo** (antes 0) con `life` 2.6, `hold` 0.35 y `o0` 0.72.
+- Se añadió **mancha de suelo oscura** persistente por baja (`decal`, `rad` ~1.6-2.3, `life` WRECK_LIFE, `hold` WRECK_HOLD).
+- Los wrecks de unidad usan tintes de equipo más legibles (azul/rojo) mezclados con oscuro para silueta de cadáver, manteniendo persistencia.
+
+## Captura — shots/ciclo-66-cadaveres
+14 frames + 6 recortes (`capture.mjs`, http://127.0.0.1:5173/games/imperios/). Diagnóstico:
+04-combate `wreck=10, decal=201, puff=133, beam=62`; 08-asedio `wreck=40, decal=229, puff=193, beam=114`.
+
+## Juez ciego
+**No ejecutado.** `cmd -p --skip-onboarding --trust -m tencent/hy4` devolvió "weekly usage limit"
+(sin cuota). Sin puntaje comparable para c66.
+
+## Próximo ciclo (cuando haya juez disponible)
+1. Juzgar c59–c66 con **modelo fijado** (`tencent/hy4`) y medir efecto en dims 2/10, sin mezclar modelos.
+2. Si bajas siguen poco legibles, reforzar contraste/tamaño de manchas y separar siluetas de cadáver del terreno.
+3. Mantener pendientes de c65: facing/filas en formaciones y legibilidad de impactos si el juez lo pide.
+
+
+---
+
 ## Cómo se agrega una fila
 
 1. Crear `quality/shots/<NN-feature>/` con las 7 capturas (`capture.mjs`).

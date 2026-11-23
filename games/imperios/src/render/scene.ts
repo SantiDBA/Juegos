@@ -2848,7 +2848,7 @@ export function spawnDeathFx(
 ): void {
   const y = groundHeightAt(x, z)
   // smoke first: this is the part that reads instantly as "something died"
-  const puffs = entity === 'building' ? 14 : 0
+  const puffs = entity === 'building' ? 14 : 4
   for (let i = 0; i < puffs; i++) {
     const mesh = acquireFx(rc, 'puff')
     if (!mesh) break
@@ -2860,12 +2860,12 @@ export function spawnDeathFx(
     mesh.scale.setScalar(0.46 * scale)
     const m = mesh.material as THREE.MeshBasicMaterial
     m.color.setHex(i % 2 === 0 ? 0x1e1e1e : 0x3a3530)
-    m.opacity = 0.86
+    m.opacity = entity === 'building' ? 0.86 : 0.72
     rc.fxItems.push({
-      kind: 'puff', mesh, t: 0, life: entity === 'building' ? 6.0 : 1.4,
+      kind: 'puff', mesh, t: 0, life: entity === 'building' ? 6.0 : 2.6,
       pos: mesh.position.clone(),
       vel: new THREE.Vector3(Math.cos(ang) * 1.2, 2.2 + (i % 3) * 0.55, Math.sin(ang) * 1.2),
-      s0: 0.46 * scale, s1: 1.55 * scale, o0: 0.86,
+      s0: 0.46 * scale, s1: 1.55 * scale, o0: entity === 'building' ? 0.86 : 0.72, hold: entity === 'building' ? undefined : 0.35,
     })
   }
 
@@ -2923,7 +2923,24 @@ export function spawnDeathFx(
       })
     }
   } else {
-    // larger, more contrasted wreck silhouette (persistent)
+    // Ground stain: dark mark that makes the casualty location readable in stills.
+    if (rc.fxLive.decal >= FX_LIVE_CAP.decal) evictOldest(rc, 'decal')
+    const stain = acquireFx(rc, 'decal')
+    if (stain) {
+      const rad = 1.6 + seed * 0.7
+      stain.position.set(x, groundHeightAt(x, z) + 0.069, z)
+      stain.scale.set(rad, 1, rad)
+      const m = stain.material as THREE.MeshBasicMaterial
+      m.color.setHex(0x120d0a)
+      m.opacity = 0.95
+      rc.fxItems.push({
+        kind: 'decal', mesh: stain, t: 0, life: WRECK_LIFE,
+        pos: stain.position.clone(), vel: new THREE.Vector3(),
+        s0: 1, s1: 1, o0: 0.95, hold: WRECK_HOLD,
+      })
+    }
+
+    // Team-tinted body marker: clearer casualty silhouette for dim 2/10.
     if (rc.fxLive.wreck >= FX_LIVE_CAP.wreck) evictOldest(rc, 'wreck')
     const mesh = acquireFx(rc, 'wreck')
     if (mesh) {
@@ -2931,8 +2948,8 @@ export function spawnDeathFx(
       mesh.rotation.set(0.26, seed * Math.PI * 2, 0.18)
       mesh.scale.set(4.8, 1.1, 6.4)
       const m = mesh.material as THREE.MeshBasicMaterial
-      const base = new THREE.Color(team === 'enemy' ? 0x9a2020 : 0x2f55c0).multiplyScalar(0.9)
-      m.color.setHex(base.lerp(new THREE.Color(0x0b0907), 0.38).getHex())
+      const base = new THREE.Color(team === 'enemy' ? 0xc13a2c : 0x3e78ff).multiplyScalar(0.95)
+      m.color.setHex(base.lerp(new THREE.Color(0x14100c), 0.28).getHex())
       m.opacity = 1
       rc.fxItems.push({
         kind: 'wreck', mesh, t: 0, life: WRECK_LIFE,
@@ -2948,8 +2965,8 @@ export function spawnDeathFx(
       mesh2.rotation.set(0.1, seed * Math.PI * 2 + Math.PI / 2, 0.3)
       mesh2.scale.set(3.8, 0.9, 4.9)
       const m2 = mesh2.material as THREE.MeshBasicMaterial
-      const base2 = new THREE.Color(team === 'enemy' ? 0x741515 : 0x2344a0).multiplyScalar(0.82)
-      m2.color.setHex(base2.lerp(new THREE.Color(0x090807), 0.44).getHex())
+      const base2 = new THREE.Color(team === 'enemy' ? 0x9a2e23 : 0x2f62d8).multiplyScalar(0.9)
+      m2.color.setHex(base2.lerp(new THREE.Color(0x120d09), 0.32).getHex())
       m2.opacity = 1
       rc.fxItems.push({
         kind: 'wreck', mesh: mesh2, t: 0, life: WRECK_LIFE,
