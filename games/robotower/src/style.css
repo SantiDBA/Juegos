@@ -317,6 +317,34 @@ html, body {
 .chip-coil { color: var(--coil); }
 .chip-mortar { color: var(--mortar); }
 
+.map-select-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.map-select { display: flex; justify-content: center; gap: 8px; margin: 0 0 20px; }
+.map-select button {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(10, 18, 27, 0.9);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.map-select button:hover { background: rgba(25, 45, 62, 0.95); }
+.map-select button[aria-pressed='true'] {
+  border-color: var(--line-hot);
+  background: rgba(25, 58, 79, 0.98);
+  color: var(--cyan-soft);
+}
+
 .panel button {
   position: relative;
   padding: 12px 30px;

@@ -13,6 +13,7 @@ const GRID_H = 9
 const CELL = 2.4
 const MAX_WAVES = 12
 const BEST_KEY = 'robotower.bestWave'
+const bestKey = (mapId: string): string => mapId === 'ferric' ? BEST_KEY : `${BEST_KEY}.${mapId}`
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0
@@ -86,12 +87,36 @@ const LOW_POWER =
   window.matchMedia('(max-width: 820px), (pointer: coarse)').matches ||
   (navigator.hardwareConcurrency ?? 8) <= 4
 
-const PATH: Array<[number, number]> = [
+interface MapDef {
+  id: string
+  name: string
+  path: Array<[number, number]>
+}
+
+const FERRIC_PATH: Array<[number, number]> = [
   [0, 6], [1, 6], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [11, 6],
   [11, 5], [11, 4], [11, 3], [11, 2],
   [10, 2], [9, 2], [8, 2], [7, 2], [6, 2], [5, 2], [4, 2], [3, 2], [2, 2], [1, 2], [0, 2],
   [0, 3], [0, 4],
 ]
+
+const FOUNDRY_PATH: Array<[number, number]> = [
+  [11, 0], [10, 0], [9, 0], [8, 0], [7, 0], [6, 0], [5, 0], [4, 0], [3, 0], [2, 0], [1, 0], [0, 0],
+  [0, 1], [0, 2],
+  [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2],
+  [11, 3], [11, 4],
+  [10, 4], [9, 4], [8, 4], [7, 4], [6, 4], [5, 4], [4, 4], [3, 4], [2, 4], [1, 4], [0, 4],
+  [0, 5], [0, 6], [0, 7],
+  [1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7], [7, 7],
+]
+
+const MAPS: MapDef[] = [
+  { id: 'ferric', name: 'Ferric Lands', path: FERRIC_PATH },
+  { id: 'foundry', name: 'Fundición', path: FOUNDRY_PATH },
+]
+
+let activeMapId = MAPS[0].id
+let PATH = MAPS[0].path
 
 type TowerType = 'blaster' | 'coil' | 'mortar'
 
@@ -112,14 +137,16 @@ const TOWER_DEFS: Record<TowerType, TowerDef> = {
 }
 
 const key = (c: number, r: number): string => `${c},${r}`
-const PATH_KEYS = new Set(PATH.map(([c, r]) => key(c, r)))
-const spawnCell = PATH[0]
-const coreCell = PATH[PATH.length - 1]
+let PATH_KEYS = new Set(PATH.map(([c, r]) => key(c, r)))
+let spawnCell = PATH[0]
+let coreCell = PATH[PATH.length - 1]
 
 function cellWorld(c: number, r: number): THREE.Vector3 {
   return new THREE.Vector3((c - (GRID_W - 1) / 2) * CELL, 0, (r - (GRID_H - 1) / 2) * CELL)
 }
-const PATH_WORLD = PATH.map(([c, r]) => cellWorld(c, r))
+let PATH_WORLD = PATH.map(([c, r]) => cellWorld(c, r))
+
+const MAX_PATH = 48
 
 // Geometrías compartidas: cero assets externos y ninguna dependencia nueva.
 const BOX = new THREE.BoxGeometry(1, 1, 1)
@@ -409,25 +436,38 @@ board.add(rockInstances)
 
 const pathMat = mat(0x2a1d16, 0.72, 0.58)
 const pathGlow = emissive(0x8a3b12, 0xb45309, 0.65)
-const pathTiles = new THREE.InstancedMesh(BOX, pathMat, PATH.length)
-const pathStrips = new THREE.InstancedMesh(BOX, pathGlow, PATH.length)
-PATH.forEach(([c, r], i) => {
-  const center = cellWorld(c, r)
-  instDummy.rotation.set(0, 0, 0)
-  instDummy.position.set(center.x, 0.01, center.z)
-  instDummy.scale.set(CELL * 0.94, 0.1, CELL * 0.94)
-  instDummy.updateMatrix()
-  pathTiles.setMatrixAt(i, instDummy.matrix)
+const pathTiles = new THREE.InstancedMesh(BOX, pathMat, MAX_PATH)
+const pathStrips = new THREE.InstancedMesh(BOX, pathGlow, MAX_PATH)
 
-  instDummy.position.set(center.x, 0.075, center.z)
-  instDummy.scale.set(0.5, 0.025, 0.5)
-  instDummy.updateMatrix()
-  pathStrips.setMatrixAt(i, instDummy.matrix)
-})
+function refreshPathInstances(): void {
+  for (let i = 0; i < MAX_PATH; i++) {
+    if (i < PATH.length) {
+      const [c, r] = PATH[i]
+      const center = cellWorld(c, r)
+      instDummy.rotation.set(0, 0, 0)
+      instDummy.position.set(center.x, 0.01, center.z)
+      instDummy.scale.set(CELL * 0.94, 0.1, CELL * 0.94)
+      instDummy.updateMatrix()
+      pathTiles.setMatrixAt(i, instDummy.matrix)
+      instDummy.position.set(center.x, 0.075, center.z)
+      instDummy.scale.set(0.5, 0.025, 0.5)
+      instDummy.updateMatrix()
+      pathStrips.setMatrixAt(i, instDummy.matrix)
+    } else {
+      instDummy.rotation.set(0, 0, 0)
+      instDummy.position.set(0, -100, 0)
+      instDummy.scale.setScalar(0.001)
+      instDummy.updateMatrix()
+      pathTiles.setMatrixAt(i, instDummy.matrix)
+      pathStrips.setMatrixAt(i, instDummy.matrix)
+    }
+  }
+  pathTiles.instanceMatrix.needsUpdate = true
+  pathStrips.instanceMatrix.needsUpdate = true
+}
+refreshPathInstances()
 pathTiles.castShadow = false
 pathTiles.receiveShadow = true
-pathTiles.instanceMatrix.needsUpdate = true
-pathStrips.instanceMatrix.needsUpdate = true
 board.add(pathTiles, pathStrips)
 
 const spawnGroup = new THREE.Group()
@@ -498,6 +538,24 @@ droneArms.scale.set(0.78, 0.06, 0.78)
 drone.add(droneBody, droneEye, droneArms, ...droneRotors)
 shaded(drone)
 board.add(drone)
+
+function applyMap(id: string): void {
+  const def = MAPS.find(m => m.id === id)
+  if (!def) return
+  activeMapId = def.id
+  PATH = def.path
+  PATH_KEYS = new Set(PATH.map(([c, r]) => key(c, r)))
+  spawnCell = PATH[0]
+  coreCell = PATH[PATH.length - 1]
+  PATH_WORLD = PATH.map(([c, r]) => cellWorld(c, r))
+  refreshPathInstances()
+  spawnGroup.position.copy(cellWorld(spawnCell[0], spawnCell[1]))
+  coreGroup.position.copy(cellWorld(coreCell[0], coreCell[1]))
+  drone.position.copy(cellWorld(coreCell[0], coreCell[1])).add(new THREE.Vector3(1.6, 2.6, 0.8))
+  best = readBest()
+  refreshMapButtons()
+  refreshHud()
+}
 
 const ghost = new THREE.Group()
 const ghostBase = new THREE.Mesh(CYL, basic(0x4ade80, 0.38, true))
@@ -1035,6 +1093,13 @@ const sellBtn = document.getElementById('sell-btn') as HTMLButtonElement
 const telegraphEl = document.getElementById('telegraph') as HTMLElement
 const telegraphWaveEl = document.getElementById('telegraph-wave') as HTMLElement
 const telegraphUnitsEl = document.getElementById('telegraph-units') as HTMLElement
+const mapButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.map-select button'))
+
+function refreshMapButtons(): void {
+  for (const btn of mapButtons) {
+    btn.setAttribute('aria-pressed', String(btn.dataset.map === activeMapId))
+  }
+}
 
 // --- Estado
 
@@ -1058,14 +1123,14 @@ const enemies: Enemy[] = []
 const projectiles: Projectile[] = []
 
 function readBest(): number | null {
-  const raw = localStorage.getItem(BEST_KEY)
+  const raw = localStorage.getItem(bestKey(activeMapId))
   if (raw === null) return null
   const n = Number.parseInt(raw, 10)
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
 function saveBest(n: number): void {
-  localStorage.setItem(BEST_KEY, String(n))
+  localStorage.setItem(bestKey(activeMapId), String(n))
 }
 
 function toast(msg: string): void {
@@ -1594,6 +1659,11 @@ upgradeBtn.addEventListener('click', () => {
 sellBtn.addEventListener('click', () => {
   if (inspected) sellTower(inspected)
 })
+
+for (const btn of mapButtons) {
+  btn.addEventListener('click', () => applyMap(btn.dataset.map!))
+}
+refreshMapButtons()
 
 playBtn.addEventListener('click', startGame)
 restartBtn.addEventListener('click', startGame)
