@@ -26,9 +26,12 @@ function mulberry32(seed: number): () => number {
 }
 const rng = mulberry32(0x52544254)
 
+type EnemyKind = 'grunt' | 'swarm' | 'armored' | 'shielded' | 'splitter' | 'boss'
+
 interface WaveDef {
+  segments: Array<[EnemyKind, number]>
+  queue: EnemyKind[]
   count: number
-  bossLast: boolean
   normalHp: number
   bossHp: number
   normalSpeed: number
@@ -36,11 +39,31 @@ interface WaveDef {
   normalReward: number
   bossReward: number
 }
+
+const WAVE_PATTERNS: Array<Array<[EnemyKind, number]>> = [
+  [['grunt', 7]],
+  [['grunt', 6], ['swarm', 3]],
+  [['grunt', 4], ['swarm', 4], ['armored', 3]],
+  [['swarm', 5], ['armored', 4], ['shielded', 4]],
+  [['grunt', 4], ['armored', 4], ['shielded', 4], ['splitter', 2]],
+  [['swarm', 6], ['armored', 5], ['splitter', 3], ['shielded', 3]],
+  [['grunt', 5], ['swarm', 6], ['armored', 5], ['shielded', 3]],
+  [['swarm', 7], ['armored', 5], ['splitter', 4], ['shielded', 5]],
+  [['grunt', 6], ['armored', 6], ['shielded', 5], ['splitter', 6]],
+  [['swarm', 8], ['armored', 6], ['shielded', 5], ['splitter', 5]],
+  [['grunt', 6], ['swarm', 7], ['armored', 7], ['shielded', 3], ['splitter', 4]],
+  [['swarm', 9], ['armored', 8], ['shielded', 6], ['splitter', 6]],
+]
+
 const WAVES: WaveDef[] = Array.from({ length: MAX_WAVES }, (_, i) => {
   const wave = i + 1
+  const segments = WAVE_PATTERNS[i]
+  const queue = segments.flatMap(([kind, n]) => Array<EnemyKind>(n).fill(kind))
+  if (wave % 5 === 0) queue.push('boss')
   return {
-    count: 5 + wave * 2,
-    bossLast: wave % 5 === 0,
+    segments,
+    queue,
+    count: queue.length,
     normalHp: 16 + wave * 7,
     bossHp: 130 + wave * 18,
     normalSpeed: 1.65 + wave * 0.045,
@@ -49,6 +72,15 @@ const WAVES: WaveDef[] = Array.from({ length: MAX_WAVES }, (_, i) => {
     bossReward: 45,
   }
 })
+
+const ENEMY_NAMES: Record<EnemyKind, string> = {
+  grunt: 'bot', swarm: 'enjambre', armored: 'blindado',
+  shielded: 'escudo', splitter: 'divisor', boss: 'jefe',
+}
+const ENEMY_COLORS: Record<EnemyKind, number> = {
+  grunt: 0xf87171, swarm: 0xfde047, armored: 0x94a3b8,
+  shielded: 0x67e8f9, splitter: 0x86efac, boss: 0xc084fc,
+}
 
 const LOW_POWER =
   window.matchMedia('(max-width: 820px), (pointer: coarse)').matches ||
@@ -493,8 +525,11 @@ interface Tower {
 }
 
 interface Enemy {
+  kind: EnemyKind
   hp: number
   maxHp: number
+  shield: number
+  scale: number
   speed: number
   reward: number
   boss: boolean
@@ -518,6 +553,7 @@ interface Projectile {
   speed: number
   damage: number
   splash: number
+  source: TowerType
 }
 
 interface Effect {
@@ -632,7 +668,7 @@ function hideSlot(mesh: THREE.InstancedMesh, slot: number): void {
 }
 
 function writeEnemy(e: Enemy): void {
-  const scale = e.boss ? 1.5 : 1
+  const scale = e.scale
   const bodyMesh = e.boss ? bossBodies : normalBodies
   instScratch.position.copy(e.pos)
   instScratch.rotation.set(0, e.turn, 0)
@@ -996,6 +1032,9 @@ const inspectLevelEl = document.getElementById('inspect-level') as HTMLElement
 const inspectStatsEl = document.getElementById('inspect-stats') as HTMLElement
 const upgradeBtn = document.getElementById('upgrade-btn') as HTMLButtonElement
 const sellBtn = document.getElementById('sell-btn') as HTMLButtonElement
+const telegraphEl = document.getElementById('telegraph') as HTMLElement
+const telegraphWaveEl = document.getElementById('telegraph-wave') as HTMLElement
+const telegraphUnitsEl = document.getElementById('telegraph-units') as HTMLElement
 
 // --- Estado
 
@@ -1188,34 +1227,32 @@ function finish(win: boolean): void {
 
 // --- Simulación
 
-function spawnEnemy(): void {
-  const def = WAVES[wave - 1]
-  const boss = def.bossLast && spawnLeft === 1
+function spawnEnemy(kind: EnemyKind, at?: THREE.Vector3, pathIndex = 0): void {
+  const def = WAVES[Math.max(0, wave - 1)]
+  const boss = kind === 'boss'
   const bodySlot = (boss ? freeBossSlots : freeNormalSlots).pop()
   const slot = freeHpSlots.pop()
   if (bodySlot === undefined || slot === undefined) return
-  const hp = boss ? def.bossHp : def.normalHp
-  const speed = boss ? def.bossSpeed : def.normalSpeed
-  const reward = boss ? def.bossReward : def.normalReward
-  const pos = cellWorld(spawnCell[0], spawnCell[1])
+  const hpMul = kind === 'swarm' ? 0.6 : kind === 'armored' ? 1.8 : kind === 'splitter' ? 1.2 : 1
+  const speedMul = kind === 'swarm' ? 1.6 : kind === 'armored' ? 0.75 : kind === 'shielded' ? 0.9 : 0.95
+  const rewardMul = kind === 'swarm' ? 0.8 : kind === 'armored' ? 1.5 : kind === 'shielded' ? 1.6 : kind === 'splitter' ? 1.4 : 1
+  const hp = boss ? def.bossHp : Math.max(1, Math.round(def.normalHp * hpMul))
+  const shield = kind === 'shielded' ? Math.round(hp * 0.8) : 0
+  const speed = boss ? def.bossSpeed : def.normalSpeed * speedMul
+  const reward = boss ? def.bossReward : Math.max(1, Math.round(def.normalReward * rewardMul))
+  const scale = boss ? 1.5 : kind === 'swarm' ? 0.78 : kind === 'armored' ? 1.14 : 1
+  const pos = at ? at.clone() : cellWorld(spawnCell[0], spawnCell[1])
   const mesh = new THREE.Object3D()
   mesh.position.copy(pos)
-  enemies.push({
-    hp,
-    maxHp: hp,
-    speed,
-    reward,
-    boss,
-    dead: false,
-    pathIndex: 0,
-    pos,
-    mesh,
-    turn: 0,
-    hpRatio: 1,
-    slot,
-    bodySlot,
-  })
-  writeEnemy(enemies[enemies.length - 1])
+  const enemy: Enemy = {
+    kind, hp, maxHp: hp, shield, scale, speed, reward, boss,
+    dead: false, pathIndex, pos, mesh, turn: 0, hpRatio: 1, slot, bodySlot,
+  }
+  enemies.push(enemy)
+  const bodyMesh = boss ? bossBodies : normalBodies
+  bodyMesh.setColorAt(bodySlot, instColor.setHex(ENEMY_COLORS[kind]))
+  if (bodyMesh.instanceColor) bodyMesh.instanceColor.needsUpdate = true
+  writeEnemy(enemy)
 }
 
 function removeEnemy(e: Enemy): void {
@@ -1240,15 +1277,25 @@ function reachCore(e: Enemy): void {
   if (lives <= 0) finish(false)
 }
 
-function damageEnemy(e: Enemy, dmg: number): void {
+function damageEnemy(e: Enemy, dmg: number, source?: TowerType): void {
   if (e.dead) return
-  e.hp -= dmg
+  let applied = e.kind === 'armored' && source === 'blaster' ? dmg * 0.5 : dmg
+  if (e.shield > 0) {
+    const absorbed = Math.min(e.shield, applied)
+    e.shield -= absorbed
+    applied -= absorbed
+  }
+  e.hp -= applied
   e.hpRatio = Math.max(0, e.hp / e.maxHp)
   writeEnemy(e)
   if (e.hp <= 0) {
     e.dead = true
     scrap += e.reward
-    spawnImpact(e.pos, e.boss ? 0xc084fc : 0xf87171, e.boss ? 1.8 : 1)
+    spawnImpact(e.pos, ENEMY_COLORS[e.kind], e.boss ? 1.8 : 1)
+    if (e.kind === 'splitter') {
+      spawnEnemy('swarm', e.pos, e.pathIndex)
+      spawnEnemy('swarm', e.pos, e.pathIndex)
+    }
     removeEnemy(e)
   }
 }
@@ -1319,6 +1366,7 @@ function fire(t: Tower, target: Enemy): void {
     speed: t.type === 'mortar' ? 11 : 18,
     damage: def.damage * (1 + (t.level - 1) * 0.5),
     splash: def.splash > 0 ? def.splash + (t.level - 1) * 0.25 : 0,
+    source: t.type,
   }
   writeProjectile(p)
   spawnMuzzle(origin, def.color)
@@ -1336,7 +1384,8 @@ function updateWave(dt: number): void {
   if (spawnLeft > 0) {
     spawnTimer -= dt
     if (spawnTimer <= 0) {
-      spawnEnemy()
+      const queue = WAVES[wave - 1].queue
+      spawnEnemy(queue[queue.length - spawnLeft])
       spawnLeft--
       spawnTimer = Math.max(0.35, 0.85 - wave * 0.02)
     }
@@ -1429,11 +1478,11 @@ function updateProjectiles(dt: number): void {
         for (let j = enemies.length - 1; j >= 0; j--) {
           const dx = enemies[j].pos.x - p.aim.x
           const dz = enemies[j].pos.z - p.aim.z
-          if (dx * dx + dz * dz <= p.splash * p.splash) damageEnemy(enemies[j], p.damage)
+          if (dx * dx + dz * dz <= p.splash * p.splash) damageEnemy(enemies[j], p.damage, p.source)
         }
       } else if (p.target && !p.target.dead) {
         spawnImpact(p.aim, p.color, 0.8)
-        damageEnemy(p.target, p.damage)
+        damageEnemy(p.target, p.damage, p.source)
       }
       hideSlot(projectileCores, p.slot)
       hideSlot(projectileHalos, p.slot)
@@ -1446,6 +1495,20 @@ function updateProjectiles(dt: number): void {
   }
 }
 
+function updateTelegraph(): void {
+  if (phase !== 'between' || wave >= MAX_WAVES) {
+    telegraphEl.classList.add('hidden')
+    return
+  }
+  const def = WAVES[wave]
+  telegraphEl.classList.remove('hidden')
+  telegraphEl.classList.toggle('alert', wave % 5 === 0)
+  telegraphWaveEl.textContent = String(wave + 1)
+  telegraphUnitsEl.textContent = def.segments
+    .map(([kind, n]) => `${n}× ${ENEMY_NAMES[kind]}`)
+    .join(' · ')
+}
+
 function refreshHud(): void {
   scrapEl.textContent = String(Math.floor(scrap))
   waveEl.textContent = `${Math.min(wave, MAX_WAVES)}/${MAX_WAVES}`
@@ -1453,6 +1516,7 @@ function refreshHud(): void {
   bestEl.textContent = best !== null ? String(best) : '—'
   interestEl.textContent = `${Math.round(INTEREST_RATE * 100)}% · +${projectedInterest()}`
   nextWaveBtn.disabled = phase !== 'between'
+  updateTelegraph()
 }
 
 // --- Input

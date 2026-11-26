@@ -435,6 +435,32 @@ html, body {
 .inspect-actions button:hover:not(:disabled) { background: #1b3448; }
 .inspect-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
 
+#telegraph {
+  position: fixed;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(90vw, 720px);
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(8, 15, 24, 0.9);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#telegraph .telegraph-label { color: var(--amber); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+#telegraph b { color: var(--cyan-soft); font-size: 13px; }
+#telegraph #telegraph-units { color: var(--muted); }
+#telegraph.alert { border-color: var(--line-hot); box-shadow: 0 0 12px rgba(192, 132, 252, 0.25); }
+#telegraph.alert b { color: #c084fc; }
+
 @media (max-width: 720px) {
   #inspect { right: 8px; bottom: 86px; width: 196px; padding: 9px; }
   #hud { top: 8px; }
