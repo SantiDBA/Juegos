@@ -1647,7 +1647,7 @@ function finish(win: boolean): void {
     ? `Defendiste las ${MAX_WAVES} oleadas con ${lives} puntos de núcleo. Récord: ${best ?? wave}.`
     : `Llegaste a la oleada ${wave}. Récord: ${best ?? wave}.`
   endEl.classList.remove('hidden')
-  renderGuide()
+  guideEl.classList.add('hidden')
 }
 
 // --- Simulación
