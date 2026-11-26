@@ -13,6 +13,8 @@
   --blaster: #fb923c;
   --coil: #67e8f9;
   --mortar: #f0abfc;
+  --brake: #38bdf8;
+  --lance: #facc15;
   --text: #dbeafe;
   --muted: #89a1b8;
   color-scheme: dark;
@@ -112,6 +114,26 @@ html, body {
 }
 .hud-item + .hud-item { border-left: 1px solid rgba(125, 211, 252, 0.09); }
 
+.hud-emp .emp-line { display: flex; align-items: center; gap: 6px; }
+#emp-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: rgba(6, 12, 19, 0.9);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+#emp-btn.ready {
+  border-color: var(--coil);
+  color: var(--coil);
+  box-shadow: 0 0 10px rgba(103, 232, 249, 0.5);
+}
+#emp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 .label {
   font-size: 11px;
   font-weight: 700;
@@ -193,6 +215,8 @@ html, body {
 .tower[data-type='blaster'] { --tower: var(--blaster); }
 .tower[data-type='coil'] { --tower: var(--coil); }
 .tower[data-type='mortar'] { --tower: var(--mortar); }
+.tower[data-type='brake'] { --tower: var(--brake); }
+.tower[data-type='lance'] { --tower: var(--lance); }
 .tower:hover { background: linear-gradient(180deg, rgba(31, 49, 65, 0.98), rgba(13, 21, 31, 0.98)); transform: translateY(-1px); }
 .tower:active { transform: translateY(1px); }
 .tower[aria-pressed='true'] {
@@ -316,6 +340,8 @@ html, body {
 .chip-blaster { color: var(--blaster); }
 .chip-coil { color: var(--coil); }
 .chip-mortar { color: var(--mortar); }
+.chip-brake { color: var(--brake); }
+.chip-lance { color: var(--lance); }
 
 .map-select-label {
   margin: 0 0 6px;

@@ -118,7 +118,7 @@ const MAPS: MapDef[] = [
 let activeMapId = MAPS[0].id
 let PATH = MAPS[0].path
 
-type TowerType = 'blaster' | 'coil' | 'mortar'
+type TowerType = 'blaster' | 'coil' | 'mortar' | 'brake' | 'lance'
 
 interface TowerDef {
   name: string
@@ -128,12 +128,15 @@ interface TowerDef {
   damage: number
   color: number
   splash: number
+  role: string
 }
 
 const TOWER_DEFS: Record<TowerType, TowerDef> = {
-  blaster: { name: 'Bláster', cost: 20, range: 3.4, cooldown: 0.55, damage: 7, color: 0xfb923c, splash: 0 },
-  coil: { name: 'Bobina', cost: 35, range: 4.2, cooldown: 1.25, damage: 20, color: 0x67e8f9, splash: 0 },
-  mortar: { name: 'Mortero', cost: 50, range: 5.2, cooldown: 2.0, damage: 26, color: 0xf0abfc, splash: 1.5 },
+  blaster: { name: 'Bláster', cost: 20, range: 3.4, cooldown: 0.55, damage: 7, color: 0xfb923c, splash: 0, role: 'perfora blindaje' },
+  coil: { name: 'Bobina', cost: 35, range: 4.2, cooldown: 1.25, damage: 20, color: 0x67e8f9, splash: 0, role: 'cadena y ralentiza' },
+  mortar: { name: 'Mortero', cost: 50, range: 5.2, cooldown: 2.0, damage: 26, color: 0xf0abfc, splash: 1.5, role: 'área y rompe armadura' },
+  brake: { name: 'Freno', cost: 30, range: 3.2, cooldown: 0.4, damage: 3, color: 0x38bdf8, splash: 0, role: 'campo de ralentización' },
+  lance: { name: 'Lanza', cost: 60, range: 5.6, cooldown: 1.6, damage: 34, color: 0xfacc15, splash: 0, role: 'anti-jefe' },
 }
 
 const key = (c: number, r: number): string => `${c},${r}`
@@ -599,6 +602,8 @@ interface Enemy {
   hpRatio: number
   slot: number
   bodySlot: number
+  slowUntil: number
+  armorShred: number
 }
 
 interface Projectile {
@@ -831,7 +836,7 @@ sparkInstances.instanceMatrix.needsUpdate = true
 // --- Torres instanciadas: cuerpo, cabeza y acentos por tipo, en 10 draws fijos.
 
 const MAX_TOWERS = 96
-const TOWER_TYPES: TowerType[] = ['blaster', 'coil', 'mortar']
+const TOWER_TYPES: TowerType[] = ['blaster', 'coil', 'mortar', 'brake', 'lance']
 
 function mergeParts(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const merged = mergeGeometries(parts, false)
@@ -861,6 +866,12 @@ function buildTowerHeadGeometry(type: TowerType, color: number): THREE.BufferGeo
     for (const side of [-1, 1]) {
       parts.push(coloredPart(BOX, [0.1, 0.5, 0.22], [side * 0.36, 0.16, 0.3], 0x0b0e14))
     }
+  } else if (type === 'brake') {
+    parts.push(coloredPart(CYL, [0.52, 0.42, 0.52], [0, 0.14, 0], 0x2a211c))
+    parts.push(coloredPart(RING, [0.62, 0.62, 0.62], [0, 0.2, 0], 0x0b0e14, [Math.PI / 2, 0, 0]))
+  } else if (type === 'lance') {
+    parts.push(coloredPart(BOX, [0.7, 0.44, 0.8], [0, 0, 0], 0x2a211c))
+    parts.push(coloredPart(CYL, [0.11, 1.3, 0.11], [0, 0.14, 0.7], 0x0b0e14, [Math.PI / 2, 0, 0]))
   } else {
     parts.push(coloredPart(BOX, [0.86, 0.5, 0.78], [0, 0, 0], 0x2a211c))
     parts.push(coloredPart(BOX, [0.72, 0.32, 0.6], [0, 0.22, 0], 0x0b0e14))
@@ -885,6 +896,14 @@ function buildTowerAccentGeometry(type: TowerType, color: number): THREE.BufferG
       const s = 0.34 + i * 0.16
       parts.push(coloredPart(RING, [s, s, s], [0, 0.34, 0.38 - i * 0.12], color, [Math.PI / 2, 0, 0]))
     }
+  } else if (type === 'brake') {
+    for (let i = 0; i < 3; i++) {
+      const s = 0.5 + i * 0.2
+      parts.push(coloredPart(RING, [s, s, s], [0, 0.24, 0], color, [Math.PI / 2, 0, 0]))
+    }
+  } else if (type === 'lance') {
+    parts.push(coloredPart(CYL, [0.14, 0.5, 0.14], [0, 0.2, 1.32], color, [Math.PI / 2, 0, 0]))
+    parts.push(coloredPart(SPH, [0.18, 0.18, 0.18], [0, 0.2, 1.5], color))
   } else {
     for (const side of [-1, 1]) {
       parts.push(coloredPart(SPH, [0.16, 0.16, 0.16], [side * 0.22, 0.08, 0.78], color))
@@ -932,6 +951,8 @@ const freeTowerSlots: Record<TowerType, number[]> = {
   blaster: Array.from({ length: MAX_TOWERS }, (_, i) => MAX_TOWERS - 1 - i),
   coil: Array.from({ length: MAX_TOWERS }, (_, i) => MAX_TOWERS - 1 - i),
   mortar: Array.from({ length: MAX_TOWERS }, (_, i) => MAX_TOWERS - 1 - i),
+  brake: Array.from({ length: MAX_TOWERS }, (_, i) => MAX_TOWERS - 1 - i),
+  lance: Array.from({ length: MAX_TOWERS }, (_, i) => MAX_TOWERS - 1 - i),
 }
 const freeRingSlots = Array.from({ length: MAX_TOWERS }, (_, i) => MAX_TOWERS - 1 - i)
 
@@ -1084,6 +1105,8 @@ const playBtn = document.getElementById('play') as HTMLButtonElement
 const restartBtn = document.getElementById('restart') as HTMLButtonElement
 const towerButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tower[data-type]'))
 const interestEl = document.getElementById('interest') as HTMLElement
+const empEl = document.getElementById('emp') as HTMLElement
+const empBtn = document.getElementById('emp-btn') as HTMLButtonElement
 const inspectEl = document.getElementById('inspect') as HTMLElement
 const inspectNameEl = document.getElementById('inspect-name') as HTMLElement
 const inspectLevelEl = document.getElementById('inspect-level') as HTMLElement
@@ -1115,6 +1138,8 @@ let spawnLeft = 0
 let spawnTimer = 0
 let intermission = 0
 let toastTimer = 0
+let empCharge = 0
+let empPulse = 0
 
 const towers: Tower[] = []
 let inspected: Tower | null = null
@@ -1153,7 +1178,7 @@ function selectTower(t: TowerType): void {
 const SELL_RATE = 0.65
 const INTEREST_RATE = 0.1
 const INTEREST_CAP = 40
-const TOWER_NAMES: Record<TowerType, string> = { blaster: 'Bláster', coil: 'Bobina', mortar: 'Mortero' }
+const TOWER_NAMES: Record<TowerType, string> = { blaster: 'Bláster', coil: 'Bobina', mortar: 'Mortero', brake: 'Freno', lance: 'Lanza' }
 
 interface TowerStats { damage: number; range: number; cooldown: number; splash: number; upgrade: number; sell: number }
 
@@ -1253,6 +1278,8 @@ function resetState(): void {
   spawnTimer = 0
   intermission = 0
   leaks = 0
+  empCharge = 0
+  empPulse = 0
   inspectTower(null)
   selectTower('blaster')
   ghost.visible = false
@@ -1312,6 +1339,7 @@ function spawnEnemy(kind: EnemyKind, at?: THREE.Vector3, pathIndex = 0): void {
   const enemy: Enemy = {
     kind, hp, maxHp: hp, shield, scale, speed, reward, boss,
     dead: false, pathIndex, pos, mesh, turn: 0, hpRatio: 1, slot, bodySlot,
+    slowUntil: 0, armorShred: 0,
   }
   enemies.push(enemy)
   const bodyMesh = boss ? bossBodies : normalBodies
@@ -1344,7 +1372,13 @@ function reachCore(e: Enemy): void {
 
 function damageEnemy(e: Enemy, dmg: number, source?: TowerType): void {
   if (e.dead) return
-  let applied = e.kind === 'armored' && source === 'blaster' ? dmg * 0.5 : dmg
+  const now = performance.now() / 1000
+  if (e.armorShred > 0 && now > e.armorShred) e.armorShred = 0
+  let applied = dmg
+  if (e.kind === 'armored' && e.armorShred <= 0 && source !== 'blaster') applied *= 0.6
+  if (source === 'lance' && e.boss) applied *= 1.8
+  if (source === 'mortar') e.armorShred = now + 3
+  if (source === 'coil') e.slowUntil = now + 2
   if (e.shield > 0) {
     const absorbed = Math.min(e.shield, applied)
     e.shield -= absorbed
@@ -1356,6 +1390,7 @@ function damageEnemy(e: Enemy, dmg: number, source?: TowerType): void {
   if (e.hp <= 0) {
     e.dead = true
     scrap += e.reward
+    empCharge = Math.min(100, empCharge + (e.boss ? 30 : 6))
     spawnImpact(e.pos, ENEMY_COLORS[e.kind], e.boss ? 1.8 : 1)
     if (e.kind === 'splitter') {
       spawnEnemy('swarm', e.pos, e.pathIndex)
@@ -1481,7 +1516,8 @@ function updateEnemies(dt: number): void {
     }
     instDir.copy(PATH_WORLD[nextIdx]).sub(e.pos)
     const d = instDir.length()
-    const step = e.speed * dt
+    const slowed = performance.now() / 1000 < e.slowUntil
+    const step = e.speed * (slowed ? 0.5 : 1) * dt
     if (d <= step) {
       e.pos.copy(PATH_WORLD[nextIdx])
       e.pathIndex = nextIdx
@@ -1523,7 +1559,23 @@ function updateTowers(dt: number): void {
       }
     }
     if (target && t.cooldown <= 0) {
-      fire(t, target)
+      if (t.type === 'brake') {
+        const now = performance.now() / 1000
+        const dmg = def.damage * (1 + (t.level - 1) * 0.5)
+        spawnImpact(t.pos.clone().setY(0.5), def.color, 1.5)
+        for (let j = enemies.length - 1; j >= 0; j--) {
+          const e = enemies[j]
+          if (e.dead) continue
+          const dx = e.pos.x - t.pos.x
+          const dz = e.pos.z - t.pos.z
+          if (dx * dx + dz * dz <= range * range) {
+            e.slowUntil = now + 1.3
+            damageEnemy(e, dmg, 'brake')
+          }
+        }
+      } else {
+        fire(t, target)
+      }
       t.cooldown = def.cooldown / (1 + (t.level - 1) * 0.18)
     }
   }
@@ -1548,6 +1600,20 @@ function updateProjectiles(dt: number): void {
       } else if (p.target && !p.target.dead) {
         spawnImpact(p.aim, p.color, 0.8)
         damageEnemy(p.target, p.damage, p.source)
+        if (p.source === 'coil') {
+          let chained = 0
+          for (let j = enemies.length - 1; j >= 0 && chained < 2; j--) {
+            const other = enemies[j]
+            if (other.dead || other === p.target) continue
+            const dx = other.pos.x - p.aim.x
+            const dz = other.pos.z - p.aim.z
+            if (dx * dx + dz * dz <= 2.2 * 2.2) {
+              damageEnemy(other, p.damage * 0.5, 'coil')
+              spawnImpact(other.pos, p.color, 0.5)
+              chained++
+            }
+          }
+        }
       }
       hideSlot(projectileCores, p.slot)
       hideSlot(projectileHalos, p.slot)
@@ -1558,6 +1624,22 @@ function updateProjectiles(dt: number): void {
       writeProjectile(p)
     }
   }
+}
+
+function fireEmp(): void {
+  if (phase !== 'playing' || empCharge < 100) return
+  empCharge = 0
+  empPulse = 0.9
+  spawnImpact(drone.position.clone(), 0x67e8f9, 3.4)
+  const now = performance.now() / 1000
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i]
+    if (e.dead) continue
+    e.slowUntil = now + 2.5
+    spawnImpact(e.pos, 0x22d3ee, 1)
+    damageEnemy(e, 45, 'blaster')
+  }
+  toast('¡EMP detonado!')
 }
 
 function updateTelegraph(): void {
@@ -1580,6 +1662,9 @@ function refreshHud(): void {
   coreEl.textContent = String(Math.max(0, lives))
   bestEl.textContent = best !== null ? String(best) : '—'
   interestEl.textContent = `${Math.round(INTEREST_RATE * 100)}% · +${projectedInterest()}`
+  empEl.textContent = `${Math.floor(empCharge)}%`
+  empBtn.disabled = phase !== 'playing' || empCharge < 100
+  empBtn.classList.toggle('ready', empCharge >= 100)
   nextWaveBtn.disabled = phase !== 'between'
   updateTelegraph()
 }
@@ -1643,6 +1728,9 @@ window.addEventListener('keydown', (e) => {
   if (e.key === '1') selectTower('blaster')
   else if (e.key === '2') selectTower('coil')
   else if (e.key === '3') selectTower('mortar')
+  else if (e.key === '4') selectTower('brake')
+  else if (e.key === '5') selectTower('lance')
+  else if (e.key.toLowerCase() === 'e') fireEmp()
   else if (e.key.toLowerCase() === 'x' && inspected) sellTower(inspected)
 })
 
@@ -1652,6 +1740,8 @@ nextWaveBtn.addEventListener('click', () => {
   intermission = 0
   toast('+5 chatarra · ola adelantada')
 })
+
+empBtn.addEventListener('click', fireEmp)
 
 upgradeBtn.addEventListener('click', () => {
   if (inspected) upgradeTower(inspected)
@@ -1695,6 +1785,12 @@ function tick(): void {
   drone.position.y = 2.6 + Math.sin(now * 0.0025) * 0.16
   drone.rotation.y += dt * 0.35
   for (const rotor of droneRotors) rotor.rotation.y += dt * 8
+  if (empPulse > 0) {
+    empPulse = Math.max(0, empPulse - dt)
+    drone.scale.setScalar(1 + empPulse * 0.9)
+  } else if (drone.scale.x !== 1) {
+    drone.scale.setScalar(1)
+  }
 
   if (toastTimer > 0) {
     toastTimer -= dt

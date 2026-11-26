@@ -33,6 +33,13 @@
           <span class="label">interés</span>
           <span class="value" id="interest">10%</span>
         </div>
+        <div class="hud-item hud-emp">
+          <span class="label">EMP</span>
+          <span class="emp-line">
+            <span class="value" id="emp">0%</span>
+            <button id="emp-btn" type="button" disabled>E</button>
+          </span>
+        </div>
         <button id="next-wave" type="button" disabled>ola siguiente +5</button>
       </div>
     </div>
@@ -53,7 +60,13 @@
       <button type="button" class="tower" data-type="mortar" aria-pressed="false">
         <span class="key">3</span><span class="name">Mortero</span><span class="cost">50</span>
       </button>
-      <span class="tip">clic: colocar / mejorar · 1–3: elegir · X: vender</span>
+      <button type="button" class="tower" data-type="brake" aria-pressed="false">
+        <span class="key">4</span><span class="name">Freno</span><span class="cost">30</span>
+      </button>
+      <button type="button" class="tower" data-type="lance" aria-pressed="false">
+        <span class="key">5</span><span class="name">Lanza</span><span class="cost">60</span>
+      </button>
+      <span class="tip">clic: colocar / mejorar · 1–5: elegir · X: vender · E: EMP</span>
     </div>
 
     <div id="inspect" class="hidden" aria-live="polite">
@@ -77,15 +90,18 @@
         <ul class="keys">
           <li><b>Click</b> en una celda libre: colocar torre</li>
           <li><b>Click</b> en una torre: mejorarla (hasta nivel 3)</li>
-          <li><b>1 / 2 / 3</b>: elegir Bláster, Bobina o Mortero</li>
+          <li><b>1 / 2 / 3 / 4 / 5</b>: Bláster, Bobina, Mortero, Freno o Lanza</li>
           <li><b>Ola siguiente</b>: adelantar la espera y ganar +5 chatarra</li>
           <li><b>X</b>: vender la torre apuntada (recupera el 65%)</li>
+          <li><b>E</b>: detonar el EMP cuando la carga llegue al 100%</li>
           <li><b>Interés</b>: al limpiar una ola ganás un 10% de la chatarra ahorrada</li>
         </ul>
         <p class="legend">
           <span class="chip chip-blaster">rápido</span>
           <span class="chip chip-coil">preciso</span>
           <span class="chip chip-mortar">área</span>
+          <span class="chip chip-brake">ralentiza</span>
+          <span class="chip chip-lance">anti-jefe</span>
         </p>
         <p class="map-select-label">mapa</p>
         <div class="map-select" id="map-select">
