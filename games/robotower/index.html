@@ -71,7 +71,10 @@
     </div>
 
     <div id="towerbar" role="group" aria-label="Torres">
-      <button type="button" class="tower" data-type="blaster" aria-pressed="true">
+      <button type="button" id="mode-btn" class="tower mode-btn" aria-pressed="true">
+        <span class="key">Esc</span><span class="name">Cursor</span>
+      </button>
+      <button type="button" class="tower" data-type="blaster" aria-pressed="false">
         <span class="key">1</span><span class="name">Bláster</span><span class="cost">20</span>
       </button>
       <button type="button" class="tower" data-type="coil" aria-pressed="false">
@@ -86,7 +89,7 @@
       <button type="button" class="tower" data-type="lance" aria-pressed="false">
         <span class="key">5</span><span class="name">Lanza</span><span class="cost">60</span>
       </button>
-      <span class="tip">clic: colocar / mejorar · 1–5: elegir · X: vender · E: EMP · M: audio</span>
+      <span class="tip">clic: inspeccionar / colocar · 1–5: elegir · Esc: cursor · X: vender · E: EMP · M: audio</span>
     </div>
 
     <div id="inspect" class="hidden" aria-live="polite">

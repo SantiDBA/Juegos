@@ -1198,6 +1198,7 @@ const audioBtn = document.getElementById('audio-btn') as HTMLButtonElement
 const playBtn = document.getElementById('play') as HTMLButtonElement
 const restartBtn = document.getElementById('restart') as HTMLButtonElement
 const towerButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tower[data-type]'))
+const modeBtn = document.getElementById('mode-btn') as HTMLButtonElement
 const interestEl = document.getElementById('interest') as HTMLElement
 const empEl = document.getElementById('emp') as HTMLElement
 const empBtn = document.getElementById('emp-btn') as HTMLButtonElement
@@ -1251,7 +1252,7 @@ let scrap = 80
 let wave = 0
 let lives = 10
 let best = readBest()
-let selected: TowerType = 'blaster'
+let selected: TowerType | null = null
 let spawnLeft = 0
 let spawnTimer = 0
 let intermission = 0
@@ -1445,7 +1446,7 @@ function addShake(power: number): void {
 }
 
 function refreshTowerButtons(): void {
-  if (!isTowerUnlocked(selected)) selected = 'blaster'
+  if (selected && !isTowerUnlocked(selected)) selected = null
   for (const btn of towerButtons) {
     const type = btn.dataset.type as TowerType
     const unlocked = isTowerUnlocked(type)
@@ -1453,6 +1454,12 @@ function refreshTowerButtons(): void {
     btn.setAttribute('aria-pressed', String(unlocked && type === selected))
     btn.title = unlocked ? TOWER_DEFS[type].role : unlockHint(type)
   }
+  modeBtn.setAttribute('aria-pressed', String(selected === null))
+}
+
+function deselect(): void {
+  selected = null
+  refreshTowerButtons()
 }
 
 function selectTower(t: TowerType): void {
@@ -1460,7 +1467,7 @@ function selectTower(t: TowerType): void {
     toast(unlockHint(t))
     return
   }
-  selected = t
+  selected = selected === t ? null : t
   refreshTowerButtons()
 }
 
@@ -1574,7 +1581,7 @@ function resetState(): void {
   canvas.style.transform = ''
   clearDamageNumbers()
   inspectTower(null)
-  selectTower('blaster')
+  deselect()
   ghost.visible = false
 }
 
@@ -1748,6 +1755,8 @@ function damageEnemy(e: Enemy, dmg: number, source?: TowerType): void {
 }
 
 function placeTower(c: number, r: number): void {
+  const type = selected
+  if (type === null) return
   if (PATH_KEYS.has(key(c, r))) {
     toast('El camino está ocupado')
     return
@@ -1756,12 +1765,12 @@ function placeTower(c: number, r: number): void {
     toast('Ya hay una torre acá')
     return
   }
-  const def = TOWER_DEFS[selected]
+  const def = TOWER_DEFS[type]
   if (scrap < def.cost) {
     toast('No alcanza la chatarra')
     return
   }
-  const slot = freeTowerSlots[selected].pop()
+  const slot = freeTowerSlots[type].pop()
   const ringSlot = freeRingSlots.pop()
   if (slot === undefined || ringSlot === undefined) {
     toast('No hay espacio para más torres')
@@ -1770,7 +1779,7 @@ function placeTower(c: number, r: number): void {
   scrap -= def.cost
   const pos = cellWorld(c, r)
   const tower: Tower = {
-    type: selected, col: c, row: r, level: 1, cooldown: 0,
+    type, col: c, row: r, level: 1, cooldown: 0,
     pos, turn: 0, slot, ringSlot,
   }
   towers.push(tower)
@@ -2053,6 +2062,10 @@ canvas.addEventListener('pointermove', (e) => {
     ghost.visible = false
     return
   }
+  if (selected === null) {
+    ghost.visible = false
+    return
+  }
   const cell = cellFromEvent(e)
   if (!cell || PATH_KEYS.has(key(cell.col, cell.row)) || towers.some(t => t.col === cell.col && t.row === cell.row)) {
     ghost.visible = false
@@ -2079,15 +2092,22 @@ canvas.addEventListener('pointerdown', (e) => {
     inspectTower(existing)
     return
   }
+  if (selected === null) {
+    inspectTower(null)
+    return
+  }
   placeTower(cell.col, cell.row)
 })
+
+modeBtn.addEventListener('click', deselect)
 
 for (const btn of towerButtons) {
   btn.addEventListener('click', () => selectTower(btn.dataset.type as TowerType))
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.key === '1') selectTower('blaster')
+  if (e.key === 'Escape') deselect()
+  else if (e.key === '1') selectTower('blaster')
   else if (e.key === '2') selectTower('coil')
   else if (e.key === '3') selectTower('mortar')
   else if (e.key === '4') selectTower('brake')
