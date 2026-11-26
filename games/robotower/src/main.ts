@@ -989,6 +989,13 @@ const toastEl = document.getElementById('toast') as HTMLElement
 const playBtn = document.getElementById('play') as HTMLButtonElement
 const restartBtn = document.getElementById('restart') as HTMLButtonElement
 const towerButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tower[data-type]'))
+const interestEl = document.getElementById('interest') as HTMLElement
+const inspectEl = document.getElementById('inspect') as HTMLElement
+const inspectNameEl = document.getElementById('inspect-name') as HTMLElement
+const inspectLevelEl = document.getElementById('inspect-level') as HTMLElement
+const inspectStatsEl = document.getElementById('inspect-stats') as HTMLElement
+const upgradeBtn = document.getElementById('upgrade-btn') as HTMLButtonElement
+const sellBtn = document.getElementById('sell-btn') as HTMLButtonElement
 
 // --- Estado
 
@@ -1006,6 +1013,8 @@ let intermission = 0
 let toastTimer = 0
 
 const towers: Tower[] = []
+let inspected: Tower | null = null
+let leaks = 0
 const enemies: Enemy[] = []
 const projectiles: Projectile[] = []
 
@@ -1035,6 +1044,78 @@ function refreshTowerButtons(): void {
 function selectTower(t: TowerType): void {
   selected = t
   refreshTowerButtons()
+}
+
+const SELL_RATE = 0.65
+const INTEREST_RATE = 0.1
+const INTEREST_CAP = 40
+const TOWER_NAMES: Record<TowerType, string> = { blaster: 'Bláster', coil: 'Bobina', mortar: 'Mortero' }
+
+interface TowerStats { damage: number; range: number; cooldown: number; splash: number; upgrade: number; sell: number }
+
+function towerStats(type: TowerType, level: number): TowerStats {
+  const def = TOWER_DEFS[type]
+  const baseSell = Math.round(def.cost * SELL_RATE)
+  return {
+    damage: def.damage * (1 + (level - 1) * 0.5),
+    range: def.range + (level - 1) * 0.35,
+    cooldown: def.cooldown / (1 + (level - 1) * 0.18),
+    splash: def.splash > 0 ? def.splash + (level - 1) * 0.25 : 0,
+    upgrade: level >= 3 ? 0 : Math.round(def.cost * level * 0.8),
+    sell: baseSell + (level - 1) * Math.round(baseSell * 0.5),
+  }
+}
+
+function projectedInterest(): number {
+  return Math.min(INTEREST_CAP, Math.round(scrap * INTEREST_RATE))
+}
+
+function releaseTower(t: Tower): void {
+  const family = towerFamilies[t.type]
+  hideSlot(family.body, t.slot)
+  hideSlot(family.head, t.slot)
+  hideSlot(family.accent, t.slot)
+  hideSlot(towerLevelRings, t.ringSlot)
+  freeTowerSlots[t.type].push(t.slot)
+  freeRingSlots.push(t.ringSlot)
+}
+
+function updateInspect(): void {
+  if (!inspected || !towers.includes(inspected)) {
+    inspectEl.classList.add('hidden')
+    inspected = null
+    return
+  }
+  const t = inspected
+  const s = towerStats(t.type, t.level)
+  inspectEl.classList.remove('hidden')
+  inspectNameEl.textContent = TOWER_NAMES[t.type]
+  inspectLevelEl.textContent = `nivel ${t.level}/3`
+  inspectStatsEl.innerHTML =
+    `<span>daño</span><b>${s.damage.toFixed(1)}</b>` +
+    `<span>alcance</span><b>${s.range.toFixed(1)}</b>` +
+    `<span>cadencia</span><b>${(1 / s.cooldown).toFixed(2)}/s</b>` +
+    (s.splash > 0 ? `<span>área</span><b>${s.splash.toFixed(1)}</b>` : '')
+  upgradeBtn.textContent = s.upgrade > 0 ? `mejorar · ${s.upgrade}` : 'nivel máximo'
+  upgradeBtn.disabled = s.upgrade === 0 || scrap < s.upgrade
+  sellBtn.textContent = `vender · ${s.sell}`
+}
+
+function inspectTower(t: Tower | null): void {
+  inspected = t
+  updateInspect()
+}
+
+function sellTower(t: Tower): void {
+  const s = towerStats(t.type, t.level)
+  const idx = towers.indexOf(t)
+  if (idx < 0) return
+  releaseTower(t)
+  towers.splice(idx, 1)
+  scrap += s.sell
+  inspectTower(null)
+  spawnImpact(t.pos.clone().setY(0.3), 0x94a3b8, 0.8)
+  toast(`+${s.sell} de chatarra`)
 }
 
 function clearEntities(): void {
@@ -1067,6 +1148,8 @@ function resetState(): void {
   spawnLeft = 0
   spawnTimer = 0
   intermission = 0
+  leaks = 0
+  inspectTower(null)
   selectTower('blaster')
   ghost.visible = false
 }
@@ -1147,8 +1230,10 @@ function removeEnemy(e: Enemy): void {
 }
 
 function reachCore(e: Enemy): void {
-  lives -= e.boss ? 3 : 1
-  toast(e.boss ? '¡Un jefe golpeó el núcleo! -3' : '¡Un bot llegó al núcleo! -1')
+  leaks++
+  const penalty = (e.boss ? 3 : 1) + Math.min(2, Math.floor(leaks / 3))
+  lives -= penalty
+  toast(`${e.boss ? '¡Un jefe golpeó el núcleo!' : '¡Un bot llegó al núcleo!'} -${penalty}`)
   spawnImpact(e.pos, 0xf87171, 1.4)
   e.dead = true
   removeEnemy(e)
@@ -1197,6 +1282,7 @@ function placeTower(c: number, r: number): void {
   towers.push(tower)
   writeTower(tower)
   spawnImpact(pos.clone().setY(0.3), def.color, 0.8)
+  inspectTower(tower)
 }
 
 function upgradeTower(t: Tower): void {
@@ -1214,6 +1300,7 @@ function upgradeTower(t: Tower): void {
   writeTower(t)
   spawnImpact(t.pos.clone().setY(0.4), 0xfacc15, 0.9)
   toast(`${TOWER_DEFS[t.type].name} nivel ${t.level}`)
+  updateInspect()
 }
 
 function fire(t: Tower, target: Enemy): void {
@@ -1256,7 +1343,8 @@ function updateWave(dt: number): void {
   }
 
   if (spawnLeft === 0 && enemies.length === 0) {
-    const bonus = 10 + wave * 2
+    const interest = projectedInterest()
+    const bonus = 10 + wave * 2 + interest
     scrap += bonus
     if (wave >= MAX_WAVES) {
       finish(true)
@@ -1363,6 +1451,7 @@ function refreshHud(): void {
   waveEl.textContent = `${Math.min(wave, MAX_WAVES)}/${MAX_WAVES}`
   coreEl.textContent = String(Math.max(0, lives))
   bestEl.textContent = best !== null ? String(best) : '—'
+  interestEl.textContent = `${Math.round(INTEREST_RATE * 100)}% · +${projectedInterest()}`
   nextWaveBtn.disabled = phase !== 'between'
 }
 
@@ -1411,7 +1500,7 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!cell) return
   const existing = towers.find(t => t.col === cell.col && t.row === cell.row)
   if (existing) {
-    upgradeTower(existing)
+    inspectTower(existing)
     return
   }
   placeTower(cell.col, cell.row)
@@ -1425,6 +1514,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === '1') selectTower('blaster')
   else if (e.key === '2') selectTower('coil')
   else if (e.key === '3') selectTower('mortar')
+  else if (e.key.toLowerCase() === 'x' && inspected) sellTower(inspected)
 })
 
 nextWaveBtn.addEventListener('click', () => {
@@ -1432,6 +1522,13 @@ nextWaveBtn.addEventListener('click', () => {
   scrap += 5
   intermission = 0
   toast('+5 chatarra · ola adelantada')
+})
+
+upgradeBtn.addEventListener('click', () => {
+  if (inspected) upgradeTower(inspected)
+})
+sellBtn.addEventListener('click', () => {
+  if (inspected) sellTower(inspected)
 })
 
 playBtn.addEventListener('click', startGame)

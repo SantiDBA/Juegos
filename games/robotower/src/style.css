@@ -389,7 +389,54 @@ html, body {
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+#inspect {
+  position: fixed;
+  right: 18px;
+  bottom: 104px;
+  z-index: 6;
+  width: 224px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(8, 15, 24, 0.94);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.45);
+}
+.inspect-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+.inspect-head span { color: var(--muted); font-size: 11px; }
+.inspect-stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+  margin: 10px 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.inspect-stats b { color: var(--cyan-soft); font-weight: 700; }
+.inspect-actions { display: flex; gap: 6px; }
+.inspect-actions button {
+  flex: 1;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #142131;
+  color: var(--cyan-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.inspect-actions button:hover:not(:disabled) { background: #1b3448; }
+.inspect-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
+
 @media (max-width: 720px) {
+  #inspect { right: 8px; bottom: 86px; width: 196px; padding: 9px; }
   #hud { top: 8px; }
   .hud-row { gap: 0; padding: 7px 8px; }
   .hud-brand { display: none; }

@@ -29,6 +29,10 @@
           <span class="label">récord</span>
           <span class="value" id="best">—</span>
         </div>
+        <div class="hud-item">
+          <span class="label">interés</span>
+          <span class="value" id="interest">10%</span>
+        </div>
         <button id="next-wave" type="button" disabled>ola siguiente +5</button>
       </div>
     </div>
@@ -43,7 +47,19 @@
       <button type="button" class="tower" data-type="mortar" aria-pressed="false">
         <span class="key">3</span><span class="name">Mortero</span><span class="cost">50</span>
       </button>
-      <span class="tip">clic: colocar / mejorar · 1–3: elegir</span>
+      <span class="tip">clic: colocar / mejorar · 1–3: elegir · X: vender</span>
+    </div>
+
+    <div id="inspect" class="hidden" aria-live="polite">
+      <div class="inspect-head">
+        <b id="inspect-name">—</b>
+        <span id="inspect-level">nivel 1</span>
+      </div>
+      <div class="inspect-stats" id="inspect-stats"></div>
+      <div class="inspect-actions">
+        <button id="upgrade-btn" type="button">mejorar</button>
+        <button id="sell-btn" type="button">vender</button>
+      </div>
     </div>
 
     <div id="overlay">
@@ -57,6 +73,8 @@
           <li><b>Click</b> en una torre: mejorarla (hasta nivel 3)</li>
           <li><b>1 / 2 / 3</b>: elegir Bláster, Bobina o Mortero</li>
           <li><b>Ola siguiente</b>: adelantar la espera y ganar +5 chatarra</li>
+          <li><b>X</b>: vender la torre apuntada (recupera el 65%)</li>
+          <li><b>Interés</b>: al limpiar una ola ganás un 10% de la chatarra ahorrada</li>
         </ul>
         <p class="legend">
           <span class="chip chip-blaster">rápido</span>
