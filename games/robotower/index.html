@@ -31,6 +31,18 @@
           <span class="value" id="best">—</span>
         </div>
         <div class="hud-item">
+          <span class="label">estrellas</span>
+          <span class="value" id="stars">☆☆☆</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">modo</span>
+          <span class="value" id="difficulty">normal</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">semilla</span>
+          <span class="value" id="seed">—</span>
+        </div>
+        <div class="hud-item">
           <span class="label">interés</span>
           <span class="value" id="interest">10%</span>
         </div>
@@ -50,6 +62,12 @@
       <span class="telegraph-label">próxima oleada</span>
       <b id="telegraph-wave">1</b>
       <span id="telegraph-units"></span>
+    </div>
+
+    <div id="guide" class="hidden" role="status">
+      <b id="guide-step">1/4</b>
+      <span id="guide-text"></span>
+      <button id="guide-skip" type="button">saltar</button>
     </div>
 
     <div id="towerbar" role="group" aria-label="Torres">
@@ -98,6 +116,7 @@
           <li><b>E</b>: detonar el EMP cuando la carga llegue al 100%</li>
           <li><b>M</b>: activar o silenciar el audio</li>
           <li><b>Interés</b>: al limpiar una ola ganás un 10% de la chatarra ahorrada</li>
+          <li><b>Estrellas</b>: ganar 1 desbloquea Fundición y el Freno; 3 desbloquean la Lanza</li>
         </ul>
         <p class="legend">
           <span class="chip chip-blaster">rápido</span>
@@ -106,6 +125,11 @@
           <span class="chip chip-brake">ralentiza</span>
           <span class="chip chip-lance">anti-jefe</span>
         </p>
+        <p class="map-select-label">dificultad</p>
+        <div class="difficulty-select" id="difficulty-select">
+          <button type="button" data-difficulty="normal" aria-pressed="true">Normal</button>
+          <button type="button" data-difficulty="hard" aria-pressed="false">Difícil · +35% vida, +12% velocidad</button>
+        </div>
         <p class="map-select-label">mapa</p>
         <div class="map-select" id="map-select">
           <button type="button" data-map="ferric">Ferric Lands</button>
@@ -120,6 +144,7 @@
     <div id="end" class="hidden">
       <div class="panel">
         <h1 id="end-title">fin</h1>
+        <p class="end-stars" id="end-stars">—</p>
         <p class="tagline" id="end-text"></p>
         <button id="restart" type="button">Volver a jugar</button>
         <a class="panel-back" href="/">← juegos</a>

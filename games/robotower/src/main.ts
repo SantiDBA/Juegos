@@ -13,7 +13,17 @@ const GRID_H = 9
 const CELL = 2.4
 const MAX_WAVES = 12
 const BEST_KEY = 'robotower.bestWave'
+const SAVE_KEY = 'robotower.save.v1'
 const bestKey = (mapId: string): string => mapId === 'ferric' ? BEST_KEY : `${BEST_KEY}.${mapId}`
+
+type Difficulty = 'normal' | 'hard'
+interface SaveData {
+  version: 1
+  best: Record<string, number>
+  stars: Record<string, number>
+  difficulty: Difficulty
+  tutorialDone: boolean
+}
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0
@@ -114,6 +124,84 @@ const MAPS: MapDef[] = [
   { id: 'ferric', name: 'Ferric Lands', path: FERRIC_PATH },
   { id: 'foundry', name: 'Fundición', path: FOUNDRY_PATH },
 ]
+
+function loadSave(): SaveData {
+  const data: SaveData = {
+    version: 1, best: {}, stars: {}, difficulty: 'normal', tutorialDone: false,
+  }
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') {
+        const p = parsed as Partial<SaveData>
+        if (p.best && typeof p.best === 'object') {
+          for (const [k, v] of Object.entries(p.best)) {
+            if (typeof v === 'number' && Number.isFinite(v) && v > 0) data.best[k] = Math.floor(v)
+          }
+        }
+        if (p.stars && typeof p.stars === 'object') {
+          for (const [k, v] of Object.entries(p.stars)) {
+            if (typeof v === 'number' && Number.isFinite(v) && v >= 0) {
+              data.stars[k] = Math.min(3, Math.floor(v))
+            }
+          }
+        }
+        if (p.difficulty === 'normal' || p.difficulty === 'hard') data.difficulty = p.difficulty
+        if (typeof p.tutorialDone === 'boolean') data.tutorialDone = p.tutorialDone
+      }
+    }
+    for (const m of MAPS) {
+      const legacy = localStorage.getItem(bestKey(m.id))
+      if (legacy === null) continue
+      const n = Number.parseInt(legacy, 10)
+      if (Number.isFinite(n) && n > 0) data.best[m.id] = Math.max(data.best[m.id] ?? 0, n)
+    }
+  } catch {
+    // Storage unavailable or corrupt: defaults are safe.
+  }
+  return data
+}
+
+let save = loadSave()
+
+function persistSave(): void {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(save))
+    for (const m of MAPS) {
+      const n = save.best[m.id]
+      if (n !== undefined) localStorage.setItem(bestKey(m.id), String(n))
+    }
+  } catch {
+    // Storage disabled: keep progress in memory for this session.
+  }
+}
+
+function seedFor(mapId: string, difficulty: Difficulty): number {
+  let h = 0x52544254
+  for (let i = 0; i < mapId.length; i++) h = Math.imul(h ^ mapId.charCodeAt(i), 16777619)
+  return (h ^ (difficulty === 'hard' ? 0x9e3779b9 : 0)) >>> 0
+}
+
+function totalStars(): number {
+  return Object.values(save.stars).reduce((sum, n) => sum + n, 0)
+}
+
+function isMapUnlocked(id: string): boolean {
+  return id === 'ferric' || (save.stars.ferric ?? 0) >= 1
+}
+
+function isTowerUnlocked(type: TowerType): boolean {
+  if (type === 'brake') return totalStars() >= 1
+  if (type === 'lance') return totalStars() >= 3
+  return true
+}
+
+function unlockHint(type: TowerType): string {
+  if (type === 'brake') return 'Freno: ganá 1 estrella para desbloquearlo'
+  if (type === 'lance') return 'Lanza: ganá 3 estrellas para desbloquearlo'
+  return 'Torre bloqueada'
+}
 
 let activeMapId = MAPS[0].id
 let PATH = MAPS[0].path
@@ -545,6 +633,10 @@ board.add(drone)
 function applyMap(id: string): void {
   const def = MAPS.find(m => m.id === id)
   if (!def) return
+  if (!isMapUnlocked(id)) {
+    toast('Ganá 1 estrella en Ferric Lands para desbloquear este mapa')
+    return
+  }
   activeMapId = def.id
   PATH = def.path
   PATH_KEYS = new Set(PATH.map(([c, r]) => key(c, r)))
@@ -1119,10 +1211,34 @@ const telegraphEl = document.getElementById('telegraph') as HTMLElement
 const telegraphWaveEl = document.getElementById('telegraph-wave') as HTMLElement
 const telegraphUnitsEl = document.getElementById('telegraph-units') as HTMLElement
 const mapButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.map-select button'))
+const difficultyButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.difficulty-select button'))
+const starsEl = document.getElementById('stars') as HTMLElement
+const seedEl = document.getElementById('seed') as HTMLElement
+const difficultyEl = document.getElementById('difficulty') as HTMLElement
+const guideEl = document.getElementById('guide') as HTMLElement
+const guideStepEl = document.getElementById('guide-step') as HTMLElement
+const guideTextEl = document.getElementById('guide-text') as HTMLElement
+const guideSkipBtn = document.getElementById('guide-skip') as HTMLButtonElement
+const endStarsEl = document.getElementById('end-stars') as HTMLElement
 
 function refreshMapButtons(): void {
   for (const btn of mapButtons) {
-    btn.setAttribute('aria-pressed', String(btn.dataset.map === activeMapId))
+    const id = btn.dataset.map!
+    const def = MAPS.find(m => m.id === id)!
+    const unlocked = isMapUnlocked(id)
+    const earned = Math.min(3, save.stars[id] ?? 0)
+    btn.disabled = !unlocked
+    btn.setAttribute('aria-pressed', String(id === activeMapId))
+    btn.title = unlocked ? `${earned}/3 estrellas` : 'Ganá 1 estrella en Ferric Lands'
+    btn.textContent = unlocked
+      ? `${def.name} ${'★'.repeat(earned)}${'☆'.repeat(3 - earned)}`
+      : `${def.name} 🔒`
+  }
+}
+
+function refreshDifficultyButtons(): void {
+  for (const btn of difficultyButtons) {
+    btn.setAttribute('aria-pressed', String(btn.dataset.difficulty === difficulty))
   }
 }
 
@@ -1142,6 +1258,17 @@ let intermission = 0
 let toastTimer = 0
 let empCharge = 0
 let empPulse = 0
+let difficulty: Difficulty = save.difficulty
+let runSeed = seedFor(activeMapId, difficulty)
+let runRng = mulberry32(runSeed)
+let activeQueues: EnemyKind[][] = []
+const GUIDE_STEPS = [
+  'Elegí el Bláster con 1 y hacé clic en una celda libre al lado del camino.',
+  'Hacé clic en tu torre para ver sus estadísticas y mejorarla.',
+  'Adelantá la espera con «Ola siguiente» para ganar +5 de chatarra.',
+  'Las bajas cargan el EMP: cuando llegue al 100%, presioná E.',
+]
+let guideStep = save.tutorialDone ? GUIDE_STEPS.length : 0
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 let shake = 0
 let audioMuted = false
@@ -1167,14 +1294,33 @@ const enemies: Enemy[] = []
 const projectiles: Projectile[] = []
 
 function readBest(): number | null {
-  const raw = localStorage.getItem(bestKey(activeMapId))
-  if (raw === null) return null
-  const n = Number.parseInt(raw, 10)
-  return Number.isFinite(n) && n > 0 ? n : null
+  const n = save.best[activeMapId]
+  return typeof n === 'number' && n > 0 ? n : null
 }
 
 function saveBest(n: number): void {
-  localStorage.setItem(bestKey(activeMapId), String(n))
+  save.best[activeMapId] = n
+  persistSave()
+}
+
+function renderGuide(): void {
+  if (guideStep >= GUIDE_STEPS.length) {
+    guideEl.classList.add('hidden')
+    if (!save.tutorialDone) {
+      save.tutorialDone = true
+      persistSave()
+    }
+    return
+  }
+  guideEl.classList.remove('hidden')
+  guideStepEl.textContent = `${guideStep + 1}/${GUIDE_STEPS.length}`
+  guideTextEl.textContent = GUIDE_STEPS[guideStep]
+}
+
+function advanceGuide(): void {
+  if (guideStep >= GUIDE_STEPS.length) return
+  guideStep++
+  renderGuide()
 }
 
 function toast(msg: string): void {
@@ -1299,12 +1445,21 @@ function addShake(power: number): void {
 }
 
 function refreshTowerButtons(): void {
+  if (!isTowerUnlocked(selected)) selected = 'blaster'
   for (const btn of towerButtons) {
-    btn.setAttribute('aria-pressed', String(btn.dataset.type === selected))
+    const type = btn.dataset.type as TowerType
+    const unlocked = isTowerUnlocked(type)
+    btn.disabled = !unlocked
+    btn.setAttribute('aria-pressed', String(unlocked && type === selected))
+    btn.title = unlocked ? TOWER_DEFS[type].role : unlockHint(type)
   }
 }
 
 function selectTower(t: TowerType): void {
+  if (!isTowerUnlocked(t)) {
+    toast(unlockHint(t))
+    return
+  }
   selected = t
   refreshTowerButtons()
 }
@@ -1423,7 +1578,24 @@ function resetState(): void {
   ghost.visible = false
 }
 
+function prepareRun(): void {
+  runSeed = seedFor(activeMapId, difficulty)
+  runRng = mulberry32(runSeed)
+  activeQueues = WAVES.map(w => {
+    const q = [...w.queue]
+    const boss = q[q.length - 1] === 'boss' ? q.pop()! : null
+    for (let i = q.length - 1; i > 0; i--) {
+      const j = Math.floor(runRng() * (i + 1))
+      const tmp = q[i]
+      q[i] = q[j]
+      q[j] = tmp
+    }
+    return boss ? [...q, boss] : q
+  })
+}
+
 function startGame(): void {
+  prepareRun()
   resetState()
   ensureAudio()
   overlay.classList.add('hidden')
@@ -1431,7 +1603,10 @@ function startGame(): void {
   nextWaveBtn.disabled = false
   phase = 'between'
   intermission = 1
-  toast('Prepará tus robots')
+  guideStep = save.tutorialDone ? GUIDE_STEPS.length : 0
+  renderGuide()
+  refreshHud()
+  toast(`Prepará tus robots · ${difficulty === 'hard' ? 'difícil' : 'normal'} · semilla ${runSeed.toString(16).toUpperCase().slice(0, 6)}`)
 }
 
 function beginWave(): void {
@@ -1440,11 +1615,18 @@ function beginWave(): void {
     best = wave
     saveBest(best)
   }
-  spawnLeft = WAVES[wave - 1].count
+  spawnLeft = activeQueues[wave - 1]?.length ?? WAVES[wave - 1].count
   spawnTimer = 0
   phase = 'playing'
   sfx('wave')
+  if (wave >= 3 && guideStep === 2) advanceGuide()
   toast(`Oleada ${wave} / ${MAX_WAVES}`)
+}
+
+function starsForRun(): number {
+  if (lives >= 9 && leaks === 0) return 3
+  if (lives >= 6) return 2
+  return 1
 }
 
 function finish(win: boolean): void {
@@ -1452,11 +1634,20 @@ function finish(win: boolean): void {
   sfx(win ? 'win' : 'lose')
   addShake(win ? 3 : 9)
   nextWaveBtn.disabled = true
+  const earned = win ? starsForRun() : 0
+  if (earned > (save.stars[activeMapId] ?? 0)) {
+    save.stars[activeMapId] = earned
+    persistSave()
+    refreshMapButtons()
+    refreshTowerButtons()
+  }
+  endStarsEl.textContent = win ? `${'★'.repeat(earned)}${'☆'.repeat(3 - earned)}` : '—'
   endTitle.textContent = win ? '¡Núcleo a salvo!' : 'Núcleo destruido'
   endText.textContent = win
     ? `Defendiste las ${MAX_WAVES} oleadas con ${lives} puntos de núcleo. Récord: ${best ?? wave}.`
     : `Llegaste a la oleada ${wave}. Récord: ${best ?? wave}.`
   endEl.classList.remove('hidden')
+  renderGuide()
 }
 
 // --- Simulación
@@ -1470,10 +1661,13 @@ function spawnEnemy(kind: EnemyKind, at?: THREE.Vector3, pathIndex = 0): void {
   const hpMul = kind === 'swarm' ? 0.6 : kind === 'armored' ? 1.8 : kind === 'splitter' ? 1.2 : 1
   const speedMul = kind === 'swarm' ? 1.6 : kind === 'armored' ? 0.75 : kind === 'shielded' ? 0.9 : 0.95
   const rewardMul = kind === 'swarm' ? 0.8 : kind === 'armored' ? 1.5 : kind === 'shielded' ? 1.6 : kind === 'splitter' ? 1.4 : 1
-  const hp = boss ? def.bossHp : Math.max(1, Math.round(def.normalHp * hpMul))
+  const hardHp = difficulty === 'hard' ? 1.35 : 1
+  const hardSpeed = difficulty === 'hard' ? 1.12 : 1
+  const hardReward = difficulty === 'hard' ? 0.9 : 1
+  const hp = Math.round((boss ? def.bossHp : Math.max(1, Math.round(def.normalHp * hpMul))) * hardHp)
   const shield = kind === 'shielded' ? Math.round(hp * 0.8) : 0
-  const speed = boss ? def.bossSpeed : def.normalSpeed * speedMul
-  const reward = boss ? def.bossReward : Math.max(1, Math.round(def.normalReward * rewardMul))
+  const speed = (boss ? def.bossSpeed : def.normalSpeed * speedMul) * hardSpeed
+  const reward = Math.max(1, Math.round((boss ? def.bossReward : Math.max(1, Math.round(def.normalReward * rewardMul))) * hardReward))
   const scale = boss ? 1.5 : kind === 'swarm' ? 0.78 : kind === 'armored' ? 1.14 : 1
   const pos = at ? at.clone() : cellWorld(spawnCell[0], spawnCell[1])
   const mesh = new THREE.Object3D()
@@ -1584,6 +1778,7 @@ function placeTower(c: number, r: number): void {
   spawnImpact(pos.clone().setY(0.3), def.color, 0.8)
   sfx('place')
   inspectTower(tower)
+  if (guideStep === 0) advanceGuide()
 }
 
 function upgradeTower(t: Tower): void {
@@ -1603,6 +1798,7 @@ function upgradeTower(t: Tower): void {
   sfx('upgrade')
   toast(`${TOWER_DEFS[t.type].name} nivel ${t.level}`)
   updateInspect()
+  if (guideStep === 1) advanceGuide()
 }
 
 function fire(t: Tower, target: Enemy): void {
@@ -1640,7 +1836,7 @@ function updateWave(dt: number): void {
   if (spawnLeft > 0) {
     spawnTimer -= dt
     if (spawnTimer <= 0) {
-      const queue = WAVES[wave - 1].queue
+      const queue = activeQueues[wave - 1] ?? WAVES[wave - 1].queue
       spawnEnemy(queue[queue.length - spawnLeft])
       spawnLeft--
       spawnTimer = Math.max(0.35, 0.85 - wave * 0.02)
@@ -1799,6 +1995,7 @@ function fireEmp(): void {
     damageEnemy(e, 45, 'blaster')
   }
   toast('¡EMP detonado!')
+  if (guideStep === 3) advanceGuide()
 }
 
 function updateTelegraph(): void {
@@ -1806,11 +2003,13 @@ function updateTelegraph(): void {
     telegraphEl.classList.add('hidden')
     return
   }
-  const def = WAVES[wave]
+  const queue = activeQueues[wave] ?? WAVES[wave].queue
+  const counts = new Map<EnemyKind, number>()
+  for (const kind of queue) counts.set(kind, (counts.get(kind) ?? 0) + 1)
   telegraphEl.classList.remove('hidden')
-  telegraphEl.classList.toggle('alert', wave % 5 === 0)
+  telegraphEl.classList.toggle('alert', queue.includes('boss'))
   telegraphWaveEl.textContent = String(wave + 1)
-  telegraphUnitsEl.textContent = def.segments
+  telegraphUnitsEl.textContent = Array.from(counts)
     .map(([kind, n]) => `${n}× ${ENEMY_NAMES[kind]}`)
     .join(' · ')
 }
@@ -1820,6 +2019,10 @@ function refreshHud(): void {
   waveEl.textContent = `${Math.min(wave, MAX_WAVES)}/${MAX_WAVES}`
   coreEl.textContent = String(Math.max(0, lives))
   bestEl.textContent = best !== null ? String(best) : '—'
+  const earned = Math.min(3, save.stars[activeMapId] ?? 0)
+  starsEl.textContent = `${'★'.repeat(earned)}${'☆'.repeat(3 - earned)}`
+  seedEl.textContent = runSeed.toString(16).toUpperCase().slice(0, 6)
+  difficultyEl.textContent = difficulty === 'hard' ? 'difícil' : 'normal'
   interestEl.textContent = `${Math.round(INTEREST_RATE * 100)}% · +${projectedInterest()}`
   empEl.textContent = `${Math.floor(empCharge)}%`
   empBtn.disabled = phase !== 'playing' || empCharge < 100
@@ -1898,11 +2101,29 @@ nextWaveBtn.addEventListener('click', () => {
   if (phase !== 'between') return
   scrap += 5
   intermission = 0
+  if (guideStep === 2) advanceGuide()
   toast('+5 chatarra · ola adelantada')
 })
 
 empBtn.addEventListener('click', fireEmp)
 audioBtn.addEventListener('click', toggleAudio)
+guideSkipBtn.addEventListener('click', () => {
+  guideStep = GUIDE_STEPS.length
+  renderGuide()
+})
+
+for (const btn of difficultyButtons) {
+  btn.addEventListener('click', () => {
+    const next = btn.dataset.difficulty as Difficulty
+    if (next !== 'normal' && next !== 'hard') return
+    difficulty = next
+    save.difficulty = next
+    persistSave()
+    refreshDifficultyButtons()
+    refreshHud()
+    toast(next === 'hard' ? 'Difícil: bots más duros, menos chatarra' : 'Dificultad normal')
+  })
+}
 
 upgradeBtn.addEventListener('click', () => {
   if (inspected) upgradeTower(inspected)
@@ -1915,6 +2136,9 @@ for (const btn of mapButtons) {
   btn.addEventListener('click', () => applyMap(btn.dataset.map!))
 }
 refreshMapButtons()
+refreshDifficultyButtons()
+refreshTowerButtons()
+refreshHud()
 
 playBtn.addEventListener('click', startGame)
 restartBtn.addEventListener('click', startGame)

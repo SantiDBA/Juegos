@@ -266,6 +266,8 @@ html, body {
   background: linear-gradient(180deg, rgba(25, 58, 79, 0.98), rgba(10, 24, 36, 0.98));
   color: var(--cyan-soft);
 }
+.tower:disabled { opacity: 0.4; filter: grayscale(0.6); cursor: not-allowed; transform: none; }
+.tower:disabled:hover { transform: none; background: rgba(13, 21, 31, 0.98); }
 
 .tower .key {
   display: inline-grid;
@@ -392,8 +394,8 @@ html, body {
   text-transform: uppercase;
   color: var(--muted);
 }
-.map-select { display: flex; justify-content: center; gap: 8px; margin: 0 0 20px; }
-.map-select button {
+.map-select, .difficulty-select { display: flex; justify-content: center; gap: 8px; margin: 0 0 20px; }
+.map-select button, .difficulty-select button {
   padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 3px;
@@ -406,12 +408,14 @@ html, body {
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
-.map-select button:hover { background: rgba(25, 45, 62, 0.95); }
-.map-select button[aria-pressed='true'] {
+.map-select button:hover, .difficulty-select button:hover { background: rgba(25, 45, 62, 0.95); }
+.map-select button[aria-pressed='true'], .difficulty-select button[aria-pressed='true'] {
   border-color: var(--line-hot);
   background: rgba(25, 58, 79, 0.98);
   color: var(--cyan-soft);
 }
+.map-select button:disabled, .difficulty-select button:disabled { opacity: 0.45; cursor: not-allowed; }
+.end-stars { margin: 0 0 8px; color: var(--amber); font-size: 22px; letter-spacing: 0.16em; }
 
 .panel button {
   position: relative;
@@ -556,6 +560,38 @@ html, body {
 #telegraph #telegraph-units { color: var(--muted); }
 #telegraph.alert { border-color: var(--line-hot); box-shadow: 0 0 12px rgba(192, 132, 252, 0.25); }
 #telegraph.alert b { color: #c084fc; }
+
+#guide {
+  position: fixed;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(620px, calc(100vw - 24px));
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(8, 16, 24, 0.94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  color: var(--text);
+}
+#guide b { color: var(--amber); white-space: nowrap; }
+#guide #guide-text { flex: 1; }
+#guide button {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+#guide button:hover { color: var(--cyan-soft); border-color: var(--line-hot); }
 
 @media (max-width: 720px) {
   #inspect { right: 8px; bottom: 86px; width: 196px; padding: 9px; }
