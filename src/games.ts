@@ -112,4 +112,15 @@ export const GAMES: Game[] = [
     tags: ['3d', 'rts', 'estrategia'],
     status: 'wip',
   },
+  {
+    id: 'robotower',
+    title: 'robotower',
+    tagline: 'Colocá torres robot y defendé el núcleo de las oleadas de bots.',
+    colors: { from: '#0f2f4a', to: '#070b12', accent: '#7dd3fc' },
+    glyph: '🤖',
+    tags: ['3d', 'estrategia', 'robots', 'tower defense'],
+    status: 'ready',
+    bestKey: 'robotower.bestWave',
+    bestFormat: 'score',
+  },
 ]

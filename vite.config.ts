@@ -32,6 +32,7 @@ export default defineConfig({
         unicornio: `${root}games/unicornio/index.html`,
         'commandcode-of-duty': `${root}games/commandcode-of-duty/index.html`,
         imperios: `${root}games/imperios/index.html`,
+        robotower: `${root}games/robotower/index.html`,
       },
     },
   },
