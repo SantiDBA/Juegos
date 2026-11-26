@@ -57,6 +57,27 @@ html, body {
   border: 1px solid rgba(125, 211, 252, 0.08);
 }
 
+/* Números de daño flotantes: capa separada, sin capturar input. */
+#damage-numbers {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  overflow: hidden;
+}
+.dmg-num {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+  transform: translate(-100px, -100px);
+  font: 800 15px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 6px currentColor, 0 2px 3px rgba(0, 0, 0, 0.85);
+  will-change: transform, opacity;
+}
+.dmg-num.crit { font-size: 20px; }
+
 #hud {
   position: fixed;
   top: 14px;
@@ -150,6 +171,26 @@ html, body {
   color: var(--cyan);
 }
 
+#audio-btn {
+  pointer-events: auto;
+  align-self: center;
+  margin-left: 8px;
+  padding: 9px 10px;
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  border-radius: 3px;
+  background: rgba(8, 20, 32, 0.75);
+  color: var(--cyan);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+#audio-btn:hover { background: rgba(20, 45, 66, 0.9); }
+#audio-btn[aria-pressed='true'] { color: var(--muted, #94a3b8); border-color: rgba(148, 163, 184, 0.3); }
+
 #next-wave {
   pointer-events: auto;
   align-self: center;
@@ -174,6 +215,7 @@ html, body {
 }
 #next-wave:not(:disabled):active { transform: translateY(1px); }
 #next-wave:focus-visible,
+#audio-btn:focus-visible,
 .tower:focus-visible,
 .panel button:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
 

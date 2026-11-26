@@ -1101,6 +1101,8 @@ const endEl = document.getElementById('end') as HTMLElement
 const endTitle = document.getElementById('end-title') as HTMLElement
 const endText = document.getElementById('end-text') as HTMLElement
 const toastEl = document.getElementById('toast') as HTMLElement
+const damageLayerEl = document.getElementById('damage-numbers') as HTMLElement
+const audioBtn = document.getElementById('audio-btn') as HTMLButtonElement
 const playBtn = document.getElementById('play') as HTMLButtonElement
 const restartBtn = document.getElementById('restart') as HTMLButtonElement
 const towerButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tower[data-type]'))
@@ -1140,6 +1142,23 @@ let intermission = 0
 let toastTimer = 0
 let empCharge = 0
 let empPulse = 0
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+let shake = 0
+let audioMuted = false
+let audioCtx: AudioContext | null = null
+let audioMaster: GainNode | null = null
+let lastHitSfx = 0
+
+interface DamageNumber {
+  el: HTMLElement
+  life: number
+  maxLife: number
+  x: number
+  y: number
+  vy: number
+}
+const freeDamageNumbers: DamageNumber[] = []
+const activeDamageNumbers: DamageNumber[] = []
 
 const towers: Tower[] = []
 let inspected: Tower | null = null
@@ -1162,6 +1181,121 @@ function toast(msg: string): void {
   toastEl.textContent = msg
   toastEl.classList.add('show')
   toastTimer = 2
+}
+
+// --- Audio procedural (WebAudio, sin dependencias ni assets)
+
+function ensureAudio(): AudioContext | null {
+  if (audioMuted) return null
+  if (!audioCtx) {
+    const Ctor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Ctor) return null
+    audioCtx = new Ctor()
+    audioMaster = audioCtx.createGain()
+    audioMaster.gain.value = 0.18
+    audioMaster.connect(audioCtx.destination)
+  }
+  if (audioCtx.state === 'suspended') void audioCtx.resume()
+  return audioCtx
+}
+
+function playTone(freq: number, duration: number, wave: OscillatorType, volume: number, endFreq?: number): void {
+  const ctx = ensureAudio()
+  if (!ctx || !audioMaster) return
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.type = wave
+  osc.frequency.setValueAtTime(freq, ctx.currentTime)
+  if (endFreq !== undefined) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), ctx.currentTime + duration)
+  }
+  gain.gain.setValueAtTime(volume, ctx.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration)
+  osc.connect(gain)
+  gain.connect(audioMaster)
+  osc.start()
+  osc.stop(ctx.currentTime + duration + 0.02)
+}
+
+type Sfx = 'shoot' | 'hit' | 'kill' | 'leak' | 'place' | 'upgrade' | 'sell' | 'emp' | 'wave' | 'win' | 'lose'
+
+function sfx(kind: Sfx): void {
+  switch (kind) {
+    case 'shoot': playTone(420, 0.07, 'square', 0.1, 260); break
+    case 'hit': playTone(180, 0.05, 'triangle', 0.07, 120); break
+    case 'kill': playTone(520, 0.12, 'triangle', 0.12, 180); break
+    case 'leak': playTone(160, 0.28, 'sawtooth', 0.18, 60); break
+    case 'place': playTone(330, 0.1, 'sine', 0.16, 520); break
+    case 'upgrade': playTone(440, 0.16, 'sine', 0.15, 880); break
+    case 'sell': playTone(400, 0.09, 'sine', 0.12, 240); break
+    case 'emp': playTone(120, 0.42, 'sawtooth', 0.2, 900); break
+    case 'wave': playTone(260, 0.18, 'triangle', 0.13, 390); break
+    case 'win': playTone(440, 0.4, 'sine', 0.16, 880); break
+    case 'lose': playTone(300, 0.5, 'sawtooth', 0.16, 70); break
+  }
+}
+
+function toggleAudio(): void {
+  audioMuted = !audioMuted
+  audioBtn.textContent = audioMuted ? 'audio ✕' : 'audio ♪'
+  audioBtn.setAttribute('aria-pressed', String(audioMuted))
+  if (!audioMuted) ensureAudio()
+}
+
+// --- Números de daño y sacudida de pantalla
+
+function spawnDamageNumber(pos: THREE.Vector3, amount: number, color: number, minAmount = 5, crit = false): void {
+  if (amount < minAmount || activeDamageNumbers.length >= 32) return
+  const projected = pos.clone().project(camera)
+  if (projected.z < -1 || projected.z > 1) return
+  let dn = freeDamageNumbers.pop()
+  if (!dn) {
+    const el = document.createElement('div')
+    el.className = 'dmg-num'
+    damageLayerEl.appendChild(el)
+    dn = { el, life: 0, maxLife: 0.8, x: 0, y: 0, vy: 0 }
+  }
+  dn.maxLife = reducedMotion ? 0.45 : 0.8
+  dn.life = dn.maxLife
+  dn.x = (projected.x * 0.5 + 0.5) * canvas.clientWidth + (Math.random() - 0.5) * 24
+  dn.y = (-projected.y * 0.5 + 0.5) * canvas.clientHeight - 8
+  dn.vy = reducedMotion ? 0 : 38
+  dn.el.textContent = crit ? `¡${Math.round(amount)}!` : String(Math.round(amount))
+  dn.el.classList.toggle('crit', crit)
+  dn.el.style.color = `#${color.toString(16).padStart(6, '0')}`
+  dn.el.style.display = 'block'
+  dn.el.style.opacity = '1'
+  dn.el.style.transform = `translate(${dn.x}px, ${dn.y}px)`
+  activeDamageNumbers.push(dn)
+}
+
+function updateDamageNumbers(dt: number): void {
+  for (let i = activeDamageNumbers.length - 1; i >= 0; i--) {
+    const dn = activeDamageNumbers[i]
+    dn.life -= dt
+    if (dn.life <= 0) {
+      dn.el.style.display = 'none'
+      activeDamageNumbers.splice(i, 1)
+      freeDamageNumbers.push(dn)
+      continue
+    }
+    dn.y -= dn.vy * dt
+    dn.el.style.transform = `translate(${dn.x}px, ${dn.y}px)`
+    dn.el.style.opacity = String(Math.min(1, dn.life / 0.25))
+  }
+}
+
+function clearDamageNumbers(): void {
+  for (const dn of activeDamageNumbers) {
+    dn.el.style.display = 'none'
+    freeDamageNumbers.push(dn)
+  }
+  activeDamageNumbers.length = 0
+}
+
+function addShake(power: number): void {
+  if (reducedMotion) return
+  shake = Math.min(14, shake + power)
 }
 
 function refreshTowerButtons(): void {
@@ -1244,6 +1378,7 @@ function sellTower(t: Tower): void {
   scrap += s.sell
   inspectTower(null)
   spawnImpact(t.pos.clone().setY(0.3), 0x94a3b8, 0.8)
+  sfx('sell')
   toast(`+${s.sell} de chatarra`)
 }
 
@@ -1280,6 +1415,9 @@ function resetState(): void {
   leaks = 0
   empCharge = 0
   empPulse = 0
+  shake = 0
+  canvas.style.transform = ''
+  clearDamageNumbers()
   inspectTower(null)
   selectTower('blaster')
   ghost.visible = false
@@ -1287,6 +1425,7 @@ function resetState(): void {
 
 function startGame(): void {
   resetState()
+  ensureAudio()
   overlay.classList.add('hidden')
   endEl.classList.add('hidden')
   nextWaveBtn.disabled = false
@@ -1304,11 +1443,14 @@ function beginWave(): void {
   spawnLeft = WAVES[wave - 1].count
   spawnTimer = 0
   phase = 'playing'
+  sfx('wave')
   toast(`Oleada ${wave} / ${MAX_WAVES}`)
 }
 
 function finish(win: boolean): void {
   phase = win ? 'won' : 'lost'
+  sfx(win ? 'win' : 'lose')
+  addShake(win ? 3 : 9)
   nextWaveBtn.disabled = true
   endTitle.textContent = win ? '¡Núcleo a salvo!' : 'Núcleo destruido'
   endText.textContent = win
@@ -1365,6 +1507,9 @@ function reachCore(e: Enemy): void {
   lives -= penalty
   toast(`${e.boss ? '¡Un jefe golpeó el núcleo!' : '¡Un bot llegó al núcleo!'} -${penalty}`)
   spawnImpact(e.pos, 0xf87171, 1.4)
+  spawnDamageNumber(e.pos, penalty, 0xf87171, 0, true)
+  sfx('leak')
+  addShake(7)
   e.dead = true
   removeEnemy(e)
   if (lives <= 0) finish(false)
@@ -1384,14 +1529,22 @@ function damageEnemy(e: Enemy, dmg: number, source?: TowerType): void {
     e.shield -= absorbed
     applied -= absorbed
   }
+  const dealt = Math.min(applied, e.hp)
   e.hp -= applied
   e.hpRatio = Math.max(0, e.hp / e.maxHp)
   writeEnemy(e)
+  spawnDamageNumber(e.pos, dealt, source === undefined ? 0xffffff : TOWER_DEFS[source].color, 5, source === 'lance' && e.boss)
+  if (now - lastHitSfx > 0.06) {
+    sfx('hit')
+    lastHitSfx = now
+  }
   if (e.hp <= 0) {
     e.dead = true
     scrap += e.reward
     empCharge = Math.min(100, empCharge + (e.boss ? 30 : 6))
     spawnImpact(e.pos, ENEMY_COLORS[e.kind], e.boss ? 1.8 : 1)
+    sfx('kill')
+    if (e.boss) addShake(5)
     if (e.kind === 'splitter') {
       spawnEnemy('swarm', e.pos, e.pathIndex)
       spawnEnemy('swarm', e.pos, e.pathIndex)
@@ -1429,6 +1582,7 @@ function placeTower(c: number, r: number): void {
   towers.push(tower)
   writeTower(tower)
   spawnImpact(pos.clone().setY(0.3), def.color, 0.8)
+  sfx('place')
   inspectTower(tower)
 }
 
@@ -1446,6 +1600,7 @@ function upgradeTower(t: Tower): void {
   t.level++
   writeTower(t)
   spawnImpact(t.pos.clone().setY(0.4), 0xfacc15, 0.9)
+  sfx('upgrade')
   toast(`${TOWER_DEFS[t.type].name} nivel ${t.level}`)
   updateInspect()
 }
@@ -1470,6 +1625,7 @@ function fire(t: Tower, target: Enemy): void {
   }
   writeProjectile(p)
   spawnMuzzle(origin, def.color)
+  sfx('shoot')
   projectiles.push(p)
 }
 
@@ -1592,6 +1748,7 @@ function updateProjectiles(dt: number): void {
     if (dist <= step) {
       if (p.splash > 0) {
         spawnImpact(p.aim, p.color, 1.7)
+        addShake(1.5)
         for (let j = enemies.length - 1; j >= 0; j--) {
           const dx = enemies[j].pos.x - p.aim.x
           const dz = enemies[j].pos.z - p.aim.z
@@ -1631,6 +1788,8 @@ function fireEmp(): void {
   empCharge = 0
   empPulse = 0.9
   spawnImpact(drone.position.clone(), 0x67e8f9, 3.4)
+  sfx('emp')
+  addShake(10)
   const now = performance.now() / 1000
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i]
@@ -1731,6 +1890,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === '4') selectTower('brake')
   else if (e.key === '5') selectTower('lance')
   else if (e.key.toLowerCase() === 'e') fireEmp()
+  else if (e.key.toLowerCase() === 'm') toggleAudio()
   else if (e.key.toLowerCase() === 'x' && inspected) sellTower(inspected)
 })
 
@@ -1742,6 +1902,7 @@ nextWaveBtn.addEventListener('click', () => {
 })
 
 empBtn.addEventListener('click', fireEmp)
+audioBtn.addEventListener('click', toggleAudio)
 
 upgradeBtn.addEventListener('click', () => {
   if (inspected) upgradeTower(inspected)
@@ -1773,6 +1934,16 @@ function tick(): void {
     updateProjectiles(dt)
   }
   updateEffects(dt)
+  updateDamageNumbers(dt)
+
+  if (shake > 0) {
+    shake = Math.max(0, shake - dt * 26)
+    const offsetX = (Math.random() - 0.5) * shake
+    const offsetY = (Math.random() - 0.5) * shake
+    canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${1 + shake * 0.002})`
+  } else if (canvas.style.transform !== '') {
+    canvas.style.transform = ''
+  }
 
   const now = performance.now()
   coreOrb.rotation.y += dt * 0.8

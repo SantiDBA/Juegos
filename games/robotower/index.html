@@ -9,6 +9,7 @@
   <body>
     <canvas id="scene"></canvas>
     <div id="screen-fx" aria-hidden="true"></div>
+    <div id="damage-numbers" aria-hidden="true"></div>
 
     <div id="hud">
       <div class="hud-row">
@@ -40,6 +41,7 @@
             <button id="emp-btn" type="button" disabled>E</button>
           </span>
         </div>
+        <button id="audio-btn" type="button" aria-pressed="false" aria-label="Silenciar audio">audio ♪</button>
         <button id="next-wave" type="button" disabled>ola siguiente +5</button>
       </div>
     </div>
@@ -66,7 +68,7 @@
       <button type="button" class="tower" data-type="lance" aria-pressed="false">
         <span class="key">5</span><span class="name">Lanza</span><span class="cost">60</span>
       </button>
-      <span class="tip">clic: colocar / mejorar · 1–5: elegir · X: vender · E: EMP</span>
+      <span class="tip">clic: colocar / mejorar · 1–5: elegir · X: vender · E: EMP · M: audio</span>
     </div>
 
     <div id="inspect" class="hidden" aria-live="polite">
@@ -94,6 +96,7 @@
           <li><b>Ola siguiente</b>: adelantar la espera y ganar +5 chatarra</li>
           <li><b>X</b>: vender la torre apuntada (recupera el 65%)</li>
           <li><b>E</b>: detonar el EMP cuando la carga llegue al 100%</li>
+          <li><b>M</b>: activar o silenciar el audio</li>
           <li><b>Interés</b>: al limpiar una ola ganás un 10% de la chatarra ahorrada</li>
         </ul>
         <p class="legend">
